@@ -5,10 +5,7 @@ import {
 import { execute, type Result } from './commandline';
 import { kelvinToRgb, rgbCss } from '../engine/kelvin';
 
-export interface Live {
-  pan: number;
-  tilt: number;
-}
+export type Live = Record<number, { pan: number; tilt: number }>;
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
@@ -57,7 +54,7 @@ interface Enc {
 }
 
 interface Fader {
-  id: 'e1' | 'e2' | 'e3' | 'gm';
+  id: 'e1' | 'e2' | 'e3' | 'e4' | 'gm';
   input: HTMLInputElement;
   lcd: HTMLElement;
   shown: number;
@@ -77,7 +74,7 @@ export class DeskUI {
   private poolType = 2;
   private history: string[] = [];
   private hIdx = -1;
-  private live: Live = { pan: 0, tilt: 30 };
+  private live: Live = { 1: { pan: 0, tilt: 30 }, 2: { pan: 0, tilt: 30 } };
   private goboIcons: string[];
   isOpen = false;
   onOpenChange: (open: boolean) => void = () => {};
@@ -165,6 +162,7 @@ export class DeskUI {
             ${fader('e1', 'Shows', key('Go-', 'data-act="goback"') + key('Go+', 'data-act="go"', 'led-go'))}
             ${fader('e2', 'Hazer', key('Flash', 'data-flash="2"', 'led-f2') + key('Off', 'data-off="2"'))}
             ${fader('e3', 'Sweep', key('Flash', 'data-flash="3"', 'led-f3') + key('Off', 'data-off="3"'))}
+            ${fader('e4', 'Fill', key('Flash', 'data-flash="4"', 'led-f4') + key('Off', 'data-off="4"'))}
             <div class="gm-col">
               ${fader('gm', 'Grand', '')}
               ${key('B.O.', 'class="key key-bo" data-act="bo" aria-label="Blackout"', 'led-bo')}
@@ -287,7 +285,7 @@ export class DeskUI {
 
     // Flash keys are momentary.
     this.root.querySelectorAll<HTMLButtonElement>('[data-flash]').forEach((b) => {
-      const n = Number(b.dataset.flash) as 2 | 3;
+      const n = Number(b.dataset.flash) as 2 | 3 | 4;
       const on = (v: boolean) => {
         this.desk.exec[n].flash = v;
         this.desk.emit();
@@ -472,19 +470,19 @@ export class DeskUI {
 
   private faderTarget(id: Fader['id']) {
     const d = this.desk;
-    return id === 'gm' ? d.gm : id === 'e1' ? d.exec[1].level : id === 'e2' ? d.exec[2].level : d.exec[3].level;
+    return id === 'gm' ? d.gm : id === 'e1' ? d.exec[1].level : id === 'e2' ? d.exec[2].level : id === 'e3' ? d.exec[3].level : d.exec[4].level;
   }
 
   private attrDisplay(attr: AttrKey) {
     const d = this.desk;
     const fx = d.targets(attr)[0] ?? FIXTURES.find((f) => f.attrs.includes(attr))!.id;
-    if ((attr === 'pan' || attr === 'tilt') && fx === 1) {
-      const pl = d.positionLabel();
+    if ((attr === 'pan' || attr === 'tilt') && this.live[fx]) {
+      const pl = d.positionLabel(fx);
       if (pl) return { text: pl.text, src: pl.src, frac: 0.5 };
-      const pv = d.value(1, attr);
+      const pv = d.value(fx, attr);
       if (pv.src === 'programmer' || pv.src === 'inactive') return this.fmt(attr, pv.v, pv.src);
-      const pos = d.position();
-      return this.fmt(attr, this.live[attr], pos.kind === 'follow' ? 'default' : 'cue');
+      const pos = d.position(fx);
+      return this.fmt(attr, this.live[fx][attr], pos.kind === 'follow' ? 'default' : 'cue');
     }
     const { v, src } = d.value(fx, attr);
     return this.fmt(attr, v, src);
@@ -534,6 +532,7 @@ export class DeskUI {
     led('led-pause', d.exec[1].paused);
     led('led-f2', d.exec[2].flash);
     led('led-f3', d.exec[3].flash);
+    led('led-f4', d.exec[4].flash);
     document.documentElement.classList.toggle('is-blind', d.blind);
 
     // Pools.
@@ -562,8 +561,9 @@ export class DeskUI {
 
   private presetActive(p: Preset) {
     const d = this.desk;
-    if (p.slug) return d.posPreset?.preset === `${p.type}.${p.n}` && d.posPreset.active;
-    const m = d.prog.get(1)!;
+    const ids = d.selection.size ? [...d.selection] : [1];
+    if (p.slug) return ids.some((id) => d.posPreset.get(id)?.preset === `${p.type}.${p.n}` && d.posPreset.get(id)!.active);
+    const m = d.prog.get(ids.find((id) => Object.keys(p.values!).every((k) => d.fixture(id)?.attrs.includes(k as AttrKey))) ?? 1)!;
     return Object.entries(p.values!).every(([k, v]) => {
       const pv = m.get(k as AttrKey);
       return pv?.active && Math.abs(pv.v - v) < 0.01;
@@ -612,7 +612,7 @@ export class DeskUI {
       const pctTxt = `${Math.round(this.faderTarget(f.id) * 100)}%`;
       f.lcd.textContent =
         f.id === 'e1' ? (d.exec[1].cue == null ? `Off ${pctTxt}` : `Q${d.exec[1].cue} ${pctTxt}`)
-        : f.id === 'e3' && d.exec[3].auto ? `Auto ${pctTxt}`
+        : (f.id === 'e3' && d.exec[3].auto) || (f.id === 'e4' && d.exec[4].auto) ? `Auto ${pctTxt}`
         : pctTxt;
     }
     if (++this.frame % 6 === 0) this.paintEncoders();

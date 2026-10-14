@@ -2,7 +2,7 @@
 
 Portfolio site for James Downey, Lighting Designer, and his company Fullerton Productions (Toronto).
 
-The site is a dark stage. Every show is drawn as a hairline sketch traced from his photos, and one moving head hanging off the truss line at the top of the page lights it up. Wherever the beam lands, the real photograph shows through.
+The site is a dark stage. Every show is drawn as a hairline sketch traced from his photos, and a small rig hanging off the truss line at the top of the page lights it up: two moving head spots at the wings that cross their beams, and two soft LED panels inside them pointing straight down. Wherever the light lands, the real photograph shows through.
 
 ## Run it
 
@@ -21,12 +21,12 @@ Node 20 or newer.
 | --- | --- |
 | `src/data/shows.ts` | Every show, its photos, and the full credits list with sources |
 | `src/data/site.ts` | Name, role, city, **email and phone** (empty until confirmed) |
-| `src/engine/rig.ts` | The moving head: pan and tilt on a damped spring, pool geometry |
-| `src/engine/fixture.ts` | The fixture drawn as a 3D wireframe |
-| `src/engine/shaft.ts` | WebGL beam through haze, spill and lens glow |
-| `src/engine/plate.ts` | Sketch rendering and the photo reveal inside the pool |
+| `src/engine/rig.ts` | The spots (pan and tilt on a damped spring, pool geometry) and the panels' fixed fields |
+| `src/engine/fixture.ts` | The spots and panels drawn as 3D wireframes |
+| `src/engine/shaft.ts` | WebGL beams through haze, floor pools, spill and lens glow, for all four lights |
+| `src/engine/plate.ts` | Sketch rendering, the photo reveal in each spot's pool, and the panels' flood |
 | `src/engine/gobos.ts` | Gobo masks (open, breakup, dots, ring) |
-| `src/ui/console.ts` | The fader wing: dimmer, zoom, colour, haze, gobo, Go |
+| `src/desk/` | The grandMA style desk: model, command line, hardware UI |
 | `src/ui/detail.ts` | The show sheet with every photo |
 | `src/ui/credits.ts` | The sortable credits list |
 | `public/shows/<show>/` | Web photos (`.webp`, `-m.webp`) and traced sketches (`.json`) |
@@ -55,29 +55,33 @@ The tracer (`tools/sketch.py`) finds straight edges with OpenCV's line segment d
 
 The controls are a pull-up lighting desk modelled on grandMA3. The bar along the bottom holds the command line and the live encoder readouts; **Desk** pulls up the rest.
 
-- **Fixtures**: Fixture 1 is the moving head, Fixture 2 the hazer. Selected fixtures read yellow.
+- **Fixtures**: 1 Spot L and 2 Spot R are the moving heads, 3 Panel L and 4 Panel R the soft panels (Dimmer and Color Temp only), 5 the hazer. The spots are selected to begin with, so the encoders drive both. Selected fixtures read yellow.
 - **Feature groups and encoders**: Dimmer, Position, Gobo, Color, Beam, Focus and Control page five endless encoders (drag, scroll or arrow keys; press to toggle Fine). Values go into the programmer and show red; playback values show cyan.
 - **Programmer**: values hold until Clear. Clear works in three stages like the desk (deselect, deactivate, release); hold it for a full clear. Oops undoes, Highlight brings the head to open white, Blind hides the programmer from the output (the page gets a red frame), Store saves the programmer as a new cue.
-- **Executors**: Exec 1 runs Sequence 1, where each cue is a show (Go+, Go-, Pause, fade times). Exec 2 is the hazer master, Exec 3 a pan and tilt sweep phaser. The Sweep fader comes up by itself after six idle seconds and drops when you move. Grand Master and B.O. sit over everything. Faders are motorised: commands move them.
-- **Preset pools**: 1 Dimmer, 2 Position (one per show), 3 Gobo, 4 Color, 5 Beam, 6 Focus.
-- **Command line**: real grandMA syntax, keywords can be shortened. `Fixture 1 At 50`, `Fi 2 At 80`, `Attribute "Zoom" At 30`, `Preset 4.2`, `Go`, `Go-`, `Goto Cue 3`, `Pause`, `Off`, `Executor 3 At 60`, `Store Cue 12 "My look"`, `Clear`, `ClearAll`, `Oops`, `Highlight`, `Blind`, `Help`. The keys type into it and Please runs it.
+- **Executors**: Exec 1 runs Sequence 1, where each cue is a show and both spots cross on it (Go+, Go-, Pause, fade times). Exec 2 is the hazer master, Exec 3 a pan and tilt sweep phaser that mirrors the two spots so they cross, Exec 4 the Fill master for the panels. On a desktop Sweep comes up by itself after six idle seconds and drops when you move; on a touch screen Fill comes up by itself to 72% once the rig is lit. Grand Master and B.O. sit over everything. Faders are motorised: commands move them.
+- **Preset pools**: 1 Dimmer, 2 Position (one per show; with both spots selected they cross on it), 3 Gobo, 4 Color, 5 Beam, 6 Focus.
+- **Command line**: real grandMA syntax, keywords can be shortened. `Fixture 1 Thru 2 At 75`, `Fixture 3 + 4 At 60`, `Fi 5 At 80`, `Attribute "Zoom" At 30`, `Preset 4.2`, `Go`, `Go-`, `Goto Cue 3`, `Pause`, `Off`, `Executor 3 At 60`, `Executor 4 At 70`, `Store Cue 12 "My look"`, `Clear`, `ClearAll`, `Oops`, `Highlight`, `Blind`, `Help`. The keys type into it and Please runs it.
 
-With nothing running and nothing programmed, the head follows the cursor. Keyboard focus on a show swings the beam onto it; clicking a show opens the beam wide on it and then opens every photo. `prefers-reduced-motion` turns off the opening cue, sweep, haze drift, strobe and transitions.
+With nothing running and nothing programmed, both spots converge on the cursor and the panels stay off until Fill is raised. On a touch screen the panels come up as a fill, so whichever show is in the middle of the screen is lit as you scroll; the spots cross on that show and roam slowly over it. A finger on the page pulls both spots onto it, and they go back to roaming a moment after it lifts. Keyboard focus on a show swings the beams onto it; clicking a show opens them wide on it and then opens every photo. `prefers-reduced-motion` turns off the opening cue, sweep, roam, haze drift, strobe and transitions.
 
 ## How the light behaves
 
-The beam is meant to read like a real spot on a black stage:
+The light is meant to read like a real rig on a black stage:
 
 - **Pool**: hottest in the middle and falling off towards the field edge before the focus edge cuts it. Focus and Frost on the desk soften the edge and the gobo.
 - **Throw**: aiming further away spreads the same light thinner, so a long throw is dimmer and wider.
 - **Spill**: past the pool the light fades out slowly, so the real photo shows faintly well beyond the beam, and the floor around it glows.
 - **Floor pool**: where the beam lands on bare stage, the pool carries the same gobo pattern as on the photos.
-- **Bounce**: the set under the pool reflects its own colour back onto the surroundings, tinted by the beam colour.
+- **Crossing**: where the two spots' pools overlap they add up the way light does (screened, so the overlap is brighter but never clips).
+- **Panels**: each throws a broad, even field that softens towards its edge, so the show in the middle of the screen is fully lit and the ones above and below fall away. As a show comes into the field the sketch eases back and the photo comes up. On bare stage the field is only a faint wash.
+- **Bounce**: the set under the brightest pool reflects its own colour back onto the surroundings, tinted by that spot's colour.
 - **Haze**: the shaft scatters a dim glow around itself; the Hazer fixture's Haze and Fan set how much and how fast it drifts.
 - **Lines and type** near the beam catch light with a long, faint tail.
-- **The desk**: when the beam lands low, the desk's front lip and nearest keys pick up a little of it.
+- **The desk**: when a light reaches low on the page, the desk's front lip and nearest keys pick up a little of it.
 
 ## Hosted preview
+
+In development, `?fast` renders the haze coarsely and takes bigger time steps, which makes headless screenshot tests usable; it does nothing in a build.
 
 `node tools/artifact.mjs` builds `dist-artifact/artifact.html` with the JS and CSS inlined and fonts from Google Fonts, plus the photos next to it, for hosting as a single page.
 

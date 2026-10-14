@@ -66,12 +66,13 @@ export function attrFromName(name: string): AttrKey | null {
 }
 
 export const HELP = [
-  'Fixture 1 At 75',
-  'Fixture 2 At 80 (the hazer)',
+  'Fixture 1 Thru 2 At 75 (the spots)',
+  'Fixture 3 + 4 At 60 (the panels)',
+  'Fixture 5 At 80 (the hazer)',
   'Attribute "Zoom" At 30',
   'Preset 2.3   Preset 4.2',
   'Go   Go-   Pause   Goto Cue 4   Off',
-  'Executor 3 At 60',
+  'Executor 3 At 60   Executor 4 At 70 (Fill)',
   'Store Cue 12 "My look"',
   'Clear   ClearAll   Oops   Highlight   Blind',
 ];
@@ -217,7 +218,7 @@ function fixtureList(t: string[]) {
 
 /** "At 50", "At Full", "At Preset 4.2" against the current selection. */
 function atValue(desk: Desk, t: string[], prefix?: string): Result {
-  if (!desk.selection.size) return { ok: false, msg: 'No fixtures selected. Try Fixture 1 At 50' };
+  if (!desk.selection.size) return { ok: false, msg: 'No fixtures selected. Try Fixture 1 Thru 2 At 50' };
   if (kw(t[1]) === 'preset') {
     const p = presetNum(t[2]);
     if (!p) return { ok: false, msg: 'At Preset needs a pool and number, like At Preset 4.2' };
@@ -226,8 +227,8 @@ function atValue(desk: Desk, t: string[], prefix?: string): Result {
   const v = level(t[1]);
   if (v == null) return { ok: false, msg: 'At needs a value, like At 50 or At Full' };
   const msgs: string[] = [];
-  if (desk.selection.has(1)) msgs.push(desk.set('dim', v));
-  if (desk.selection.has(2)) msgs.push(desk.set('haze', v));
+  if (desk.targets('dim').length) msgs.push(desk.set('dim', v));
+  if (desk.targets('haze').length) msgs.push(desk.set('haze', v));
   const body = msgs.join(', ');
   return { ok: true, msg: prefix ? `${prefix.replace(' selected', '')}: ${body}` : body };
 }

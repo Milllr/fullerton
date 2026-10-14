@@ -46,7 +46,7 @@ body {
 }
 .nav {
   gap: 8px;
-  top: calc(38px + env(safe-area-inset-top, 0px));
+  top: calc(10px + env(safe-area-inset-top, 0px));
 }
 .nav a:active {
   transform: translateY(1px);
@@ -905,7 +905,25 @@ body {
 
 /* ------------------------------------------------------------ mid widths */
 
-@media (max-width: 1320px) and (min-width: 721px) {
+/* Laptop widths: one row still, with the hardware packed a little tighter. */
+@media (max-width: 1540px) and (min-width: 1360px) {
+  .hw { gap: 12px; }
+  .encoders { gap: 6px; }
+  .enc { width: 70px; }
+  .knob { width: 52px; height: 52px; }
+  .knob-cap { inset: 9px; }
+  .execs { gap: 6px; padding: 0 2px; }
+  .exec { width: 50px; }
+  .key-bo { width: 50px; }
+  .keys { gap: 8px; }
+  .prog-keys { grid-template-columns: repeat(5, 44px); }
+  .keypad { grid-template-columns: repeat(4, 34px); }
+  .master { width: 104px; }
+  .exec-lcd { padding: 3px 4px; }
+  .exec-lcd .lcd-val { font-size: 10.5px; }
+}
+
+@media (max-width: 1359px) and (min-width: 721px) {
   .hw {
     grid-template-columns: auto auto;
     grid-template-areas:
