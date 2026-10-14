@@ -83,24 +83,33 @@ function pattern(ctx: CanvasRenderingContext2D, gobo: number) {
 export interface GoboSprites {
   pool: HTMLCanvasElement[];
   halo: HTMLCanvasElement;
+  /** Bumps whenever focus or frost rebuild the masks. */
+  version: number;
 }
 
-export function buildSprites(): GoboSprites {
+let version = 0;
+
+/**
+ * focus 1 is a hard edge with crisp gobos, 0 is soft. Frost diffuses both
+ * the edge and the gobo pattern.
+ */
+export function buildSprites(focus = 0.7, frost = 0): GoboSprites {
+  const blur = 1 + (1 - focus) * 7 + frost * 14;
+  const inner = Math.max(0.12, Math.min(0.86, 0.3 + 0.55 * focus - 0.35 * frost));
   const pool = [0, 1, 2, 3].map((g) => {
     const c = makeCanvas();
     const ctx = c.getContext('2d')!;
     pattern(ctx, g);
-    // Blur the pattern slightly: gobos are never perfectly in focus.
     if (g !== 0) {
       const t = makeCanvas();
       const tc = t.getContext('2d')!;
-      tc.filter = 'blur(3px)';
+      tc.filter = `blur(${blur.toFixed(1)}px)`;
       tc.drawImage(c, 0, 0);
       ctx.clearRect(0, 0, SPRITE, SPRITE);
       ctx.drawImage(t, 0, 0);
     }
     ctx.globalCompositeOperation = 'destination-in';
-    softDisc(ctx, 0.62);
+    softDisc(ctx, inner);
     return c;
   });
   const halo = makeCanvas();
@@ -112,5 +121,5 @@ export function buildSprites(): GoboSprites {
   g.addColorStop(1, 'rgba(255,255,255,0)');
   hc.fillStyle = g;
   hc.fillRect(0, 0, SPRITE, SPRITE);
-  return { pool, halo };
+  return { pool, halo, version: ++version };
 }

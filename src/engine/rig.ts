@@ -12,19 +12,20 @@ export interface Pool {
   angle: number;
 }
 
-export type Mode = 'follow' | 'idle' | 'cue' | 'rest';
-
-export interface Settings {
-  dimmer: number; // 0..1
-  zoom: number; // full beam angle in degrees
+/** Output of the fixture this frame, resolved from the desk. */
+export interface Output {
+  zoom: number; // full beam angle, degrees
+  iris: number; // 0.1..1
   cct: number; // kelvin
   haze: number; // 0..1
+  fan: number; // 0..1, haze drift speed
   gobo: number; // 0 open, 1 breakup, 2 dots, 3 ring
+  goboRot: number; // -1..1
+  focus: number; // 0..1, 1 is sharp
+  frost: number; // 0..1
 }
 
-export const GOBOS = ['Open', 'Breakup', 'Dots', 'Ring'] as const;
-
-const TAU = Math.PI * 2;
+const DEG = Math.PI / 180;
 
 /**
  * One moving head hung in front of the page. The page is the wall it lights.
@@ -32,10 +33,10 @@ const TAU = Math.PI * 2;
  * the head moves with weight and never snaps.
  */
 export class Rig {
-  settings: Settings = { dimmer: 0.88, zoom: 19, cct: 4700, haze: 0.5, gobo: 0 };
-  /** Output level after the opening cue and blackout are applied. */
-  level = 0;
-  /** Extra zoom on top of the fader, used by cues (degrees). */
+  out: Output = { zoom: 19, iris: 1, cct: 4700, haze: 0.5, fan: 0.4, gobo: 0, goboRot: 0.2, focus: 0.7, frost: 0 };
+  /** Final intensity 0..1 including dimmer, Grand Master, strobe and lamp. */
+  intensity = 0;
+  /** Extra zoom on top of the attribute, used when a cue covers a plate (degrees). */
   zoomBoost = 0;
   goboSpin = 0;
 
@@ -50,11 +51,9 @@ export class Rig {
   private vTilt = 0;
 
   target = { x: 0, y: 0 };
-  mode: Mode = 'rest';
-  idleClock = 0;
   reducedMotion = false;
 
-  /** Spring stiffness. Lower is heavier. */
+  /** Spring stiffness. Lower is heavier; cue fade times set it. */
   omega = 5.2;
   maxPan = 2.4; // rad/s
   maxTilt = 1.9;
@@ -76,7 +75,12 @@ export class Rig {
     return { pan: Math.atan2(dx, D), tilt: Math.atan2(dy, Math.hypot(dx, D)) };
   }
 
-  /** Put the head straight onto a point, used once at start. */
+  /** Where on the page a pan and tilt (degrees) would land. */
+  pointFor(panDeg: number, tiltDeg: number) {
+    const p = panDeg * DEG, t = tiltDeg * DEG;
+    return { x: this.pivot.x + this.throw * Math.tan(p), y: this.pivot.y + (this.throw * Math.tan(t)) / Math.cos(p) };
+  }
+
   aimNow(x: number, y: number) {
     const a = this.anglesFor(x, y);
     this.pan = a.pan;
@@ -85,25 +89,22 @@ export class Rig {
     this.target = { x, y };
   }
 
-  update(dt: number, vw: number, vh: number) {
+  update(dt: number, hold = false) {
     dt = Math.min(dt, 0.05);
-    if (this.mode === 'idle' && !this.reducedMotion) {
-      this.idleClock += dt;
-      // A slow figure across the viewport: 24 s across, 16 s up and down.
-      const t = this.idleClock;
-      this.target.x = vw / 2 + vw * 0.3 * Math.sin((TAU * t) / 24);
-      this.target.y = vh * 0.56 + vh * 0.2 * Math.sin((TAU * t) / 16 + 0.9);
+    if (!hold) {
+      const a = this.anglesFor(this.target.x, this.target.y);
+      const w = this.omega;
+      const step = (pos: number, vel: number, goal: number, vmax: number) => {
+        const acc = w * w * (goal - pos) - 2 * w * vel;
+        vel = Math.max(-vmax, Math.min(vmax, vel + acc * dt));
+        return [pos + vel * dt, vel];
+      };
+      [this.pan, this.vPan] = step(this.pan, this.vPan, a.pan, this.maxPan);
+      [this.tilt, this.vTilt] = step(this.tilt, this.vTilt, a.tilt, this.maxTilt);
+    } else {
+      this.vPan = this.vTilt = 0;
     }
-    const a = this.anglesFor(this.target.x, this.target.y);
-    const w = this.omega;
-    const step = (pos: number, vel: number, goal: number, vmax: number) => {
-      const acc = w * w * (goal - pos) - 2 * w * vel;
-      vel = Math.max(-vmax, Math.min(vmax, vel + acc * dt));
-      return [pos + vel * dt, vel];
-    };
-    [this.pan, this.vPan] = step(this.pan, this.vPan, a.pan, this.maxPan);
-    [this.tilt, this.vTilt] = step(this.tilt, this.vTilt, a.tilt, this.maxTilt);
-    if (!this.reducedMotion && this.settings.gobo !== 0) this.goboSpin += dt * 0.22;
+    if (!this.reducedMotion && this.out.gobo !== 0) this.goboSpin += dt * this.out.goboRot * 1.3;
   }
 
   /** Unit vector the head is pointing along (x right, y down, z toward viewer). */
@@ -119,20 +120,24 @@ export class Rig {
     const x = this.pivot.x + D * Math.tan(this.pan);
     const y = this.pivot.y + (D * Math.tan(this.tilt)) / cp;
     const dist = D / (cp * ct);
-    const half = ((this.settings.zoom * this.zoomScale + this.zoomBoost) / 2) * (Math.PI / 180);
-    const r = dist * Math.tan(half);
+    const half = ((this.out.zoom * this.zoomScale + this.zoomBoost) / 2) * DEG;
+    const r = dist * Math.tan(half) * (0.25 + 0.75 * this.out.iris);
     const inc = Math.max(0.35, cp * ct);
     const d = this.direction();
     const angle = Math.hypot(d.x, d.y) < 1e-4 ? 0 : Math.atan2(d.y, d.x);
     return { x, y, rx: r / inc, ry: r, angle };
   }
 
-  colour() {
-    return kelvinToRgb(this.settings.cct);
+  /** Base beam width in degrees (before cue boost), for working out cover zoom. */
+  baseZoom() {
+    return this.out.zoom * this.zoomScale;
   }
 
-  /** Effective intensity 0..1. */
-  intensity() {
-    return this.settings.dimmer * this.level;
+  colour() {
+    return kelvinToRgb(this.out.cct);
+  }
+
+  degrees() {
+    return { pan: this.pan / DEG, tilt: this.tilt / DEG };
   }
 }

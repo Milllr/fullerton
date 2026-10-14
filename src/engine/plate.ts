@@ -227,12 +227,12 @@ export class Plate {
     const r = this.rect;
     const W = r.width, H = r.height;
     const lx = pool.x - r.left, ly = pool.y - r.top;
-    const I = rig.intensity();
+    const I = rig.intensity;
     const R = Math.max(pool.rx, pool.ry) * 1.9;
     const x0 = Math.max(0, lx - R), y0 = Math.max(0, ly - R);
     const x1 = Math.min(W, lx + R), y1 = Math.min(H, ly + R);
     // Nothing moved since last frame: keep what's painted.
-    const sig = `${lx.toFixed(1)},${ly.toFixed(1)},${pool.rx.toFixed(1)},${pool.ry.toFixed(2)},${pool.angle.toFixed(3)},${I.toFixed(3)},${tint},${rig.settings.gobo},${rig.goboSpin.toFixed(3)},${W},${H},${this.photoReady}`;
+    const sig = `${lx.toFixed(1)},${ly.toFixed(1)},${pool.rx.toFixed(1)},${pool.ry.toFixed(2)},${pool.angle.toFixed(3)},${I.toFixed(3)},${tint},${rig.out.gobo},${sprites.version},${rig.goboSpin.toFixed(3)},${W},${H},${this.photoReady}`;
     if (sig === this.lastSig && this.prevBox) return;
     this.lastSig = sig;
     this.clearLight();
@@ -265,7 +265,7 @@ export class Plate {
       ctx.globalAlpha = Math.min(1, I * 1.08);
       placeSprite(ctx, 1, 1);
       ctx.rotate(rig.goboSpin);
-      ctx.drawImage(sprites.pool[rig.settings.gobo], -k, -k);
+      ctx.drawImage(sprites.pool[rig.out.gobo], -k, -k);
     }
     ctx.restore();
 

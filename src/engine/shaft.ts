@@ -20,6 +20,7 @@ uniform float uHaze;
 uniform float uTime;
 uniform float uGobo;
 uniform float uSpin;
+uniform float uSoft;
 
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p){
@@ -50,7 +51,7 @@ void main(){
   float w = mix(2.5, wP, clamp(t, 0.0, 1.0));
   float s = d / w;
 
-  float edge = 1.0 - smoothstep(0.5, 1.0, abs(s));
+  float edge = 1.0 - smoothstep(1.0 - uSoft, 1.0, abs(s));
   float along = smoothstep(0.0, 0.03, t) * (1.0 - smoothstep(0.96, 1.06, t));
 
   vec2 hp = p * 0.0032 + vec2(uTime * 0.011, -uTime * 0.017);
@@ -104,7 +105,7 @@ export class Shaft {
     const loc = gl.getAttribLocation(prog, 'aPos');
     gl.enableVertexAttribArray(loc);
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    for (const name of ['uRes', 'uScale', 'uLens', 'uPool', 'uAxes', 'uAngle', 'uColor', 'uDim', 'uHaze', 'uTime', 'uGobo', 'uSpin']) {
+    for (const name of ['uRes', 'uScale', 'uLens', 'uPool', 'uAxes', 'uAngle', 'uColor', 'uDim', 'uHaze', 'uTime', 'uGobo', 'uSpin', 'uSoft']) {
       this.u[name] = gl.getUniformLocation(prog, name);
     }
   }
@@ -147,7 +148,7 @@ export class Shaft {
 
   render(o: {
     vw: number; vh: number; lens: { x: number; y: number }; pool: Pool;
-    colour: [number, number, number]; dim: number; haze: number; time: number; gobo: number; spin: number;
+    colour: [number, number, number]; dim: number; haze: number; time: number; gobo: number; spin: number; soft: number;
   }) {
     const gl = this.gl, u = this.u;
     gl.uniform2f(u.uRes, o.vw, o.vh);
@@ -162,6 +163,7 @@ export class Shaft {
     gl.uniform1f(u.uTime, o.time);
     gl.uniform1f(u.uGobo, o.gobo);
     gl.uniform1f(u.uSpin, o.spin);
+    gl.uniform1f(u.uSoft, o.soft);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);

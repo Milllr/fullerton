@@ -51,14 +51,31 @@ Then add the show to `src/data/shows.ts` (the `images` come from `src/data/asset
 
 The tracer (`tools/sketch.py`) finds straight edges with OpenCV's line segment detector, merges collinear pieces, keeps curved outlines for people and round sets, and turns small bright light sources into fixture symbols.
 
-## Interaction
+## The desk
 
-- The beam follows the cursor with weight and never snaps. After 6 seconds idle it drifts into a slow sweep (24 s across, 16 s up and down).
-- Keyboard focus on a show swings the beam onto it.
-- **Go** (or the `G` key, `Shift+G` for back) steps through the shows like a cue list.
-- Clicking a show opens the beam wide on it, then opens every photo, each one brought up out of its sketch.
-- On phones the beam sweeps on its own and follows your finger.
-- `prefers-reduced-motion` turns off the opening cue, idle sweep, haze drift and transitions.
+The controls are a pull-up lighting desk modelled on grandMA3. The bar along the bottom holds the command line and the live encoder readouts; **Desk** pulls up the rest.
+
+- **Fixtures**: Fixture 1 is the moving head, Fixture 2 the hazer. Selected fixtures read yellow.
+- **Feature groups and encoders**: Dimmer, Position, Gobo, Color, Beam, Focus and Control page five endless encoders (drag, scroll or arrow keys; press to toggle Fine). Values go into the programmer and show red; playback values show cyan.
+- **Programmer**: values hold until Clear. Clear works in three stages like the desk (deselect, deactivate, release); hold it for a full clear. Oops undoes, Highlight brings the head to open white, Blind hides the programmer from the output (the page gets a red frame), Store saves the programmer as a new cue.
+- **Executors**: Exec 1 runs Sequence 1, where each cue is a show (Go+, Go-, Pause, fade times). Exec 2 is the hazer master, Exec 3 a pan and tilt sweep phaser. The Sweep fader comes up by itself after six idle seconds and drops when you move. Grand Master and B.O. sit over everything. Faders are motorised: commands move them.
+- **Preset pools**: 1 Dimmer, 2 Position (one per show), 3 Gobo, 4 Color, 5 Beam, 6 Focus.
+- **Command line**: real grandMA syntax, keywords can be shortened. `Fixture 1 At 50`, `Fi 2 At 80`, `Attribute "Zoom" At 30`, `Preset 4.2`, `Go`, `Go-`, `Goto Cue 3`, `Pause`, `Off`, `Executor 3 At 60`, `Store Cue 12 "My look"`, `Clear`, `ClearAll`, `Oops`, `Highlight`, `Blind`, `Help`. The keys type into it and Please runs it.
+
+With nothing running and nothing programmed, the head follows the cursor. Keyboard focus on a show swings the beam onto it; clicking a show opens the beam wide on it and then opens every photo. `prefers-reduced-motion` turns off the opening cue, sweep, haze drift, strobe and transitions.
+
+## Versions A and B
+
+There are two directions while the design is being chosen, switched with the A/B control at the top left (remembered per browser):
+
+- **A**: the desk and the header are industrial; the rest of the site keeps its quieter look.
+- **B**: the whole site goes industrial: rack rails, a condensed engraved wordmark and nameplate, shows in multiviewer tiles with under-monitor labels and tally lights that go red when the beam is on them, and the credits as a desk sheet.
+
+Version B lives in `src/skin-b.css` under `[data-skin='b']`. Once one is picked, delete the other and the switch.
+
+## Hosted preview
+
+`node tools/artifact.mjs` builds `dist-artifact/artifact.html` with the JS and CSS inlined and fonts from Google Fonts, plus the photos next to it, for hosting as a single page.
 
 ## Credits and sources
 

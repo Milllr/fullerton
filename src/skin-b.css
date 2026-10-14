@@ -1,0 +1,339 @@
+/*
+  Version B: the whole site goes industrial. Racked like gear in a control
+  room: the shows sit in multiviewer tiles with under-monitor labels and
+  tally lights, the name is an engraved plate, the credits read like a sheet
+  on the desk. The sketch world and the beam stay the same.
+*/
+
+/* Version A keeps its quieter pieces; B swaps them for hardware ones. */
+.nameplate,
+.umd {
+  display: none;
+}
+
+[data-skin='b'] {
+  --gutter: clamp(16px, 4.6vw, 84px);
+}
+
+/* Rack rails down both edges of the page. */
+@media (min-width: 1100px) {
+  [data-skin='b'] body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 26px;
+    z-index: 19;
+    pointer-events: none;
+    background:
+      repeating-linear-gradient(transparent 0 7px, #000 7px 15px, transparent 15px 22px) 9px 0 / 8px 100% no-repeat,
+      linear-gradient(90deg, #0d0d0e, #131315 40%, #0b0b0c);
+    border-right: 1px solid #1c1c1f;
+    box-shadow: 1px 0 0 #000;
+  }
+  [data-skin='b'] .foot::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: 26px;
+    z-index: 19;
+    pointer-events: none;
+    background:
+      repeating-linear-gradient(transparent 0 7px, #000 7px 15px, transparent 15px 22px) 9px 0 / 8px 100% no-repeat,
+      linear-gradient(90deg, #0b0b0c, #131315 60%, #0d0d0e);
+    border-left: 1px solid #1c1c1f;
+    box-shadow: -1px 0 0 #000;
+  }
+}
+
+/* ------------------------------------------------------------ type */
+
+[data-skin='b'] .wordmark {
+  font-size: clamp(58px, 15.5vw, 262px);
+  font-weight: 620;
+  font-stretch: 62%;
+  line-height: 0.84;
+  letter-spacing: 0.005em;
+  text-transform: uppercase;
+  -webkit-text-stroke-width: 1.2px;
+}
+
+[data-skin='b'] .section-title {
+  font-weight: 620;
+  font-stretch: 62%;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  font-size: clamp(56px, 10vw, 168px);
+  -webkit-text-stroke-width: 1.2px;
+}
+
+[data-skin='b'] .brand {
+  font-stretch: 70%;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 13px;
+}
+
+/* ------------------------------------------------------------ nameplate */
+
+[data-skin='b'] .byline {
+  display: none;
+}
+[data-skin='b'] .nameplate {
+  position: relative;
+  display: inline-grid;
+  grid-auto-flow: column;
+  gap: 0;
+  margin: 1.6em 0 0;
+  padding: 0;
+  background: var(--grain, none), linear-gradient(#131315, #0c0c0d);
+  border: 1px solid #000;
+  border-radius: 2px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 0 0 1px #232326, 0 8px 20px rgb(0 0 0 / 0.5);
+  pointer-events: auto;
+}
+[data-skin='b'] .nameplate::before,
+[data-skin='b'] .nameplate::after {
+  content: '';
+  position: absolute;
+  top: calc(50% - 4px);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #4a4a4e, #1a1a1c 70%);
+  box-shadow: 0 0 0 1px #000, inset 0 0 0 0.5px #2c2c2f;
+}
+[data-skin='b'] .nameplate::before {
+  left: 8px;
+}
+[data-skin='b'] .nameplate::after {
+  right: 8px;
+}
+[data-skin='b'] .nameplate div {
+  padding: 8px 18px 9px;
+  border-left: 1px solid #222326;
+}
+[data-skin='b'] .nameplate div:first-child {
+  border-left: 0;
+  padding-left: 26px;
+}
+[data-skin='b'] .nameplate div:last-child {
+  padding-right: 26px;
+}
+[data-skin='b'] .nameplate dt {
+  font-size: 9.5px;
+  font-stretch: 75%;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--engrave);
+}
+[data-skin='b'] .nameplate dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+  font-stretch: 85%;
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+[data-skin='b'] .hero-cap {
+  padding: 6px 10px;
+  background: #070808;
+  border: 1px solid #1d1d1f;
+  border-radius: 2px;
+  font-stretch: 72%;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 11.5px;
+}
+
+/* ------------------------------------------------------------ multiviewer */
+
+[data-skin='b'] .plates {
+  row-gap: clamp(88px, 14vh, 180px);
+}
+[data-skin='b'] .show-cap {
+  display: none;
+}
+[data-skin='b'] .plate .plate-stage {
+  box-shadow: 0 0 0 1px #000, 0 0 0 9px #0d0d0e, 0 0 0 10px #232326, 0 18px 40px rgb(0 0 0 / 0.6);
+  border-radius: 1px;
+}
+[data-skin='b'] .plate-hero .plate-stage {
+  box-shadow: none;
+}
+[data-skin='b'] .show .plate-stage::before,
+[data-skin='b'] .show .plate-stage::after {
+  display: none;
+}
+
+[data-skin='b'] .umd {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 32px;
+  margin-top: 16px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-stretch: 70%;
+  font-weight: 560;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #bdb6aa;
+  background: #060707;
+  border: 1px solid #1d1d1f;
+  border-radius: 2px;
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+}
+[data-skin='b'] .tally {
+  flex: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 1px;
+  background: #2a1311;
+  box-shadow: inset 0 0 0 1px #000;
+  transition: background 0.12s, box-shadow 0.12s;
+}
+[data-skin='b'] .on-air .tally {
+  background: var(--bo);
+  box-shadow: 0 0 10px rgb(255 59 48 / 0.85), inset 0 0 0 1px #000;
+}
+[data-skin='b'] .on-air .umd-title {
+  color: var(--ink);
+}
+[data-skin='b'] .umd-q {
+  color: var(--cue);
+}
+[data-skin='b'] .umd-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+[data-skin='b'] .umd-meta {
+  margin-left: auto;
+  color: var(--engrave);
+  font-weight: 450;
+}
+
+/* ------------------------------------------------------------ credits sheet */
+
+[data-skin='b'] .credits > div {
+  padding: 0;
+  background: #0e0f10;
+  border: 1px solid #000;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px #1f2022;
+}
+[data-skin='b'] .cue-list th {
+  padding: 10px 14px;
+  background: #17181a;
+  border-bottom: 1px solid #000;
+}
+[data-skin='b'] .cue-list th button {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+[data-skin='b'] .cue-list td {
+  padding: 11px 14px;
+  border-top: 1px solid #1c1d20;
+}
+[data-skin='b'] .cue-list tbody tr:hover td {
+  background: rgb(var(--light) / 0.04);
+}
+[data-skin='b'] .c-prod {
+  font-size: 16px;
+  font-stretch: 85%;
+  font-weight: 480;
+}
+[data-skin='b'] .c-year {
+  color: var(--cue);
+}
+[data-skin='b'] .c-prod a {
+  background: none;
+}
+[data-skin='b'] .c-prod a::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 10px;
+  border-radius: 50%;
+  background: rgb(var(--light) / 0.8);
+  box-shadow: 0 0 6px rgb(var(--light) / 0.6);
+  vertical-align: 0.12em;
+}
+
+/* ------------------------------------------------------------ contact and footer */
+
+[data-skin='b'] .contact-line {
+  font-stretch: 62%;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+[data-skin='b'] .asset-tag {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 28px;
+  padding: 10px 16px;
+  background: #0c0c0d;
+  border: 1px solid #000;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px #222326;
+  font-stretch: 75%;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 11px;
+  color: var(--engrave);
+}
+.asset-tag {
+  display: contents;
+}
+
+@media (max-width: 720px) {
+  [data-skin='b'] .nameplate {
+    grid-auto-flow: row;
+    grid-template-columns: 1fr 1fr;
+    display: grid;
+    width: 100%;
+  }
+  [data-skin='b'] .nameplate div,
+  [data-skin='b'] .nameplate div:first-child,
+  [data-skin='b'] .nameplate div:last-child {
+    padding: 7px 12px 8px 22px;
+    border-left: 0;
+    border-top: 1px solid #222326;
+  }
+  [data-skin='b'] .nameplate div:nth-child(-n + 2) {
+    border-top: 0;
+  }
+  [data-skin='b'] .nameplate::before,
+  [data-skin='b'] .nameplate::after {
+    top: 8px;
+  }
+  [data-skin='b'] .umd {
+    gap: 8px;
+    font-size: 12px;
+    padding: 0 9px;
+  }
+  [data-skin='b'] .umd-meta {
+    display: none;
+  }
+  [data-skin='b'] .cue-list td {
+    padding: 0;
+    border: 0;
+  }
+  [data-skin='b'] .cue-list tr {
+    padding: 12px 14px;
+    border-top: 1px solid #1c1d20;
+  }
+}
