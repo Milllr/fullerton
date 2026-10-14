@@ -5,7 +5,15 @@ attribute vec2 aPos;
 void main(){ gl_Position = vec4(aPos, 0.0, 1.0); }
 `;
 
-// The visible beam through haze, the spill where it lands, and the lens glow.
+/*
+  Everything the light does outside the photographs, the way it would on a
+  black stage:
+  - the shaft through haze, with a little scatter glowing around it,
+  - the pool on the floor, shaped by the real gobo mask,
+  - flare and spill that fade out across the stage well past the pool,
+  - colour bounced back off whatever set the pool is landing on,
+  - the lens glow at the fixture.
+*/
 const FRAG = `
 precision highp float;
 uniform vec2 uRes;      // css px
@@ -16,10 +24,15 @@ uniform vec2 uAxes;
 uniform float uAngle;
 uniform vec3 uColor;
 uniform float uDim;
+uniform float uPoolI;   // pool intensity after throw distance
 uniform float uHaze;
 uniform float uTime;
 uniform float uGobo;
 uniform float uSpin;
+uniform float uSoft;
+uniform vec3 uBounce;
+uniform float uBounceAmt;
+uniform sampler2D uGoboTex;
 
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p){
@@ -36,6 +49,8 @@ float fbm(vec2 p){
 
 void main(){
   vec2 p = vec2(gl_FragCoord.x, uRes.y * uScale - gl_FragCoord.y) / uScale;
+
+  /* The shaft. */
   vec2 ax = uPool - uLens;
   float len = max(length(ax), 1.0);
   vec2 u = ax / len;
@@ -50,7 +65,9 @@ void main(){
   float w = mix(2.5, wP, clamp(t, 0.0, 1.0));
   float s = d / w;
 
-  float edge = 1.0 - smoothstep(0.5, 1.0, abs(s));
+  float edge = 1.0 - smoothstep(1.0 - uSoft, 1.0, abs(s));
+  // Light scattered sideways by the haze: a dim glow hugging the shaft.
+  float scatter = 1.0 - smoothstep(0.6, 2.6, abs(s));
   float along = smoothstep(0.0, 0.03, t) * (1.0 - smoothstep(0.96, 1.06, t));
 
   vec2 hp = p * 0.0032 + vec2(uTime * 0.011, -uTime * 0.017);
@@ -63,18 +80,26 @@ void main(){
   else if (uGobo > 2.5) g = 0.25 + 0.75 * smoothstep(0.45, 0.9, abs(s));
 
   float fall = mix(1.5, 0.5, clamp(t, 0.0, 1.0));
-  float shaft = edge * along * haze * g * fall * uHaze;
+  float shaft = (edge * g + scatter * 0.22) * along * haze * fall * uHaze;
 
+  /* The pool and what leaks out of it. */
   vec2 pr = p - uPool;
   vec2 pe = vec2(dot(pr, ea) / uAxes.x, dot(pr, eb) / uAxes.y);
   float e2 = dot(pe, pe);
-  float spill = exp(-e2 * 1.5) * 0.16 + exp(-e2 * 0.3) * 0.045;
+  float cs = cos(uSpin), sn = sin(uSpin);
+  vec2 gq = vec2(cs * pe.x + sn * pe.y, -sn * pe.x + cs * pe.y);
+  vec2 uv = gq * 0.5 + 0.5;
+  float inside = step(0.0, uv.x) * step(uv.x, 1.0) * step(0.0, uv.y) * step(uv.y, 1.0);
+  float floorPool = texture2D(uGoboTex, uv).a * inside * 0.11;
+  // Optics flare and stage spill: falls off smoothly far past the field edge.
+  float spill = exp(-e2 * 0.6) * 0.07 + exp(-e2 * 0.14) * 0.03 + exp(-e2 * 0.035) * 0.012;
+  float bounce = exp(-e2 * 0.09) * uBounceAmt;
 
   float r = length(p - uLens);
   float lens = exp(-r * 0.11) * 1.1 + exp(-r * 0.025) * 0.12;
 
-  float I = (shaft * 0.34 + spill + lens * 0.7) * uDim;
-  vec3 c = uColor * I;
+  vec3 c = uColor * ((shaft * 0.3 + lens * 0.7) + (floorPool + spill) * uPoolI) * uDim;
+  c += uBounce * bounce * uPoolI * uDim;
   c += (hash(p + uTime) - 0.5) / 255.0;
   c = max(c, 0.0);
   float a = clamp(max(c.r, max(c.g, c.b)), 0.0, 1.0);
@@ -82,11 +107,30 @@ void main(){
 }
 `;
 
+export interface ShaftFrame {
+  vw: number;
+  vh: number;
+  lens: { x: number; y: number };
+  pool: Pool;
+  colour: [number, number, number];
+  dim: number;
+  poolI: number;
+  haze: number;
+  time: number;
+  gobo: number;
+  spin: number;
+  soft: number;
+  bounce: [number, number, number];
+  bounceAmt: number;
+}
+
 export class Shaft {
   readonly canvas: HTMLCanvasElement;
   private gl: WebGLRenderingContext;
   private u: Record<string, WebGLUniformLocation | null> = {};
   private scale = 0.5;
+  private tex: WebGLTexture | null = null;
+  private texSource: HTMLCanvasElement | null = null;
   ok = true;
 
   private constructor(canvas: HTMLCanvasElement, gl: WebGLRenderingContext) {
@@ -104,9 +148,21 @@ export class Shaft {
     const loc = gl.getAttribLocation(prog, 'aPos');
     gl.enableVertexAttribArray(loc);
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    for (const name of ['uRes', 'uScale', 'uLens', 'uPool', 'uAxes', 'uAngle', 'uColor', 'uDim', 'uHaze', 'uTime', 'uGobo', 'uSpin']) {
+    for (const name of [
+      'uRes', 'uScale', 'uLens', 'uPool', 'uAxes', 'uAngle', 'uColor', 'uDim', 'uPoolI', 'uHaze', 'uTime',
+      'uGobo', 'uSpin', 'uSoft', 'uBounce', 'uBounceAmt', 'uGoboTex',
+    ]) {
       this.u[name] = gl.getUniformLocation(prog, name);
     }
+    this.tex = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
+    gl.uniform1i(this.u.uGoboTex, 0);
   }
 
   static create(canvas: HTMLCanvasElement): Shaft | null {
@@ -138,6 +194,16 @@ export class Shaft {
     return p;
   }
 
+  /** The same gobo mask the photos are revealed through, so the floor pool matches. */
+  setGobo(mask: HTMLCanvasElement) {
+    if (mask === this.texSource) return;
+    this.texSource = mask;
+    const gl = this.gl;
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, mask);
+  }
+
   resize(vw: number, vh: number, lowPower: boolean) {
     this.scale = Math.min(1, (devicePixelRatio || 1) * (lowPower ? 0.35 : 0.5));
     this.canvas.width = Math.max(1, Math.round(vw * this.scale));
@@ -145,10 +211,7 @@ export class Shaft {
     this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  render(o: {
-    vw: number; vh: number; lens: { x: number; y: number }; pool: Pool;
-    colour: [number, number, number]; dim: number; haze: number; time: number; gobo: number; spin: number;
-  }) {
+  render(o: ShaftFrame) {
     const gl = this.gl, u = this.u;
     gl.uniform2f(u.uRes, o.vw, o.vh);
     gl.uniform1f(u.uScale, this.scale);
@@ -158,10 +221,14 @@ export class Shaft {
     gl.uniform1f(u.uAngle, o.pool.angle);
     gl.uniform3f(u.uColor, o.colour[0], o.colour[1], o.colour[2]);
     gl.uniform1f(u.uDim, o.dim);
+    gl.uniform1f(u.uPoolI, o.poolI);
     gl.uniform1f(u.uHaze, o.haze);
     gl.uniform1f(u.uTime, o.time);
     gl.uniform1f(u.uGobo, o.gobo);
     gl.uniform1f(u.uSpin, o.spin);
+    gl.uniform1f(u.uSoft, o.soft);
+    gl.uniform3f(u.uBounce, o.bounce[0], o.bounce[1], o.bounce[2]);
+    gl.uniform1f(u.uBounceAmt, o.bounceAmt);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);

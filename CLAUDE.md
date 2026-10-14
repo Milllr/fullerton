@@ -2,7 +2,10 @@
 
 Portfolio for James Downey (Miller's dad), Lighting Designer, Fullerton Productions, Toronto. Vite + vanilla TypeScript, no framework.
 
-- Concept: dark stage, every show is a hairline sketch traced from photos; one moving head (wireframe, top centre, hangs off the truss header) follows the cursor and reveals the real photo inside its pool. Small console: dimmer, zoom, colour temp, haze, gobo, Go.
+- Concept: dark stage, every show is a hairline sketch traced from photos; one moving head (wireframe, top centre, hangs off the truss header) follows the cursor and reveals the real photo inside its pool.
+- Controls: a pull-up desk modelled faithfully on grandMA3 (src/desk/): programmer with 3-stage Clear, feature groups, encoders, executors, preset pools, real MA command syntax. Miller wants it fully industrial and physical; keep MA conventions (yellow selection, red programmer values, cyan playback).
+- Miller picked version A: the desk and header chrome are industrial, the rest of the site stays quiet and minimal. Version B (whole site industrial) was dropped.
+- Light should leak across the scene naturally (physical, subtle): hot centre with field fall-off, throw fall-off, faint photo spill past the pool, gobo floor pool, colour bounce, shaft scatter, desk-lip spill. See README, How the light behaves.
 - Motion rule from James's lighting doctrine: nothing snaps. Pan/tilt use a damped spring with capped speed; idle sweep is 24 s across.
 - Copy is deliberately minimal: names, networks, years. No bio. No dashes (en or em) in copy.
 - Contact email/phone in `src/data/site.ts` stay empty until Miller confirms real ones. Never invent contact details.
