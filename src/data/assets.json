@@ -1,0 +1,278 @@
+{
+ "sportsnet-studios": [
+  {
+   "id": "studio-31",
+   "w": 1600,
+   "h": 1068,
+   "credit": null
+  },
+  {
+   "id": "desk",
+   "w": 1280,
+   "h": 854,
+   "credit": "Arash Moallemi"
+  },
+  {
+   "id": "panel",
+   "w": 1280,
+   "h": 854,
+   "credit": "Arash Moallemi"
+  },
+  {
+   "id": "skyline",
+   "w": 1576,
+   "h": 851,
+   "credit": null
+  },
+  {
+   "id": "cove",
+   "w": 1584,
+   "h": 865,
+   "credit": null
+  },
+  {
+   "id": "wide",
+   "w": 2560,
+   "h": 588,
+   "credit": null
+  },
+  {
+   "id": "corner",
+   "w": 1280,
+   "h": 1280,
+   "credit": null
+  }
+ ],
+ "super-bowl-xliv": [
+  {
+   "id": "nfl-on-cbs",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "logo",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "haze",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "set",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "crane",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "trophy",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "wall",
+   "w": 2832,
+   "h": 4256,
+   "credit": null
+  }
+ ],
+ "mmvas": [
+  {
+   "id": "queen-street",
+   "w": 1530,
+   "h": 938,
+   "credit": null
+  },
+  {
+   "id": "sparks",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "fire",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "rig",
+   "w": 3264,
+   "h": 2448,
+   "credit": null
+  },
+  {
+   "id": "crowd",
+   "w": 1343,
+   "h": 929,
+   "credit": null
+  },
+  {
+   "id": "acoustic",
+   "w": 611,
+   "h": 913,
+   "credit": null
+  }
+ ],
+ "breakfast-television": [
+  {
+   "id": "platform",
+   "w": 2048,
+   "h": 1365,
+   "credit": "Arash Moallemi"
+  },
+  {
+   "id": "desk",
+   "w": 2048,
+   "h": 1365,
+   "credit": "Arash Moallemi"
+  },
+  {
+   "id": "couch",
+   "w": 2048,
+   "h": 1365,
+   "credit": "Arash Moallemi"
+  },
+  {
+   "id": "riser",
+   "w": 2048,
+   "h": 1365,
+   "credit": "Arash Moallemi"
+  },
+  {
+   "id": "lounge",
+   "w": 2048,
+   "h": 1365,
+   "credit": "Arash Moallemi"
+  }
+ ],
+ "the-agenda": [
+  {
+   "id": "set",
+   "w": 2200,
+   "h": 1390,
+   "credit": null
+  },
+  {
+   "id": "wide",
+   "w": 2200,
+   "h": 1515,
+   "credit": null
+  },
+  {
+   "id": "host",
+   "w": 2200,
+   "h": 1258,
+   "credit": null
+  }
+ ],
+ "et-canada": [
+  {
+   "id": "casa-loma",
+   "w": 4272,
+   "h": 2828,
+   "credit": null
+  },
+  {
+   "id": "lounge",
+   "w": 4272,
+   "h": 2828,
+   "credit": null
+  },
+  {
+   "id": "studio",
+   "w": 1600,
+   "h": 900,
+   "credit": null
+  },
+  {
+   "id": "interview",
+   "w": 1944,
+   "h": 2592,
+   "credit": null
+  }
+ ],
+ "sportsnet-360": [
+  {
+   "id": "connected",
+   "w": 2200,
+   "h": 1553,
+   "credit": null
+  },
+  {
+   "id": "sn360",
+   "w": 2200,
+   "h": 1547,
+   "credit": null
+  },
+  {
+   "id": "studio",
+   "w": 2200,
+   "h": 1478,
+   "credit": null
+  },
+  {
+   "id": "glass",
+   "w": 2200,
+   "h": 1666,
+   "credit": null
+  }
+ ],
+ "tiff": [
+  {
+   "id": "panel",
+   "w": 3008,
+   "h": 2000,
+   "credit": null
+  },
+  {
+   "id": "press",
+   "w": 3008,
+   "h": 2000,
+   "credit": null
+  },
+  {
+   "id": "couch",
+   "w": 3008,
+   "h": 2000,
+   "credit": null
+  }
+ ],
+ "events": [
+  {
+   "id": "gala-beams",
+   "w": 3008,
+   "h": 2000,
+   "credit": null
+  },
+  {
+   "id": "gala",
+   "w": 3008,
+   "h": 2000,
+   "credit": null
+  },
+  {
+   "id": "garden",
+   "w": 4272,
+   "h": 2828,
+   "credit": null
+  },
+  {
+   "id": "winter-stage",
+   "w": 3008,
+   "h": 2000,
+   "credit": null
+  }
+ ]
+}

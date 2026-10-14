@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en-CA" class="no-js">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Fullerton Productions, James Downey, Lighting Designer</title>
+    <meta
+      name="description"
+      content="Fullerton Productions is the Toronto lighting design company of James Downey: Sportsnet Studios, Breakfast Television, Super Bowl XLIV, the MuchMusic Video Awards and more."
+    />
+    <meta name="theme-color" content="#030303" />
+    <meta property="og:title" content="Fullerton Productions" />
+    <meta property="og:description" content="James Downey, Lighting Designer. Toronto." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/og.jpg" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script>
+      document.documentElement.classList.replace('no-js', 'js');
+    </script>
+  </head>
+  <body>
+    <a class="skip" href="#work">Skip to work</a>
+
+    <header class="rig" id="rig">
+      <svg class="truss" aria-hidden="true" focusable="false">
+        <defs>
+          <pattern id="lace" width="14" height="14" patternUnits="userSpaceOnUse">
+            <path d="M0 14 L7 0 L14 14" fill="none" stroke="currentColor" stroke-width="0.8" />
+          </pattern>
+        </defs>
+        <rect x="0" y="0" width="100%" height="14" fill="url(#lace)" opacity="0.55" />
+        <line x1="0" y1="0.5" x2="100%" y2="0.5" stroke="currentColor" stroke-width="1" />
+        <line x1="0" y1="13.5" x2="100%" y2="13.5" stroke="currentColor" stroke-width="1" />
+      </svg>
+      <a class="brand" href="#top" aria-label="Fullerton Productions, back to top">Fullerton Productions</a>
+      <nav class="nav" aria-label="Sections">
+        <a href="#work">Work</a>
+        <a href="#credits">Credits</a>
+        <a href="#contact">Contact</a>
+      </nav>
+      <canvas class="fixture" id="fixture" aria-hidden="true"></canvas>
+    </header>
+
+    <canvas class="shaft" id="shaft" aria-hidden="true"></canvas>
+
+    <main id="main">
+      <section class="hero" id="top" aria-labelledby="wordmark">
+        <div class="hero-plate" id="hero-plate"></div>
+        <div class="hero-type">
+          <h1 class="wordmark lit" id="wordmark">
+            <span class="lit-line">Fullerton</span>
+            <span class="lit-line">Productions</span>
+          </h1>
+          <p class="byline">James Downey, Lighting Designer</p>
+        </div>
+      </section>
+
+      <section class="work" id="work" aria-labelledby="work-title">
+        <h2 class="section-title lit" id="work-title"><span class="lit-line">Work</span></h2>
+        <div class="plates" id="plates"></div>
+      </section>
+
+      <section class="credits" id="credits" aria-labelledby="credits-title">
+        <h2 class="section-title lit" id="credits-title"><span class="lit-line">Credits</span></h2>
+        <div id="credits-table"></div>
+      </section>
+
+      <section class="contact" id="contact" aria-labelledby="contact-title">
+        <h2 class="section-title lit" id="contact-title"><span class="lit-line">Contact</span></h2>
+        <div class="contact-body" id="contact-body"></div>
+      </section>
+    </main>
+
+    <footer class="foot" id="foot"></footer>
+
+    <aside class="desk" id="desk" aria-label="Lighting console"></aside>
+
+    <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

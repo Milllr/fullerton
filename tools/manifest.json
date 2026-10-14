@@ -1,0 +1,63 @@
+{
+  "sportsnet-studios": [
+    {"id": "studio-31", "src": "Rogers_211.jpg"},
+    {"id": "desk", "src": "Rogers_211006_SN_0044_LoRes.jpg", "credit": "Arash Moallemi"},
+    {"id": "panel", "src": "Rogers_211006_SN_0081_LoRes.jpg", "credit": "Arash Moallemi"},
+    {"id": "skyline", "src": "Screenshot 2026-10-07 at 11.21.01 PM.png"},
+    {"id": "cove", "src": "Screenshot 2026-10-07 at 11.20.45 PM.png"},
+    {"id": "wide", "src": "NHL Studio's Sportsnet/IMG_7718-scaled.jpg"},
+    {"id": "corner", "src": "NHL Studio's Sportsnet/83D7109D-C6EB-4804-B80D-CF4EA1173F45.jpg"}
+  ],
+  "super-bowl-xliv": [
+    {"id": "nfl-on-cbs", "src": "Super Bowl/DSC_4515.JPG"},
+    {"id": "logo", "src": "Super Bowl/DSC_4529.JPG"},
+    {"id": "haze", "src": "Super Bowl/DSC_4524.JPG"},
+    {"id": "set", "src": "Super Bowl/DSC_4575.JPG"},
+    {"id": "crane", "src": "Super Bowl/DSC_4509.JPG"},
+    {"id": "trophy", "src": "Super Bowl/DSC_4417.JPG"},
+    {"id": "wall", "src": "Super Bowl/DSC_4602.JPG"}
+  ],
+  "mmvas": [
+    {"id": "queen-street", "src": "MMVA Bell/Screenshot 2026-10-07 at 11.12.45 PM.png"},
+    {"id": "sparks", "src": "MMVA Bell/DSC_0578.JPG"},
+    {"id": "fire", "src": "MMVA Bell/DSC_0503.JPG"},
+    {"id": "rig", "src": "MMVA Bell/IMG_0702.JPG"},
+    {"id": "crowd", "src": "MMVA Bell/Screenshot 2026-10-07 at 11.13.37 PM.png"},
+    {"id": "acoustic", "src": "MMVA Bell/Screenshot 2026-10-07 at 11.13.18 PM.png"}
+  ],
+  "breakfast-television": [
+    {"id": "platform", "src": "Breakfast television City TV/BT_170914_0026_LoRes.jpg", "credit": "Arash Moallemi"},
+    {"id": "desk", "src": "Breakfast television City TV/BT_170914_0029_LoRes-1.jpg", "credit": "Arash Moallemi"},
+    {"id": "couch", "src": "Breakfast television City TV/BT_170914_0032_LoRes.jpg", "credit": "Arash Moallemi"},
+    {"id": "riser", "src": "Breakfast television City TV/BT_170914_0033_LoRes.jpg", "credit": "Arash Moallemi"},
+    {"id": "lounge", "src": "BT_170914_0038_LoRes.jpg", "credit": "Arash Moallemi"}
+  ],
+  "the-agenda": [
+    {"id": "set", "src": "The Agenda TVO/agenda-02.jpg"},
+    {"id": "wide", "src": "The Agenda TVO/agenda-04.jpg"},
+    {"id": "host", "src": "The Agenda TVO/agenda-05.jpg"}
+  ],
+  "et-canada": [
+    {"id": "casa-loma", "src": "ET Canada/DSC_1011_2-3.jpg"},
+    {"id": "lounge", "src": "ET Canada/DSC_1157-3.jpg"},
+    {"id": "studio", "src": "ET Canada/Cheryl v2 Aug.19.14 (1).jpg"},
+    {"id": "interview", "src": "ET Canada/Cheryl-and-Tom.jpg"}
+  ],
+  "sportsnet-360": [
+    {"id": "connected", "src": "Sportsnet Studio's/sportsnet-05.jpg"},
+    {"id": "sn360", "src": "Sportsnet Studio's/sportsnet-03.jpg"},
+    {"id": "studio", "src": "Sportsnet Studio's/sportsnet-01.jpg"},
+    {"id": "glass", "src": "Sportsnet Studio's/sportsnet-02.jpg"}
+  ],
+  "tiff": [
+    {"id": "panel", "src": "TIFF Film Festival/DSC_0855.JPG"},
+    {"id": "press", "src": "TIFF Film Festival/DSC_0833-2.JPG"},
+    {"id": "couch", "src": "TIFF Film Festival/DSC_0945.JPG"}
+  ],
+  "events": [
+    {"id": "gala-beams", "src": "DSC_0603.JPG"},
+    {"id": "gala", "src": "DSC_0593-2.JPG"},
+    {"id": "garden", "src": "DSC_4027.jpg"},
+    {"id": "winter-stage", "src": "DSC_0362_1.JPG"}
+  ]
+}
