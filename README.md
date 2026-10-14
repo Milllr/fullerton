@@ -64,14 +64,18 @@ The controls are a pull-up lighting desk modelled on grandMA3. The bar along the
 
 With nothing running and nothing programmed, the head follows the cursor. Keyboard focus on a show swings the beam onto it; clicking a show opens the beam wide on it and then opens every photo. `prefers-reduced-motion` turns off the opening cue, sweep, haze drift, strobe and transitions.
 
-## Versions A and B
+## How the light behaves
 
-There are two directions while the design is being chosen, switched with the A/B control at the top left (remembered per browser):
+The beam is meant to read like a real spot on a black stage:
 
-- **A**: the desk and the header are industrial; the rest of the site keeps its quieter look.
-- **B**: the whole site goes industrial: rack rails, a condensed engraved wordmark and nameplate, shows in multiviewer tiles with under-monitor labels and tally lights that go red when the beam is on them, and the credits as a desk sheet.
-
-Version B lives in `src/skin-b.css` under `[data-skin='b']`. Once one is picked, delete the other and the switch.
+- **Pool**: hottest in the middle and falling off towards the field edge before the focus edge cuts it. Focus and Frost on the desk soften the edge and the gobo.
+- **Throw**: aiming further away spreads the same light thinner, so a long throw is dimmer and wider.
+- **Spill**: past the pool the light fades out slowly, so the real photo shows faintly well beyond the beam, and the floor around it glows.
+- **Floor pool**: where the beam lands on bare stage, the pool carries the same gobo pattern as on the photos.
+- **Bounce**: the set under the pool reflects its own colour back onto the surroundings, tinted by the beam colour.
+- **Haze**: the shaft scatters a dim glow around itself; the Hazer fixture's Haze and Fan set how much and how fast it drifts.
+- **Lines and type** near the beam catch light with a long, faint tail.
+- **The desk**: when the beam lands low, the desk's front lip and nearest keys pick up a little of it.
 
 ## Hosted preview
 

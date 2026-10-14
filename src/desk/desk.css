@@ -91,6 +91,42 @@ body {
   color: inherit;
 }
 
+/* Light from the stage catching the desk's front lip and the nearest keys. */
+.desk {
+  --spill-x: -9999px;
+  --spill-r: 200px;
+  --spill-a: 0;
+}
+.desk::before,
+.desk::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+.desk::before {
+  top: 0;
+  height: 90px;
+  mix-blend-mode: screen;
+  background: radial-gradient(
+    var(--spill-r) 90px at var(--spill-x) 0,
+    rgb(var(--light) / calc(var(--spill-a) * 0.26)) 0%,
+    rgb(var(--light) / calc(var(--spill-a) * 0.09)) 40%,
+    transparent 100%
+  );
+}
+.desk::after {
+  top: -1px;
+  height: 1px;
+  background: radial-gradient(
+    var(--spill-r) 1px at var(--spill-x) 0,
+    rgb(var(--light) / calc(var(--spill-a) * 0.95)) 0%,
+    transparent 100%
+  );
+}
+
 /* ------------------------------------------------------------ the bar */
 
 .desk-bar {
@@ -857,50 +893,6 @@ body {
   grid-column: 1 / -1;
 }
 
-/* ------------------------------------------------------------ version switch */
-
-.skin-switch {
-  position: fixed;
-  left: var(--gutter);
-  top: 72px;
-  z-index: 31;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 4px 4px 10px;
-  font-size: 11px;
-  font-stretch: 82%;
-  color: var(--engrave);
-  background: rgb(10 10 11 / 0.92);
-  border: 1px solid #222326;
-  border-radius: 3px;
-  box-shadow: 0 6px 18px rgb(0 0 0 / 0.5);
-  transition: opacity 0.2s;
-}
-.skin-switch span {
-  margin-right: 4px;
-}
-.skin-switch button {
-  width: 30px;
-  height: 26px;
-  font: inherit;
-  font-weight: 600;
-  color: var(--engrave-hi);
-  background: linear-gradient(#1d1d20, #131315);
-  border: 1px solid #040404;
-  border-radius: 2px;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 2px 0 #000;
-  cursor: pointer;
-}
-.skin-switch button[aria-pressed='true'] {
-  color: var(--stage);
-  background: rgb(var(--light));
-}
-.sheet-open .skin-switch {
-  opacity: 0;
-  pointer-events: none;
-}
-
 /* Blind: the output is not what the programmer says. Mark the page edge like a red preview frame. */
 .is-blind body::after {
   content: '';
@@ -1099,10 +1091,6 @@ body {
     height: 42px;
   }
 
-  .skin-switch {
-    left: 10px;
-    top: 70px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

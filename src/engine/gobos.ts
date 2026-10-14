@@ -19,12 +19,19 @@ function rand(seed: number) {
   };
 }
 
+/**
+ * A real spot is hottest in the middle and falls off towards the field edge
+ * before the focus edge cuts it, so the disc is a slope, not a plateau.
+ */
 function softDisc(ctx: CanvasRenderingContext2D, inner: number, outer = 1) {
   const h = SPRITE / 2;
   const g = ctx.createRadialGradient(h, h, 0, h, h, h * outer);
   g.addColorStop(0, 'rgba(255,255,255,1)');
-  g.addColorStop(inner, 'rgba(255,255,255,1)');
-  g.addColorStop(inner + (1 - inner) * 0.55, 'rgba(255,255,255,0.35)');
+  g.addColorStop(inner * 0.45, 'rgba(255,255,255,0.97)');
+  g.addColorStop(inner * 0.8, 'rgba(255,255,255,0.86)');
+  g.addColorStop(inner, 'rgba(255,255,255,0.74)');
+  g.addColorStop(inner + (1 - inner) * 0.5, 'rgba(255,255,255,0.3)');
+  g.addColorStop(inner + (1 - inner) * 0.8, 'rgba(255,255,255,0.08)');
   g.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, SPRITE, SPRITE);
@@ -116,8 +123,10 @@ export function buildSprites(focus = 0.7, frost = 0): GoboSprites {
   const hc = halo.getContext('2d')!;
   const h = SPRITE / 2;
   const g = hc.createRadialGradient(h, h, 0, h, h, h);
+  // Lines and type catch light well past the pool, fading out slowly.
   g.addColorStop(0, 'rgba(255,255,255,0.95)');
-  g.addColorStop(0.45, 'rgba(255,255,255,0.55)');
+  g.addColorStop(0.35, 'rgba(255,255,255,0.6)');
+  g.addColorStop(0.65, 'rgba(255,255,255,0.22)');
   g.addColorStop(1, 'rgba(255,255,255,0)');
   hc.fillStyle = g;
   hc.fillRect(0, 0, SPRITE, SPRITE);

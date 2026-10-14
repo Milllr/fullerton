@@ -155,6 +155,78 @@ export class Plate {
     this.stage.append(this.sketchC, this.lightC);
     this.sctx = this.sketchC.getContext('2d')!;
     this.lctx = this.lightC.getContext('2d')!;
+    // The photo itself sits under the sketch and only shows where light spills.
+    this.img.style.objectPosition = `50% ${focusY * 100}%`;
+  }
+
+  /** A tiny copy of the photo, for working out what colour bounces off the set. */
+  private thumb: Uint8ClampedArray | null = null;
+  private tw = 0;
+  private th = 0;
+
+  private buildThumb() {
+    try {
+      this.tw = 24;
+      this.th = Math.max(4, Math.round(24 * this.aspect));
+      const c = document.createElement('canvas');
+      c.width = this.tw;
+      c.height = this.th;
+      const x = c.getContext('2d', { willReadFrequently: true })!;
+      x.drawImage(this.img, 0, 0, this.tw, this.th);
+      this.thumb = x.getImageData(0, 0, this.tw, this.th).data;
+    } catch {
+      this.thumb = null;
+    }
+  }
+
+  /**
+   * Average colour of the set under and around the pool, weighted towards
+   * brighter surfaces, which bounce more. Returns null when the pool is off
+   * this plate.
+   */
+  sampleBounce(pool: Pool): [number, number, number, number] | null {
+    if (!this.thumb) return null;
+    const r = this.rect;
+    const m = this.map;
+    // Pool centre in normalised photo coordinates.
+    const nx = (pool.x - r.left - m.ox) / m.s;
+    const ny = (pool.y - r.top - m.oy) / (m.s * this.aspect);
+    const rad = (Math.max(pool.rx, pool.ry) * 1.4) / m.s;
+    if (nx < -rad || nx > 1 + rad || ny < -rad || ny > 1 + rad) return null;
+    let R = 0, G = 0, B = 0, W = 0;
+    for (let y = 0; y < this.th; y++) {
+      for (let x = 0; x < this.tw; x++) {
+        const fx = (x + 0.5) / this.tw, fy = (y + 0.5) / this.th;
+        const dx = fx - nx, dy = (fy - ny) * this.aspect;
+        const d2 = (dx * dx + dy * dy) / (rad * rad);
+        if (d2 > 1) continue;
+        const i = (y * this.tw + x) * 4;
+        const lum = (this.thumb[i] * 0.3 + this.thumb[i + 1] * 0.59 + this.thumb[i + 2] * 0.11) / 255;
+        const w = (1 - d2) * (0.15 + lum);
+        R += this.thumb[i] * w;
+        G += this.thumb[i + 1] * w;
+        B += this.thumb[i + 2] * w;
+        W += w;
+      }
+    }
+    if (!W) return null;
+    return [R / W / 255, G / W / 255, B / W / 255, W];
+  }
+
+  /** Faint light leaking past the pool: the real photo shows through, dimly. */
+  spill(pool: Pool, I: number) {
+    const st = this.stage.style;
+    if (I < 0.004 || !this.photoReady) {
+      st.setProperty('--sa', '0');
+      return;
+    }
+    const r = this.rect;
+    st.setProperty('--sx', `${Math.round(pool.x - r.left)}px`);
+    st.setProperty('--sy', `${Math.round(pool.y - r.top)}px`);
+    const big = Math.max(pool.rx, pool.ry);
+    st.setProperty('--srx', `${Math.round(big * 2.7)}px`);
+    st.setProperty('--sry', `${Math.round(Math.min(pool.rx, pool.ry) * 2.7 + (big - Math.min(pool.rx, pool.ry)) * 1.2)}px`);
+    st.setProperty('--sa', (0.2 * I).toFixed(3));
   }
 
   async load() {
@@ -166,7 +238,10 @@ export class Plate {
     const [data] = await Promise.all([
       loadSketch(this.slug, this.image.id),
       this.img.decode().then(
-        () => (this.photoReady = true),
+        () => {
+          this.photoReady = true;
+          this.buildThumb();
+        },
         () => (this.photoReady = false),
       ),
     ]);
@@ -227,8 +302,8 @@ export class Plate {
     const r = this.rect;
     const W = r.width, H = r.height;
     const lx = pool.x - r.left, ly = pool.y - r.top;
-    const I = rig.intensity;
-    const R = Math.max(pool.rx, pool.ry) * 1.9;
+    const I = rig.poolI;
+    const R = Math.max(pool.rx, pool.ry) * 2.2;
     const x0 = Math.max(0, lx - R), y0 = Math.max(0, ly - R);
     const x1 = Math.min(W, lx + R), y1 = Math.min(H, ly + R);
     // Nothing moved since last frame: keep what's painted.
@@ -286,7 +361,7 @@ export class Plate {
       sc.rect(box[0], box[1], box[2], box[3]);
       sc.clip();
       sc.setTransform(d, 0, 0, d, 0, 0);
-      placeSprite(sc, 1.9, 1.9);
+      placeSprite(sc, 2.2, 2.2);
       sc.drawImage(sprites.halo, -k, -k);
       sc.restore();
       ctx.save();

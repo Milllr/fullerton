@@ -36,6 +36,8 @@ export class Rig {
   out: Output = { zoom: 19, iris: 1, cct: 4700, haze: 0.5, fan: 0.4, gobo: 0, goboRot: 0.2, focus: 0.7, frost: 0 };
   /** Final intensity 0..1 including dimmer, Grand Master, strobe and lamp. */
   intensity = 0;
+  /** Intensity where the pool lands: a longer throw spreads the same light thinner. */
+  poolI = 0;
   /** Extra zoom on top of the attribute, used when a cue covers a plate (degrees). */
   zoomBoost = 0;
   goboSpin = 0;
@@ -126,6 +128,12 @@ export class Rig {
     const d = this.direction();
     const angle = Math.hypot(d.x, d.y) < 1e-4 ? 0 : Math.atan2(d.y, d.x);
     return { x, y, rx: r / inc, ry: r, angle };
+  }
+
+  /** How much dimmer the pool is for its throw, relative to straight on. */
+  throwFalloff() {
+    const dist = this.throw / (Math.cos(this.pan) * Math.cos(this.tilt));
+    return Math.min(1, Math.pow(this.throw / dist, 0.6));
   }
 
   /** Base beam width in degrees (before cue boost), for working out cover zoom. */

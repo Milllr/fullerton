@@ -1,7 +1,6 @@
 import '@fontsource-variable/archivo/wdth.css';
 import './styles.css';
 import './desk/desk.css';
-import './skin-b.css';
 
 import { allShows, credits, hero, imageUrl, shows, type Show } from './data/shows';
 import { site } from './data/site';
@@ -23,36 +22,6 @@ const coarse = matchMedia('(pointer: coarse)').matches;
 const root = document.documentElement;
 const TAU = Math.PI * 2;
 
-/* ----------------------------------------------------------- versions */
-
-// Two directions to compare: A keeps the site and makes the desk and chrome
-// industrial; B takes the whole site industrial.
-const store = {
-  get(k: string) {
-    try {
-      return localStorage.getItem(k);
-    } catch {
-      return null;
-    }
-  },
-  set(k: string, v: string) {
-    try {
-      localStorage.setItem(k, v);
-    } catch {
-      /* private mode */
-    }
-  },
-};
-const urlSkin = new URLSearchParams(location.search).get('v');
-let skin = urlSkin === 'a' || urlSkin === 'b' ? urlSkin : store.get('fp-skin') === 'b' ? 'b' : 'a';
-function setSkin(s: string) {
-  skin = s;
-  root.dataset.skin = s;
-  store.set('fp-skin', s);
-  document.querySelectorAll<HTMLButtonElement>('.skin-switch button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === s)));
-  requestAnimationFrame(() => layout());
-}
-
 /* ------------------------------------------------------------------ DOM */
 
 const meta = (s: Show) => [s.network, s.year].filter(Boolean).join(', ');
@@ -73,7 +42,6 @@ $('#plates').innerHTML = shows
   .map(
     (s, i) => `<article class="show show-${i + 1}" data-slug="${s.slug}">
       ${plateMarkup(s, '')}
-      <div class="umd" aria-hidden="true"><i class="tally"></i><span class="umd-q">Q${i + 2}</span><span class="umd-title">${esc(s.title)}</span><span class="umd-meta">${esc(meta(s))}</span></div>
       <div class="show-cap">
         <h3 class="show-title"><a href="#/work/${s.slug}" tabindex="-1">${esc(s.title)}</a></h3>
         <p class="show-meta">${esc(meta(s))}</p>
@@ -100,10 +68,8 @@ renderCredits($('#credits-table'), credits);
 }
 
 $('#foot').innerHTML = `
-  <div class="asset-tag">
-    <p>© ${new Date().getFullYear()} ${esc(site.name)}, ${esc(site.city)}</p>
-    ${site.photoCredits.map((c) => `<p>Photography of ${esc(c.for)} by ${esc(c.name)}</p>`).join('')}
-  </div>`;
+  <p>© ${new Date().getFullYear()} ${esc(site.name)}, ${esc(site.city)}</p>
+  ${site.photoCredits.map((c) => `<p>Photography of ${esc(c.for)} by ${esc(c.name)}</p>`).join('')}`;
 
 /* Lit type: an outlined word with a filled copy that only shows under the beam. */
 const litEls = [...document.querySelectorAll<HTMLElement>('.lit')];
@@ -113,20 +79,6 @@ for (const el of litEls) {
   fill.setAttribute('aria-hidden', 'true');
   fill.innerHTML = el.innerHTML;
   el.append(fill);
-}
-
-/* Version switch. */
-{
-  const sw = document.createElement('div');
-  sw.className = 'skin-switch';
-  sw.setAttribute('role', 'group');
-  sw.setAttribute('aria-label', 'Design version');
-  sw.innerHTML = `<span>Version</span><button type="button" data-v="a">A</button><button type="button" data-v="b">B</button>`;
-  sw.addEventListener('click', (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
-    if (b) setSkin(b.dataset.v!);
-  });
-  document.body.append(sw);
 }
 
 /* Nav keys light for the section you're in. */
@@ -281,7 +233,7 @@ function onInput(x: number, y: number) {
   }
 }
 
-const overControls = (t: EventTarget | null) => !!(t as Element)?.closest?.('#desk, .skin-switch, .sheet');
+const overControls = (t: EventTarget | null) => !!(t as Element)?.closest?.('#desk, .sheet');
 
 addEventListener('pointermove', (e) => {
   if (e.pointerType === 'touch') return;
@@ -413,6 +365,9 @@ let hazeClock = 0;
 let phaserClock = 0;
 let sweepShown = 0;
 let zoomGoal = 0;
+const bounce: [number, number, number] = [0, 0, 0];
+let bounceAmt = 0;
+const deskEl = $('#desk');
 
 function wordmarkPoint() {
   const wm = $('#wordmark').getBoundingClientRect();
@@ -514,38 +469,64 @@ function frame(now: number) {
   const pool = rig.pool();
   const colour = rig.colour();
   const I = rig.intensity;
+  rig.poolI = I * rig.throwFalloff();
   const lensLocal = fixture.draw(rig.pan, rig.tilt, I, colour);
   const lens = { x: fixtureRect.left + lensLocal.x, y: fixtureRect.top + lensLocal.y };
   const soft = Math.min(0.9, 0.25 + (1 - rig.out.focus) * 0.4 + rig.out.frost * 0.45);
-
-  shaft?.render({
-    vw, vh, lens, pool, colour,
-    dim: I, haze: rig.out.haze, time: hazeClock, gobo: rig.out.gobo, spin: rig.goboSpin, soft,
-  });
 
   // Tint for the photos: mostly the beam colour, a little towards white.
   const tint = rgbCss(colour.map((c) => 0.25 + 0.75 * c) as [number, number, number]);
   const halo = rgbCss(colour);
   const lightVisible = plates.filter((p) => p.visible);
   for (const p of lightVisible) p.measure();
+  let bounceTarget: [number, number, number, number] | null = null;
   for (const p of lightVisible) {
-    if (sheet.isOpen) p.clearLight();
-    else p.drawLight(pool, rig, sprites, tint, halo);
-    // Tally: the plate the beam is sitting on is on air.
-    const r = p.rect;
-    const onAir = I > 0.15 && pool.x > r.left && pool.x < r.right && pool.y > r.top && pool.y < r.bottom;
-    p.el.parentElement?.classList.toggle('on-air', onAir);
+    if (sheet.isOpen) {
+      p.clearLight();
+      p.spill(pool, 0);
+      continue;
+    }
+    p.drawLight(pool, rig, sprites, tint, halo);
+    p.spill(pool, rig.poolI);
+    const b = p.sampleBounce(pool);
+    if (b && (!bounceTarget || b[3] > bounceTarget[3])) bounceTarget = b;
   }
 
-  // Lit type.
+  // Colour bounced off the set the pool is sitting on, lit by the beam's own colour.
+  const k = Math.min(1, dt * 3);
+  if (bounceTarget) {
+    for (let i = 0; i < 3; i++) bounce[i] += (bounceTarget[i] * colour[i] - bounce[i]) * k;
+    bounceAmt += (0.09 - bounceAmt) * k;
+  } else {
+    bounceAmt += (0 - bounceAmt) * k;
+  }
+
+  shaft?.setGobo(sprites.pool[rig.out.gobo]);
+  shaft?.render({
+    vw, vh, lens, pool, colour,
+    dim: I, poolI: rig.throwFalloff(), haze: rig.out.haze, time: hazeClock, gobo: rig.out.gobo, spin: rig.goboSpin, soft,
+    bounce, bounceAmt,
+  });
+
+  // Lit type: a pool-sized core with a long, faint tail.
   root.style.setProperty('--light', `${Math.round(colour[0] * 255)} ${Math.round(colour[1] * 255)} ${Math.round(colour[2] * 255)}`);
-  root.style.setProperty('--lrx', `${Math.round(Math.max(pool.rx, pool.ry) * 1.15)}px`);
-  root.style.setProperty('--lry', `${Math.round(Math.min(pool.rx, pool.ry) * 1.15)}px`);
-  root.style.setProperty('--li', I.toFixed(3));
+  root.style.setProperty('--lrx', `${Math.round(Math.max(pool.rx, pool.ry) * 2)}px`);
+  root.style.setProperty('--lry', `${Math.round(Math.min(pool.rx, pool.ry) * 2)}px`);
+  root.style.setProperty('--li', rig.poolI.toFixed(3));
   const rects = [...litVisible].map((el) => [el, el.getBoundingClientRect()] as const);
   for (const [el, r] of rects) {
     el.style.setProperty('--lx', `${Math.round(pool.x - r.left)}px`);
     el.style.setProperty('--ly', `${Math.round(pool.y - r.top)}px`);
+  }
+
+  // The desk's front edge catches the beam when it lands low on the page.
+  {
+    const reach = Math.max(pool.rx, pool.ry) * 2.4;
+    const gap = deskTop - (pool.y + pool.ry);
+    const a = sheet.isOpen ? 0 : Math.max(0, Math.min(1, 1 - gap / reach)) * rig.poolI;
+    deskEl.style.setProperty('--spill-x', `${Math.round(pool.x)}px`);
+    deskEl.style.setProperty('--spill-r', `${Math.round(Math.max(pool.rx, pool.ry) * 2.2)}px`);
+    deskEl.style.setProperty('--spill-a', a.toFixed(3));
   }
 
   deskUI.tick(dt, desk.live);
@@ -568,7 +549,6 @@ function strikeLevelOpening(now: number) {
 addEventListener('resize', () => layout());
 
 function start() {
-  setSkin(skin);
   layout();
   const wm = wordmarkPoint();
   rig.aimNow(wm.x, wm.y);

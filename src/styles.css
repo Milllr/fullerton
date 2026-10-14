@@ -188,8 +188,33 @@ a {
   object-fit: cover;
 }
 
+/* With script on, the photo only shows where the beam's spill reaches it. */
 .js .plate-stage img {
-  opacity: 0;
+  --sa: 0;
+  --sx: -9999px;
+  --sy: -9999px;
+  --srx: 1px;
+  --sry: 1px;
+  filter: saturate(0.85);
+  -webkit-mask-image: radial-gradient(
+    var(--srx) var(--sry) at var(--sx) var(--sy),
+    rgb(0 0 0 / var(--sa)) 0%,
+    rgb(0 0 0 / calc(var(--sa) * 0.55)) 32%,
+    rgb(0 0 0 / calc(var(--sa) * 0.2)) 62%,
+    rgb(0 0 0 / calc(var(--sa) * 0.05)) 84%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    var(--srx) var(--sry) at var(--sx) var(--sy),
+    rgb(0 0 0 / var(--sa)) 0%,
+    rgb(0 0 0 / calc(var(--sa) * 0.55)) 32%,
+    rgb(0 0 0 / calc(var(--sa) * 0.2)) 62%,
+    rgb(0 0 0 / calc(var(--sa) * 0.05)) 84%,
+    transparent 100%
+  );
+}
+.plate-stage {
+  --sa: 0;
 }
 
 /* Hairline frame marks at the corners of each plate, like crop marks on a plot. */
@@ -235,16 +260,21 @@ a {
   -webkit-text-stroke: 0;
   text-shadow: 0 0 28px rgb(var(--light) / 0.35);
   pointer-events: none;
+  /* Bright inside the pool, then a long faint tail as the spill falls off. */
   -webkit-mask-image: radial-gradient(
     var(--lrx) var(--lry) at var(--lx) var(--ly),
     rgb(0 0 0 / var(--li)) 0%,
-    rgb(0 0 0 / calc(var(--li) * 0.6)) 45%,
+    rgb(0 0 0 / calc(var(--li) * 0.75)) 22%,
+    rgb(0 0 0 / calc(var(--li) * 0.32)) 42%,
+    rgb(0 0 0 / calc(var(--li) * 0.1)) 68%,
     transparent 100%
   );
   mask-image: radial-gradient(
     var(--lrx) var(--lry) at var(--lx) var(--ly),
     rgb(0 0 0 / var(--li)) 0%,
-    rgb(0 0 0 / calc(var(--li) * 0.6)) 45%,
+    rgb(0 0 0 / calc(var(--li) * 0.75)) 22%,
+    rgb(0 0 0 / calc(var(--li) * 0.32)) 42%,
+    rgb(0 0 0 / calc(var(--li) * 0.1)) 68%,
     transparent 100%
   );
 }
@@ -697,8 +727,7 @@ a {
 .cue-run:not(.cue-done) .nav,
 .cue-run:not(.cue-done) .byline,
 .cue-run:not(.cue-done) .hero-cap,
-.cue-run:not(.cue-done) .desk,
-.cue-run:not(.cue-done) .skin-switch {
+.cue-run:not(.cue-done) .desk {
   animation: rise 0.8s var(--ease) 2.4s both;
 }
 .cue-run:not(.cue-done) .wordmark {
