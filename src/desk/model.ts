@@ -3,14 +3,18 @@ import { allShows } from '../data/shows';
 /*
   The desk, modelled on how a grandMA3 handles a rig:
 
-  - Fixture 1 is the moving head, Fixture 2 is the hazer.
-  - Encoders and presets write into the programmer. Programmer values beat
-    playback and hold until Clear. Clear works in three stages: deselect,
-    deactivate, release. Holding Clear releases everything.
-  - Sequence 1 on Executor 1 is the show list. Each cue points the head at
-    one show. Executor 2 masters the hazer, Executor 3 runs a pan/tilt sweep
-    phaser. The Grand Master and B.O. sit over everything.
-  - With nothing running and nothing programmed, the head follows the cursor.
+  - Fixtures 1 and 2 are spots on moving heads at the wings of the truss.
+    Fixtures 3 and 4 are soft LED panels near the centre, hung pointing
+    straight down. Fixture 5 is the hazer.
+  - Encoders and presets write into the programmer, per fixture. Programmer
+    values beat playback and hold until Clear. Clear works in three stages:
+    deselect, deactivate, release. Holding Clear releases everything.
+  - Sequence 1 on Executor 1 is the show list. Each cue crosses both spots on
+    one show. Executor 2 masters the hazer, Executor 3 runs a pan and tilt
+    sweep phaser, Executor 4 masters the panels. The Grand Master and B.O.
+    sit over everything.
+  - With nothing running and nothing programmed, the spots follow the cursor
+    (or, on a phone, whatever show is in view).
 */
 
 export type Feature = 'Dimmer' | 'Position' | 'Gobo' | 'Color' | 'Beam' | 'Focus' | 'Control';
@@ -60,16 +64,27 @@ export const ATTRS: Record<AttrKey, AttrDef> = {
   fan: { key: 'fan', name: 'Fan', feature: 'Dimmer', min: 0, max: 100, step: 2, fine: 0.25, def: 40, fmt: pct, aliases: ['fan'] },
 };
 
+export type FixtureKind = 'spot' | 'panel' | 'hazer';
+
 export interface FixtureDef {
   id: number;
   name: string;
+  kind: FixtureKind;
   attrs: AttrKey[];
 }
 
+const SPOT_ATTRS: AttrKey[] = ['dim', 'pan', 'tilt', 'gobo', 'goboRot', 'cct', 'shutter', 'iris', 'zoom', 'focus', 'frost', 'lamp', 'reset'];
+
 export const FIXTURES: FixtureDef[] = [
-  { id: 1, name: 'Spot', attrs: ['dim', 'pan', 'tilt', 'gobo', 'goboRot', 'cct', 'shutter', 'iris', 'zoom', 'focus', 'frost', 'lamp', 'reset'] },
-  { id: 2, name: 'Hazer', attrs: ['haze', 'fan'] },
+  { id: 1, name: 'Spot L', kind: 'spot', attrs: SPOT_ATTRS },
+  { id: 2, name: 'Spot R', kind: 'spot', attrs: SPOT_ATTRS },
+  { id: 3, name: 'Panel L', kind: 'panel', attrs: ['dim', 'cct'] },
+  { id: 4, name: 'Panel R', kind: 'panel', attrs: ['dim', 'cct'] },
+  { id: 5, name: 'Hazer', kind: 'hazer', attrs: ['haze', 'fan'] },
 ];
+export const SPOTS = [1, 2];
+export const PANELS = [3, 4];
+export const HAZER = 5;
 
 /* ------------------------------------------------------------- presets */
 
@@ -117,9 +132,11 @@ export interface Cue {
   n: number;
   name: string;
   fade: number;
+  /** Show cues: both spots cross on this plate. */
   slug?: string;
-  angles?: { pan: number; tilt: number };
-  values?: Partial<Record<AttrKey, number>>;
+  /** Stored cues: values per fixture, and a plate per spot when a position preset was in. */
+  fixtures?: Record<number, Partial<Record<AttrKey, number>>>;
+  plates?: Record<number, string>;
   user?: boolean;
 }
 
@@ -135,18 +152,24 @@ interface ProgVal {
   active: boolean;
 }
 
+interface PosPreset {
+  slug: string;
+  preset: string;
+  active: boolean;
+}
+
 interface Snapshot {
   prog: [number, [AttrKey, ProgVal][]][];
-  pos: Desk['posPreset'];
+  pos: [number, PosPreset][];
   sel: number[];
 }
 
 const HIGHLIGHT: Partial<Record<AttrKey, number>> = { dim: 100, gobo: 0, iris: 100, shutter: 0, frost: 0, cct: 5600 };
 
 export class Desk {
-  prog = new Map<number, Map<AttrKey, ProgVal>>([[1, new Map()], [2, new Map()]]);
-  posPreset: { slug: string; preset: string; active: boolean } | null = null;
-  selection = new Set<number>([1]);
+  prog = new Map<number, Map<AttrKey, ProgVal>>(FIXTURES.map((f) => [f.id, new Map()]));
+  posPreset = new Map<number, PosPreset>();
+  selection = new Set<number>(SPOTS);
   feature: Feature = 'Dimmer';
   fine = false;
   blind = false;
@@ -157,16 +180,17 @@ export class Desk {
     1: { level: 1, cue: null as number | null, paused: false },
     2: { level: 0.5, flash: false },
     3: { level: 0, flash: false, auto: false },
+    4: { level: 0, flash: false, auto: false },
   };
   cues: Cue[] = allShows.map((s, i) => ({ n: i + 1, name: s.title, fade: 3, slug: s.slug }));
   private history: Snapshot[] = [];
   private listeners = new Set<() => void>();
-  /** Live head angles in degrees, updated by the engine, used to seed manual moves and stores. */
-  live = { pan: 0, tilt: 30 };
+  /** Live head angles in degrees per spot, updated by the engine. */
+  live: Record<number, { pan: number; tilt: number }> = { 1: { pan: 0, tilt: 30 }, 2: { pan: 0, tilt: 30 } };
   /** Called when the sequence moves to a cue, so the page can follow it. */
   onCue: (cue: Cue | null) => void = () => {};
-  onReset: () => void = () => {};
-  onLamp: (on: boolean) => void = () => {};
+  onReset: (id: number) => void = () => {};
+  onLamp: (id: number, on: boolean) => void = () => {};
 
   subscribe(fn: () => void) {
     this.listeners.add(fn);
@@ -185,7 +209,7 @@ export class Desk {
   private snapshot() {
     this.history.push({
       prog: [...this.prog].map(([id, m]) => [id, [...m].map(([k, v]) => [k, { ...v }] as [AttrKey, ProgVal])]),
-      pos: this.posPreset ? { ...this.posPreset } : null,
+      pos: [...this.posPreset].map(([id, p]) => [id, { ...p }] as [number, PosPreset]),
       sel: [...this.selection],
     });
     if (this.history.length > 60) this.history.shift();
@@ -195,7 +219,7 @@ export class Desk {
     const s = this.history.pop();
     if (!s) return 'Nothing to undo';
     this.prog = new Map(s.prog.map(([id, entries]) => [id, new Map(entries)]));
-    this.posPreset = s.pos;
+    this.posPreset = new Map(s.pos);
     this.selection = new Set(s.sel);
     this.emit();
     return 'Oops: last change undone';
@@ -209,15 +233,15 @@ export class Desk {
     const feats = this.availableFeatures();
     if (!feats.includes(this.feature)) this.feature = feats[0];
     this.emit();
-    return `Fixture ${valid.join(' + ')} selected`;
+    return `Fixture ${listName(valid)} selected`;
   }
 
   /** Make sure something is selected before an encoder or preset writes values. */
   ensureSelection(attr?: AttrKey) {
     if (this.selection.size) return null;
-    const fx = FIXTURES.find((f) => !attr || f.attrs.includes(attr)) ?? FIXTURES[0];
-    this.selection = new Set([fx.id]);
-    return `Fixture ${fx.id} selected`;
+    const ids = attr === 'haze' || attr === 'fan' ? [HAZER] : SPOTS;
+    this.selection = new Set(ids);
+    return `Fixture ${listName(ids)} selected`;
   }
 
   targets(attr: AttrKey) {
@@ -225,46 +249,71 @@ export class Desk {
   }
 
   hasValues() {
-    return [...this.prog.values()].some((m) => m.size) || !!this.posPreset;
+    return [...this.prog.values()].some((m) => m.size) || this.posPreset.size > 0;
   }
   hasActive() {
-    return [...this.prog.values()].some((m) => [...m.values()].some((v) => v.active)) || !!this.posPreset?.active;
+    return [...this.prog.values()].some((m) => [...m.values()].some((v) => v.active)) || [...this.posPreset.values()].some((p) => p.active);
   }
 
   set(attr: AttrKey, value: number, opts: { record?: boolean } = {}) {
     const d = ATTRS[attr];
     const note = this.ensureSelection(attr);
     const ids = this.targets(attr);
-    if (!ids.length) return `${d.name} is not on the selected fixture`;
+    if (!ids.length) return `${d.name} is not on the selected fixtures`;
     if (opts.record !== false) this.snapshot();
     const v = clamp(d.options ? Math.round(value) : value, d.min, d.max);
     if (attr === 'reset') {
-      if (v >= 1) this.onReset();
+      if (v >= 1) ids.forEach((id) => this.onReset(id));
       this.emit();
-      return 'Fixture 1 reset';
+      return `Fixture ${listName(ids)} reset`;
     }
-    if ((attr === 'pan' || attr === 'tilt') && this.posPreset) {
-      // Turning Pan or Tilt takes over from a position preset at the current angles.
-      const m = this.prog.get(1)!;
-      m.set('pan', { v: this.live.pan, active: true });
-      m.set('tilt', { v: this.live.tilt, active: true });
-      this.posPreset = null;
+    for (const id of ids) {
+      const m = this.prog.get(id)!;
+      if ((attr === 'pan' || attr === 'tilt') && this.posPreset.has(id)) {
+        // Turning Pan or Tilt takes over from a position preset at the current angles.
+        m.set('pan', { v: this.live[id].pan, active: true });
+        m.set('tilt', { v: this.live[id].tilt, active: true });
+        this.posPreset.delete(id);
+      }
+      m.set(attr, { v, active: true });
+      if (attr === 'lamp') this.onLamp(id, v >= 0.5);
     }
-    for (const id of ids) this.prog.get(id)!.set(attr, { v, active: true });
-    if (attr === 'lamp') this.onLamp(v >= 0.5);
     this.emit();
     return note ?? `${d.name} ${d.fmt(v)}`;
   }
 
-  /** Encoder turn, in detents. */
+  /** Encoder turn, in detents. Each selected fixture moves from its own value. */
   nudge(attr: AttrKey, detents: number, record: boolean) {
     const d = ATTRS[attr];
-    const cur = this.value(this.targets(attr)[0] ?? 1, attr).v;
-    const step = d.options ? Math.sign(detents) : detents * (this.fine ? d.fine : d.step);
-    if (!step) return '';
-    let next = cur + step;
-    if (d.options) next = (Math.round(cur) + step + d.options.length) % d.options.length;
-    return this.set(attr, next, { record });
+    const note = this.ensureSelection(attr);
+    const ids = this.targets(attr);
+    if (!ids.length) return `${d.name} is not on the selected fixtures`;
+    if (record) this.snapshot();
+    let last = 0;
+    for (const id of ids) {
+      const cur = attr === 'pan' || attr === 'tilt' ? this.angleNow(id, attr) : this.value(id, attr).v;
+      let next: number;
+      if (d.options) next = (Math.round(cur) + Math.sign(detents) + d.options.length) % d.options.length;
+      else next = clamp(cur + detents * (this.fine ? d.fine : d.step), d.min, d.max);
+      const m = this.prog.get(id)!;
+      if ((attr === 'pan' || attr === 'tilt') && this.posPreset.has(id)) {
+        m.set('pan', { v: this.live[id].pan, active: true });
+        m.set('tilt', { v: this.live[id].tilt, active: true });
+        this.posPreset.delete(id);
+      }
+      m.set(attr, { v: next, active: true });
+      if (attr === 'lamp') this.onLamp(id, next >= 0.5);
+      if (attr === 'reset' && next >= 1) this.onReset(id);
+      last = next;
+    }
+    this.emit();
+    return note ?? `${d.name} ${d.fmt(last)}`;
+  }
+
+  /** Pan or tilt as the head is right now: programmed if it is, otherwise where it's pointing. */
+  angleNow(id: number, attr: 'pan' | 'tilt') {
+    const p = this.prog.get(id)!.get(attr);
+    return p && !this.posPreset.has(id) ? p.v : this.live[id][attr];
   }
 
   applyPreset(type: number, n: number) {
@@ -273,15 +322,23 @@ export class Desk {
     const note = this.ensureSelection(p.slug ? 'pan' : (Object.keys(p.values!)[0] as AttrKey));
     this.snapshot();
     if (p.slug) {
-      if (!this.selection.has(1)) return 'Position presets need Fixture 1';
-      const m = this.prog.get(1)!;
-      m.delete('pan');
-      m.delete('tilt');
-      this.posPreset = { slug: p.slug, preset: `${type}.${n}`, active: true };
-    } else {
-      for (const [k, v] of Object.entries(p.values!)) {
-        for (const id of this.targets(k as AttrKey)) this.prog.get(id)!.set(k as AttrKey, { v, active: true });
+      const spots = [...this.selection].filter((id) => SPOTS.includes(id));
+      if (!spots.length) return 'Position presets need a spot selected (Fixture 1 or 2)';
+      for (const id of spots) {
+        const m = this.prog.get(id)!;
+        m.delete('pan');
+        m.delete('tilt');
+        this.posPreset.set(id, { slug: p.slug, preset: `${type}.${n}`, active: true });
       }
+    } else {
+      let hit = 0;
+      for (const [k, v] of Object.entries(p.values!)) {
+        for (const id of this.targets(k as AttrKey)) {
+          this.prog.get(id)!.set(k as AttrKey, { v, active: true });
+          hit++;
+        }
+      }
+      if (!hit) return `Preset ${type}.${n} has nothing for the selected fixtures`;
     }
     this.emit();
     return note ? `${note}. Preset ${type}.${n} ${p.name}` : `Preset ${type}.${n} ${p.name}`;
@@ -295,8 +352,7 @@ export class Desk {
       this.selection.clear();
       msg = 'Selection cleared';
     } else if (this.hasActive()) {
-      for (const m of this.prog.values()) for (const v of m.values()) v.active = false;
-      if (this.posPreset) this.posPreset.active = false;
+      this.deactivate();
       msg = 'Values deactivated. Clear again to release';
     } else if (this.hasValues()) {
       this.releaseAll();
@@ -318,8 +374,7 @@ export class Desk {
 
   clearActive() {
     this.snapshot();
-    for (const m of this.prog.values()) for (const v of m.values()) v.active = false;
-    if (this.posPreset) this.posPreset.active = false;
+    this.deactivate();
     this.emit();
     return 'Values deactivated';
   }
@@ -331,9 +386,14 @@ export class Desk {
     return 'Selection cleared';
   }
 
+  private deactivate() {
+    for (const m of this.prog.values()) for (const v of m.values()) v.active = false;
+    for (const p of this.posPreset.values()) p.active = false;
+  }
+
   private releaseAll() {
     for (const m of this.prog.values()) m.clear();
-    this.posPreset = null;
+    this.posPreset.clear();
   }
 
   toggleBlind() {
@@ -344,7 +404,7 @@ export class Desk {
   toggleHighlight() {
     this.highlight = !this.highlight;
     this.emit();
-    return this.highlight ? 'Highlight on' : 'Highlight off';
+    return this.highlight ? 'Highlight on for the selected fixtures' : 'Highlight off';
   }
   toggleBlackout() {
     this.blackout = !this.blackout;
@@ -413,7 +473,7 @@ export class Desk {
       this.run(null);
       return 'Sequence 1 off';
     }
-    if (exec === 2 || exec === 3) {
+    if (exec >= 2 && exec <= 4) {
       this.setExec(exec, 0);
       return `Executor ${exec} off`;
     }
@@ -424,9 +484,9 @@ export class Desk {
     const l = clamp(level, 0, 1);
     if (n === 1) this.exec[1].level = l;
     else if (n === 2) this.exec[2].level = l;
-    else if (n === 3) {
-      this.exec[3].level = l;
-      this.exec[3].auto = false;
+    else if (n === 3 || n === 4) {
+      this.exec[n].level = l;
+      this.exec[n].auto = false;
     } else return `Executor ${n} does not exist`;
     this.emit();
     return `Executor ${n} at ${Math.round(l * 100)}%`;
@@ -437,12 +497,15 @@ export class Desk {
     const num = n ?? Math.max(...this.cues.map((c) => c.n)) + 1;
     const existing = this.cues.find((c) => c.n === num);
     if (existing && !existing.user) return `Cue ${num} is a show cue. Store to a new number`;
-    const m = this.prog.get(1)!;
-    const values: Partial<Record<AttrKey, number>> = {};
-    for (const [k, v] of m) if (v.active && k !== 'pan' && k !== 'tilt' && k !== 'reset') values[k] = v.v;
-    const cue: Cue = { n: num, name: name || `Look ${num}`, fade: 2, values, user: true };
-    if (this.posPreset?.active) cue.slug = this.posPreset.slug;
-    else if (m.get('pan')?.active || m.get('tilt')?.active) cue.angles = { pan: m.get('pan')?.v ?? this.live.pan, tilt: m.get('tilt')?.v ?? this.live.tilt };
+    const fixtures: Record<number, Partial<Record<AttrKey, number>>> = {};
+    const plates: Record<number, string> = {};
+    for (const [id, m] of this.prog) {
+      const vals: Partial<Record<AttrKey, number>> = {};
+      for (const [k, v] of m) if (v.active && k !== 'reset') vals[k] = v.v;
+      if (Object.keys(vals).length) fixtures[id] = vals;
+    }
+    for (const [id, p] of this.posPreset) if (p.active) plates[id] = p.slug;
+    const cue: Cue = { n: num, name: name || `Look ${num}`, fade: 2, fixtures, plates, user: true };
     if (existing) this.cues.splice(this.cues.indexOf(existing), 1, cue);
     else {
       this.cues.push(cue);
@@ -455,37 +518,45 @@ export class Desk {
   /* ------------------------------------------------------------ output */
 
   value(fixture: number, attr: AttrKey): { v: number; src: Source } {
-    if (fixture === 2) {
-      const p = this.prog.get(2)!.get(attr);
+    const kind = this.fixture(fixture)?.kind;
+    const p = this.prog.get(fixture)?.get(attr);
+    if (kind === 'hazer') {
       if (p && !this.blind) return { v: p.v, src: p.active ? 'programmer' : 'inactive' };
       if (attr === 'haze') return { v: this.exec[2].flash ? 100 : this.exec[2].level * 100, src: 'executor' };
       return { v: ATTRS[attr].def, src: 'default' };
     }
-    if (this.highlight && attr in HIGHLIGHT) return { v: HIGHLIGHT[attr]!, src: 'highlight' };
-    const p = this.prog.get(1)!.get(attr);
+    if (this.highlight && this.selection.has(fixture) && attr in HIGHLIGHT) return { v: HIGHLIGHT[attr]!, src: 'highlight' };
     if (p && !this.blind) return { v: p.v, src: p.active ? 'programmer' : 'inactive' };
     const c = this.currentCue();
-    if (c?.values && attr in c.values) return { v: c.values[attr]!, src: 'cue' };
-    if (attr === 'dim' && c) return { v: ATTRS.dim.def * this.exec[1].level, src: 'cue' };
+    const cv = c?.fixtures?.[fixture]?.[attr];
+    if (cv != null) return { v: cv, src: 'cue' };
+    if (kind === 'panel' && attr === 'dim') return { v: (this.exec[4].flash ? 1 : this.exec[4].level) * 100, src: 'executor' };
+    if (kind === 'spot' && attr === 'dim' && c) return { v: ATTRS.dim.def * this.exec[1].level, src: 'cue' };
     return { v: ATTRS[attr].def, src: 'default' };
   }
 
-  position(): Position {
+  position(id: number): Position {
     if (!this.blind) {
-      if (this.posPreset) return { kind: 'plate', slug: this.posPreset.slug, from: 'programmer' };
-      const m = this.prog.get(1)!;
+      const pp = this.posPreset.get(id);
+      if (pp) return { kind: 'plate', slug: pp.slug, from: 'programmer' };
+      const m = this.prog.get(id)!;
       const pan = m.get('pan'), tilt = m.get('tilt');
-      if (pan || tilt) return { kind: 'angles', pan: pan?.v ?? this.live.pan, tilt: tilt?.v ?? this.live.tilt, from: 'programmer' };
+      if (pan || tilt) return { kind: 'angles', pan: pan?.v ?? this.live[id].pan, tilt: tilt?.v ?? this.live[id].tilt, from: 'programmer' };
     }
     const c = this.currentCue();
-    if (c?.slug) return { kind: 'plate', slug: c.slug, from: 'cue' };
-    if (c?.angles) return { kind: 'angles', ...c.angles, from: 'cue' };
+    if (c) {
+      const slug = c.plates?.[id] ?? c.slug;
+      if (slug) return { kind: 'plate', slug, from: 'cue' };
+      const f = c.fixtures?.[id];
+      if (f && (f.pan != null || f.tilt != null)) return { kind: 'angles', pan: f.pan ?? this.live[id].pan, tilt: f.tilt ?? this.live[id].tilt, from: 'cue' };
+    }
     return { kind: 'follow' };
   }
 
   /** Source of the position, for the Pan and Tilt displays. */
-  positionLabel(): { text: string; src: Source } | null {
-    if (!this.blind && this.posPreset) return { text: `P ${this.posPreset.preset}`, src: this.posPreset.active ? 'programmer' : 'inactive' };
+  positionLabel(id: number): { text: string; src: Source } | null {
+    const pp = this.posPreset.get(id);
+    if (!this.blind && pp) return { text: `P ${pp.preset}`, src: pp.active ? 'programmer' : 'inactive' };
     return null;
   }
 
@@ -494,14 +565,15 @@ export class Desk {
   }
 
   /** Final intensity 0..1 after the Grand Master and B.O. */
-  intensity() {
+  intensity(id: number) {
     if (this.blackout) return 0;
-    const lamp = this.value(1, 'lamp').v >= 0.5 ? 1 : 0;
-    return (this.value(1, 'dim').v / 100) * this.gm * lamp;
+    const kind = this.fixture(id)?.kind;
+    const lamp = kind === 'spot' ? (this.value(id, 'lamp').v >= 0.5 ? 1 : 0) : 1;
+    return (this.value(id, 'dim').v / 100) * this.gm * lamp;
   }
 
   availableFeatures(): Feature[] {
-    const ids = this.selection.size ? [...this.selection] : [1];
+    const ids = this.selection.size ? [...this.selection] : SPOTS;
     const set = new Set<Feature>();
     for (const id of ids) for (const a of this.fixture(id)!.attrs) set.add(ATTRS[a].feature);
     return FEATURES.filter((f) => set.has(f));
@@ -509,13 +581,20 @@ export class Desk {
 
   /** The attributes on the encoders for the current feature, up to five. */
   encoderAttrs(): (AttrKey | null)[] {
-    const ids = this.selection.size ? [...this.selection] : [1];
+    const ids = this.selection.size ? [...this.selection] : SPOTS;
     const keys: AttrKey[] = [];
     for (const id of ids) for (const a of this.fixture(id)!.attrs) if (ATTRS[a].feature === this.feature && !keys.includes(a)) keys.push(a);
     const out: (AttrKey | null)[] = keys.slice(0, 5);
     while (out.length < 5) out.push(null);
     return out;
   }
+}
+
+/** "1 + 2", "1 Thru 4", the way the desk writes a fixture list. */
+export function listName(ids: number[]) {
+  const s = [...ids].sort((a, b) => a - b);
+  if (s.length > 2 && s[s.length - 1] - s[0] === s.length - 1) return `${s[0]} Thru ${s[s.length - 1]}`;
+  return s.join(' + ');
 }
 
 export const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));

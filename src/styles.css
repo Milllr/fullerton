@@ -17,11 +17,11 @@
   --faint: #4b4741;
   --chalk: 214 204 188;
   --light: 255 230 207;
-  --li: 0;
-  --lx: -999px;
-  --ly: -999px;
-  --lrx: 160px;
-  --lry: 160px;
+  /* Where each light lands on the lit type: spots 1 and 2, panels (floods) 1 and 2. */
+  --l1i: 0; --l1x: -999px; --l1y: -999px; --l1rx: 160px; --l1ry: 160px;
+  --l2i: 0; --l2x: -999px; --l2y: -999px; --l2rx: 160px; --l2ry: 160px;
+  --f1i: 0; --f1x: -999px; --f1y: -999px; --f1rx: 160px; --f1ry: 160px;
+  --f2i: 0; --f2x: -999px; --f2y: -999px; --f2rx: 160px; --f2ry: 160px;
   --gutter: clamp(16px, 4.2vw, 72px);
   --font: 'Archivo Variable', 'Archivo', 'Helvetica Neue', Arial, sans-serif;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -89,17 +89,18 @@ a {
 .rig {
   position: fixed;
   inset: 0 0 auto 0;
-  height: calc(92px + env(safe-area-inset-top, 0px));
+  height: calc(104px + env(safe-area-inset-top, 0px));
   padding-top: env(safe-area-inset-top, 0px);
   z-index: 20;
   pointer-events: none;
   background: linear-gradient(var(--stage) 0%, rgb(3 3 3 / 0.94) 58%, rgb(3 3 3 / 0) 100%);
 }
 
+/* The nav runs along the top; the truss hangs below it and the rig hangs off the truss. */
 .truss {
   position: absolute;
   left: 0;
-  top: calc(16px + env(safe-area-inset-top, 0px));
+  top: calc(46px + env(safe-area-inset-top, 0px));
   width: 100%;
   height: 14px;
   color: rgb(var(--chalk) / 0.32);
@@ -117,7 +118,7 @@ a {
 .brand {
   position: absolute;
   left: var(--gutter);
-  top: calc(40px + env(safe-area-inset-top, 0px));
+  top: calc(15px + env(safe-area-inset-top, 0px));
   font-stretch: 118%;
   font-weight: 420;
   opacity: 0;
@@ -130,7 +131,7 @@ a {
 .nav {
   position: absolute;
   right: var(--gutter);
-  top: 40px;
+  top: calc(16px + env(safe-area-inset-top, 0px));
   display: flex;
   gap: 28px;
 }
@@ -144,9 +145,8 @@ a {
 
 .fixture {
   position: fixed;
-  left: 50%;
+  left: 0;
   top: 0;
-  transform: translateX(-50%);
   z-index: 21;
   pointer-events: none;
 }
@@ -188,33 +188,95 @@ a {
   object-fit: cover;
 }
 
-/* With script on, the photo only shows where the beam's spill reaches it. */
-.js .plate-stage img {
-  --sa: 0;
-  --sx: -9999px;
-  --sy: -9999px;
-  --srx: 1px;
-  --sry: 1px;
-  filter: saturate(0.85);
-  -webkit-mask-image: radial-gradient(
-    var(--srx) var(--sry) at var(--sx) var(--sy),
-    rgb(0 0 0 / var(--sa)) 0%,
-    rgb(0 0 0 / calc(var(--sa) * 0.55)) 32%,
-    rgb(0 0 0 / calc(var(--sa) * 0.2)) 62%,
-    rgb(0 0 0 / calc(var(--sa) * 0.05)) 84%,
-    transparent 100%
-  );
-  mask-image: radial-gradient(
-    var(--srx) var(--sry) at var(--sx) var(--sy),
-    rgb(0 0 0 / var(--sa)) 0%,
-    rgb(0 0 0 / calc(var(--sa) * 0.55)) 32%,
-    rgb(0 0 0 / calc(var(--sa) * 0.2)) 62%,
-    rgb(0 0 0 / calc(var(--sa) * 0.05)) 84%,
-    transparent 100%
-  );
-}
+/*
+  With script on, the photo only shows where light reaches it: each spot's
+  faint spill past its pool, and the soft panels' broad fields. Layers add up
+  the way light does. The variables live on the stage so the canvases above
+  can read them too.
+*/
 .plate-stage {
-  --sa: 0;
+  --s1a: 0; --s1x: -9999px; --s1y: -9999px; --s1rx: 1px; --s1ry: 1px;
+  --s2a: 0; --s2x: -9999px; --s2y: -9999px; --s2rx: 1px; --s2ry: 1px;
+  --p1a: 0; --p1x: -9999px; --p1y: -9999px; --p1rx: 1px; --p1ry: 1px;
+  --p2a: 0; --p2x: -9999px; --p2y: -9999px; --p2rx: 1px; --p2ry: 1px;
+  --pf: 0;
+}
+.js .plate-stage img {
+  filter: saturate(0.85);
+  -webkit-mask-image:
+    radial-gradient(
+      var(--s1rx) var(--s1ry) at var(--s1x) var(--s1y),
+      rgb(0 0 0 / var(--s1a)) 0%,
+      rgb(0 0 0 / calc(var(--s1a) * 0.55)) 32%,
+      rgb(0 0 0 / calc(var(--s1a) * 0.2)) 62%,
+      rgb(0 0 0 / calc(var(--s1a) * 0.05)) 84%,
+      transparent 100%
+    ),
+    radial-gradient(
+      var(--s2rx) var(--s2ry) at var(--s2x) var(--s2y),
+      rgb(0 0 0 / var(--s2a)) 0%,
+      rgb(0 0 0 / calc(var(--s2a) * 0.55)) 32%,
+      rgb(0 0 0 / calc(var(--s2a) * 0.2)) 62%,
+      rgb(0 0 0 / calc(var(--s2a) * 0.05)) 84%,
+      transparent 100%
+    ),
+    radial-gradient(
+      var(--p1rx) var(--p1ry) at var(--p1x) var(--p1y),
+      rgb(0 0 0 / var(--p1a)) 0%,
+      rgb(0 0 0 / calc(var(--p1a) * 0.87)) 30%,
+      rgb(0 0 0 / calc(var(--p1a) * 0.65)) 50%,
+      rgb(0 0 0 / calc(var(--p1a) * 0.36)) 70%,
+      rgb(0 0 0 / calc(var(--p1a) * 0.15)) 85%,
+      transparent 100%
+    ),
+    radial-gradient(
+      var(--p2rx) var(--p2ry) at var(--p2x) var(--p2y),
+      rgb(0 0 0 / var(--p2a)) 0%,
+      rgb(0 0 0 / calc(var(--p2a) * 0.87)) 30%,
+      rgb(0 0 0 / calc(var(--p2a) * 0.65)) 50%,
+      rgb(0 0 0 / calc(var(--p2a) * 0.36)) 70%,
+      rgb(0 0 0 / calc(var(--p2a) * 0.15)) 85%,
+      transparent 100%
+    );
+  mask-image:
+    radial-gradient(
+      var(--s1rx) var(--s1ry) at var(--s1x) var(--s1y),
+      rgb(0 0 0 / var(--s1a)) 0%,
+      rgb(0 0 0 / calc(var(--s1a) * 0.55)) 32%,
+      rgb(0 0 0 / calc(var(--s1a) * 0.2)) 62%,
+      rgb(0 0 0 / calc(var(--s1a) * 0.05)) 84%,
+      transparent 100%
+    ),
+    radial-gradient(
+      var(--s2rx) var(--s2ry) at var(--s2x) var(--s2y),
+      rgb(0 0 0 / var(--s2a)) 0%,
+      rgb(0 0 0 / calc(var(--s2a) * 0.55)) 32%,
+      rgb(0 0 0 / calc(var(--s2a) * 0.2)) 62%,
+      rgb(0 0 0 / calc(var(--s2a) * 0.05)) 84%,
+      transparent 100%
+    ),
+    radial-gradient(
+      var(--p1rx) var(--p1ry) at var(--p1x) var(--p1y),
+      rgb(0 0 0 / var(--p1a)) 0%,
+      rgb(0 0 0 / calc(var(--p1a) * 0.87)) 30%,
+      rgb(0 0 0 / calc(var(--p1a) * 0.65)) 50%,
+      rgb(0 0 0 / calc(var(--p1a) * 0.36)) 70%,
+      rgb(0 0 0 / calc(var(--p1a) * 0.15)) 85%,
+      transparent 100%
+    ),
+    radial-gradient(
+      var(--p2rx) var(--p2ry) at var(--p2x) var(--p2y),
+      rgb(0 0 0 / var(--p2a)) 0%,
+      rgb(0 0 0 / calc(var(--p2a) * 0.87)) 30%,
+      rgb(0 0 0 / calc(var(--p2a) * 0.65)) 50%,
+      rgb(0 0 0 / calc(var(--p2a) * 0.36)) 70%,
+      rgb(0 0 0 / calc(var(--p2a) * 0.15)) 85%,
+      transparent 100%
+    );
+}
+/* The hairline drawing eases back as the panels bring the real set up. */
+.js .plate-sketch {
+  opacity: calc(1 - 0.6 * var(--pf));
 }
 
 /* Hairline frame marks at the corners of each plate, like crop marks on a plot. */
@@ -260,23 +322,69 @@ a {
   -webkit-text-stroke: 0;
   text-shadow: 0 0 28px rgb(var(--light) / 0.35);
   pointer-events: none;
-  /* Bright inside the pool, then a long faint tail as the spill falls off. */
-  -webkit-mask-image: radial-gradient(
-    var(--lrx) var(--lry) at var(--lx) var(--ly),
-    rgb(0 0 0 / var(--li)) 0%,
-    rgb(0 0 0 / calc(var(--li) * 0.75)) 22%,
-    rgb(0 0 0 / calc(var(--li) * 0.32)) 42%,
-    rgb(0 0 0 / calc(var(--li) * 0.1)) 68%,
-    transparent 100%
-  );
-  mask-image: radial-gradient(
-    var(--lrx) var(--lry) at var(--lx) var(--ly),
-    rgb(0 0 0 / var(--li)) 0%,
-    rgb(0 0 0 / calc(var(--li) * 0.75)) 22%,
-    rgb(0 0 0 / calc(var(--li) * 0.32)) 42%,
-    rgb(0 0 0 / calc(var(--li) * 0.1)) 68%,
-    transparent 100%
-  );
+  /* Bright inside each spot's pool with a long faint tail, plus the panels' even fields. */
+  -webkit-mask-image:
+    radial-gradient(
+      var(--l1rx) var(--l1ry) at var(--l1x) var(--l1y),
+      rgb(0 0 0 / var(--l1i)) 0%,
+      rgb(0 0 0 / calc(var(--l1i) * 0.75)) 22%,
+      rgb(0 0 0 / calc(var(--l1i) * 0.32)) 42%,
+      rgb(0 0 0 / calc(var(--l1i) * 0.1)) 68%,
+      transparent 100%
+    ),
+    radial-gradient(
+      var(--l2rx) var(--l2ry) at var(--l2x) var(--l2y),
+      rgb(0 0 0 / var(--l2i)) 0%,
+      rgb(0 0 0 / calc(var(--l2i) * 0.75)) 22%,
+      rgb(0 0 0 / calc(var(--l2i) * 0.32)) 42%,
+      rgb(0 0 0 / calc(var(--l2i) * 0.1)) 68%,
+      transparent 100%
+    ),
+    radial-gradient(
+      var(--f1rx) var(--f1ry) at var(--f1x) var(--f1y),
+      rgb(0 0 0 / var(--f1i)) 0%,
+      rgb(0 0 0 / calc(var(--f1i) * 0.65)) 50%,
+      rgb(0 0 0 / calc(var(--f1i) * 0.15)) 85%,
+      transparent 100%
+    ),
+    radial-gradient(
+      var(--f2rx) var(--f2ry) at var(--f2x) var(--f2y),
+      rgb(0 0 0 / var(--f2i)) 0%,
+      rgb(0 0 0 / calc(var(--f2i) * 0.65)) 50%,
+      rgb(0 0 0 / calc(var(--f2i) * 0.15)) 85%,
+      transparent 100%
+    );
+  mask-image:
+    radial-gradient(
+      var(--l1rx) var(--l1ry) at var(--l1x) var(--l1y),
+      rgb(0 0 0 / var(--l1i)) 0%,
+      rgb(0 0 0 / calc(var(--l1i) * 0.75)) 22%,
+      rgb(0 0 0 / calc(var(--l1i) * 0.32)) 42%,
+      rgb(0 0 0 / calc(var(--l1i) * 0.1)) 68%,
+      transparent 100%
+    ),
+    radial-gradient(
+      var(--l2rx) var(--l2ry) at var(--l2x) var(--l2y),
+      rgb(0 0 0 / var(--l2i)) 0%,
+      rgb(0 0 0 / calc(var(--l2i) * 0.75)) 22%,
+      rgb(0 0 0 / calc(var(--l2i) * 0.32)) 42%,
+      rgb(0 0 0 / calc(var(--l2i) * 0.1)) 68%,
+      transparent 100%
+    ),
+    radial-gradient(
+      var(--f1rx) var(--f1ry) at var(--f1x) var(--f1y),
+      rgb(0 0 0 / var(--f1i)) 0%,
+      rgb(0 0 0 / calc(var(--f1i) * 0.65)) 50%,
+      rgb(0 0 0 / calc(var(--f1i) * 0.15)) 85%,
+      transparent 100%
+    ),
+    radial-gradient(
+      var(--f2rx) var(--f2ry) at var(--f2x) var(--f2y),
+      rgb(0 0 0 / var(--f2i)) 0%,
+      rgb(0 0 0 / calc(var(--f2i) * 0.65)) 50%,
+      rgb(0 0 0 / calc(var(--f2i) * 0.15)) 85%,
+      transparent 100%
+    );
 }
 
 .no-js .lit {
@@ -336,7 +444,7 @@ a {
 .hero-cap {
   position: absolute;
   right: var(--gutter);
-  top: 92px;
+  bottom: calc(clamp(24px, 6vh, 80px) + 56px);
   z-index: 10;
   margin: 0;
   display: flex;

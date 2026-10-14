@@ -1,5 +1,5 @@
-import type { Pool, Rig } from './rig';
-import { SPRITE, type GoboSprites } from './gobos';
+import type { Pool } from './rig';
+import { SPRITE } from './gobos';
 import { imageUrl, sketchUrl, type ShowImage } from '../data/shows';
 
 export interface SketchData {
@@ -21,13 +21,37 @@ export function loadSketch(slug: string, id: string) {
   return p;
 }
 
-/** Shared scratch surface for the halo pass. */
+/** Shared scratch surface: each spot's light is built here, then laid onto the plate. */
 let scratch: HTMLCanvasElement | null = null;
 function getScratch(w: number, h: number) {
   if (!scratch) scratch = document.createElement('canvas');
   if (scratch.width < w) scratch.width = w;
   if (scratch.height < h) scratch.height = h;
   return scratch;
+}
+
+/** One spot's light as it lands on the page this frame. */
+export interface SpotLight {
+  pool: Pool;
+  /** Intensity where the pool lands, 0..1. */
+  I: number;
+  /** Multiply tint for the photo, and the colour the sketch lines catch. */
+  tint: string;
+  halo: string;
+  /** The pool's gobo mask and its soft halo. */
+  mask: HTMLCanvasElement;
+  haloMask: HTMLCanvasElement;
+  spin: number;
+  /** Changes whenever the mask's contents change. */
+  key: string;
+}
+
+/** A soft panel's field on the page. */
+export interface Flood {
+  pool: Pool;
+  I: number;
+  /** Relative illuminance 0..1 at a point. */
+  at: (x: number, y: number) => number;
 }
 
 export const CHALK = '214, 204, 188';
@@ -213,20 +237,45 @@ export class Plate {
     return [R / W / 255, G / W / 255, B / W / 255, W];
   }
 
-  /** Faint light leaking past the pool: the real photo shows through, dimly. */
-  spill(pool: Pool, I: number) {
+  /**
+   * Light that isn't the spots' pools: each spot's faint spill past its pool,
+   * and the panels' broad, even fields. Both let the real photo through softly.
+   */
+  spill(spots: { pool: Pool; I: number }[], floods: Flood[]) {
     const st = this.stage.style;
-    if (I < 0.004 || !this.photoReady) {
-      st.setProperty('--sa', '0');
-      return;
-    }
     const r = this.rect;
-    st.setProperty('--sx', `${Math.round(pool.x - r.left)}px`);
-    st.setProperty('--sy', `${Math.round(pool.y - r.top)}px`);
-    const big = Math.max(pool.rx, pool.ry);
-    st.setProperty('--srx', `${Math.round(big * 2.7)}px`);
-    st.setProperty('--sry', `${Math.round(Math.min(pool.rx, pool.ry) * 2.7 + (big - Math.min(pool.rx, pool.ry)) * 1.2)}px`);
-    st.setProperty('--sa', (0.2 * I).toFixed(3));
+    const on = this.photoReady;
+    spots.forEach((sp, i) => {
+      const n = i + 1;
+      if (!on || sp.I < 0.004) {
+        st.setProperty(`--s${n}a`, '0');
+        return;
+      }
+      const { pool } = sp;
+      const big = Math.max(pool.rx, pool.ry), small = Math.min(pool.rx, pool.ry);
+      st.setProperty(`--s${n}x`, `${Math.round(pool.x - r.left)}px`);
+      st.setProperty(`--s${n}y`, `${Math.round(pool.y - r.top)}px`);
+      st.setProperty(`--s${n}rx`, `${Math.round(big * 2.7)}px`);
+      st.setProperty(`--s${n}ry`, `${Math.round(small * 2.7 + (big - small) * 1.2)}px`);
+      st.setProperty(`--s${n}a`, (0.2 * sp.I).toFixed(3));
+    });
+    let lit = 0;
+    floods.forEach((f, i) => {
+      const n = i + 1;
+      if (!on || f.I < 0.004) {
+        st.setProperty(`--p${n}a`, '0');
+        return;
+      }
+      st.setProperty(`--p${n}x`, `${Math.round(f.pool.x - r.left)}px`);
+      st.setProperty(`--p${n}y`, `${Math.round(f.pool.y - r.top)}px`);
+      st.setProperty(`--p${n}rx`, `${Math.round(f.pool.rx)}px`);
+      st.setProperty(`--p${n}ry`, `${Math.round(f.pool.ry)}px`);
+      st.setProperty(`--p${n}a`, (0.95 * f.I).toFixed(3));
+      // How lit the plate is as a whole, for easing the sketch back.
+      const c = f.at(r.left + r.width / 2, r.top + r.height / 2) * f.I;
+      lit = 1 - (1 - lit) * (1 - c);
+    });
+    st.setProperty('--pf', (on ? lit : 0).toFixed(3));
   }
 
   async load() {
@@ -263,6 +312,7 @@ export class Plate {
     }
     this.map = coverMapping(W, H, this.aspect, this.focusY);
     this.prevBox = null;
+    this.lastSig = '';
     this.renderSketch();
     if (this.data) {
       this.brightC ??= document.createElement('canvas');
@@ -297,78 +347,104 @@ export class Plate {
     this.prevBox = null;
   }
 
-  /** Paint this frame's light. Assumes measure() has been called this frame. */
-  drawLight(pool: Pool, rig: Rig, sprites: GoboSprites, tint: string, halo: string) {
+  /**
+   * Paint this frame's spot light. Each spot reveals the photo through its own
+   * gobo and colour; where two pools cross they add up like light does, by
+   * screening, so the overlap is brighter without clipping. Assumes measure()
+   * has been called this frame.
+   */
+  drawLight(lights: SpotLight[]) {
     const r = this.rect;
     const W = r.width, H = r.height;
-    const lx = pool.x - r.left, ly = pool.y - r.top;
-    const I = rig.poolI;
-    const R = Math.max(pool.rx, pool.ry) * 2.2;
-    const x0 = Math.max(0, lx - R), y0 = Math.max(0, ly - R);
-    const x1 = Math.min(W, lx + R), y1 = Math.min(H, ly + R);
+    const live = lights
+      .map((L) => {
+        const lx = L.pool.x - r.left, ly = L.pool.y - r.top;
+        const R = Math.max(L.pool.rx, L.pool.ry) * 2.2;
+        return { L, lx, ly, x0: Math.max(0, lx - R), y0: Math.max(0, ly - R), x1: Math.min(W, lx + R), y1: Math.min(H, ly + R) };
+      })
+      .filter((o) => o.x1 > o.x0 && o.y1 > o.y0 && o.L.I >= 0.004);
     // Nothing moved since last frame: keep what's painted.
-    const sig = `${lx.toFixed(1)},${ly.toFixed(1)},${pool.rx.toFixed(1)},${pool.ry.toFixed(2)},${pool.angle.toFixed(3)},${I.toFixed(3)},${tint},${rig.out.gobo},${sprites.version},${rig.goboSpin.toFixed(3)},${W},${H},${this.photoReady}`;
-    if (sig === this.lastSig && this.prevBox) return;
-    this.lastSig = sig;
+    const sig =
+      live
+        .map(({ L, lx, ly }) => `${lx.toFixed(1)},${ly.toFixed(1)},${L.pool.rx.toFixed(1)},${L.pool.ry.toFixed(2)},${L.pool.angle.toFixed(3)},${L.I.toFixed(3)},${L.tint},${L.key},${L.spin.toFixed(3)}`)
+        .join('|') + `|${W},${H},${this.photoReady}`;
+    if (sig === this.lastSig) return;
     this.clearLight();
-    if (x1 <= x0 || y1 <= y0 || I < 0.004 || !this.data) return;
+    this.lastSig = sig;
+    if (!live.length || !this.data) return;
     const d = this.dpr;
-    const box = [Math.floor(x0 * d), Math.floor(y0 * d), Math.ceil((x1 - x0) * d) + 2, Math.ceil((y1 - y0) * d) + 2];
-    this.prevBox = box;
+    const boxOf = (o: (typeof live)[number]) => [Math.floor(o.x0 * d), Math.floor(o.y0 * d), Math.ceil((o.x1 - o.x0) * d) + 2, Math.ceil((o.y1 - o.y0) * d) + 2];
+    const boxes = live.map(boxOf);
+    const ux0 = Math.min(...boxes.map((b) => b[0])), uy0 = Math.min(...boxes.map((b) => b[1]));
+    const ux1 = Math.max(...boxes.map((b) => b[0] + b[2])), uy1 = Math.max(...boxes.map((b) => b[1] + b[3]));
+    this.prevBox = [ux0, uy0, ux1 - ux0, uy1 - uy0];
+
     const ctx = this.lctx;
+    const s = getScratch(this.lightC.width, this.lightC.height);
+    const sc = s.getContext('2d')!;
     const k = SPRITE / 2;
-    const placeSprite = (c: CanvasRenderingContext2D, sx: number, sy: number) => {
-      c.translate(lx, ly);
-      c.rotate(pool.angle);
-      c.scale((pool.rx * sx) / k, (pool.ry * sy) / k);
+    const place = (c: CanvasRenderingContext2D, o: (typeof live)[number], f: number) => {
+      c.translate(o.lx, o.ly);
+      c.rotate(o.L.pool.angle);
+      c.scale((o.L.pool.rx * f) / k, (o.L.pool.ry * f) / k);
     };
-
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.beginPath();
-    ctx.rect(box[0], box[1], box[2], box[3]);
-    ctx.clip();
-    ctx.setTransform(d, 0, 0, d, 0, 0);
-    if (this.photoReady) {
-      const m = this.map;
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.drawImage(this.img, m.ox, m.oy, m.s, m.s * this.aspect);
-      ctx.globalCompositeOperation = 'multiply';
-      ctx.fillStyle = tint;
-      ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
-      ctx.globalCompositeOperation = 'destination-in';
-      ctx.globalAlpha = Math.min(1, I * 1.08);
-      placeSprite(ctx, 1, 1);
-      ctx.rotate(rig.goboSpin);
-      ctx.drawImage(sprites.pool[rig.out.gobo], -k, -k);
-    }
-    ctx.restore();
-
-    // Halo: the sketch catches light just beyond the pool's edge.
-    if (this.brightC) {
-      const s = getScratch(this.lightC.width, this.lightC.height);
-      const sc = s.getContext('2d')!;
+    const begin = (box: number[]) => {
       sc.save();
       sc.setTransform(1, 0, 0, 1, 0, 0);
-      sc.globalCompositeOperation = 'copy';
-      sc.drawImage(this.brightC, box[0], box[1], box[2], box[3], box[0], box[1], box[2], box[3]);
-      sc.globalCompositeOperation = 'source-atop';
-      sc.fillStyle = halo;
-      sc.fillRect(box[0], box[1], box[2], box[3]);
-      sc.globalCompositeOperation = 'destination-in';
-      sc.globalAlpha = Math.min(1, I * 1.1);
+      sc.globalCompositeOperation = 'source-over';
+      sc.globalAlpha = 1;
+      sc.clearRect(box[0], box[1], box[2], box[3]);
       sc.beginPath();
       sc.rect(box[0], box[1], box[2], box[3]);
       sc.clip();
       sc.setTransform(d, 0, 0, d, 0, 0);
-      placeSprite(sc, 2.2, 2.2);
-      sc.drawImage(sprites.halo, -k, -k);
-      sc.restore();
+    };
+    const lay = (box: number[], op: GlobalCompositeOperation) => {
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.globalCompositeOperation = 'destination-over';
+      ctx.globalCompositeOperation = op;
       ctx.drawImage(s, box[0], box[1], box[2], box[3], box[0], box[1], box[2], box[3]);
       ctx.restore();
+    };
+
+    // The photo, lit by each spot in turn.
+    if (this.photoReady) {
+      const m = this.map;
+      live.forEach((o, i) => {
+        const box = boxes[i];
+        begin(box);
+        sc.drawImage(this.img, m.ox, m.oy, m.s, m.s * this.aspect);
+        sc.globalCompositeOperation = 'multiply';
+        sc.fillStyle = o.L.tint;
+        sc.fillRect(o.x0, o.y0, o.x1 - o.x0, o.y1 - o.y0);
+        sc.globalCompositeOperation = 'destination-in';
+        sc.globalAlpha = Math.min(1, o.L.I * 1.08);
+        place(sc, o, 1);
+        sc.rotate(o.L.spin);
+        sc.drawImage(o.L.mask, -k, -k);
+        sc.restore();
+        lay(box, 'screen');
+      });
+    }
+
+    // Halo: the sketch catches light just beyond each pool's edge.
+    if (this.brightC) {
+      live.forEach((o, i) => {
+        const box = boxes[i];
+        begin(box);
+        sc.setTransform(1, 0, 0, 1, 0, 0);
+        sc.drawImage(this.brightC!, box[0], box[1], box[2], box[3], box[0], box[1], box[2], box[3]);
+        sc.globalCompositeOperation = 'source-atop';
+        sc.fillStyle = o.L.halo;
+        sc.fillRect(box[0], box[1], box[2], box[3]);
+        sc.globalCompositeOperation = 'destination-in';
+        sc.globalAlpha = Math.min(1, o.L.I * 1.1);
+        sc.setTransform(d, 0, 0, d, 0, 0);
+        place(sc, o, 2.2);
+        sc.drawImage(o.L.haloMask, -k, -k);
+        sc.restore();
+        lay(box, 'destination-over');
+      });
     }
   }
 }

@@ -92,17 +92,21 @@ export class Rig {
   }
 
   update(dt: number, hold = false) {
-    dt = Math.min(dt, 0.05);
+    dt = Math.min(dt, 0.25);
     if (!hold) {
       const a = this.anglesFor(this.target.x, this.target.y);
       const w = this.omega;
-      const step = (pos: number, vel: number, goal: number, vmax: number) => {
+      const step = (pos: number, vel: number, goal: number, vmax: number, h: number) => {
         const acc = w * w * (goal - pos) - 2 * w * vel;
-        vel = Math.max(-vmax, Math.min(vmax, vel + acc * dt));
-        return [pos + vel * dt, vel];
+        vel = Math.max(-vmax, Math.min(vmax, vel + acc * h));
+        return [pos + vel * h, vel];
       };
-      [this.pan, this.vPan] = step(this.pan, this.vPan, a.pan, this.maxPan);
-      [this.tilt, this.vTilt] = step(this.tilt, this.vTilt, a.tilt, this.maxTilt);
+      // Small fixed steps keep the spring steady whatever the frame rate.
+      for (let left = dt; left > 1e-6; left -= 1 / 120) {
+        const h = Math.min(left, 1 / 120);
+        [this.pan, this.vPan] = step(this.pan, this.vPan, a.pan, this.maxPan, h);
+        [this.tilt, this.vTilt] = step(this.tilt, this.vTilt, a.tilt, this.maxTilt, h);
+      }
     } else {
       this.vPan = this.vTilt = 0;
     }
@@ -147,5 +151,42 @@ export class Rig {
 
   degrees() {
     return { pan: this.pan / DEG, tilt: this.tilt / DEG };
+  }
+}
+
+/**
+ * A soft LED panel hung near the centre of the truss, pointing straight down.
+ * It doesn't move: whatever is under it on the page is in its field, so as
+ * the page scrolls the show in view comes into the light.
+ */
+export class PanelRig {
+  pivot = { x: 0, y: 0 };
+  intensity = 0;
+  cct = 4700;
+  pool: Pool = { x: 0, y: 0, rx: 1, ry: 1, angle: 0 };
+
+  layout(vw: number, usableH: number, pivotX: number, pivotY: number, small: boolean) {
+    this.pivot = { x: pivotX, y: pivotY };
+    this.pool = {
+      x: pivotX,
+      y: pivotY + (usableH - pivotY) * 0.5,
+      // Tall enough to take in the show in the middle of the screen, falling
+      // away towards the top and bottom so that one reads as the subject.
+      rx: small ? vw * 0.62 : Math.max(280, vw * 0.34),
+      ry: Math.max(200, (usableH - pivotY) * (small ? 0.46 : 0.6)),
+      angle: 0,
+    };
+  }
+
+  /** Relative illuminance 0..1 at a point on the page: even in the middle, soft towards the field edge. */
+  at(x: number, y: number) {
+    const dx = (x - this.pool.x) / this.pool.rx;
+    const dy = (y - this.pool.y) / this.pool.ry;
+    const d2 = dx * dx + dy * dy;
+    return d2 >= 1 ? 0 : Math.pow(1 - d2, 1.5);
+  }
+
+  colour() {
+    return kelvinToRgb(this.cct);
   }
 }

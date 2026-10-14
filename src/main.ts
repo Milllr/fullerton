@@ -4,13 +4,13 @@ import './desk/desk.css';
 
 import { allShows, credits, hero, imageUrl, shows, type Show } from './data/shows';
 import { site } from './data/site';
-import { Rig } from './engine/rig';
-import { Plate } from './engine/plate';
-import { Shaft } from './engine/shaft';
-import { Fixture } from './engine/fixture';
+import { PanelRig, Rig, type Pool } from './engine/rig';
+import { Plate, type Flood, type SpotLight } from './engine/plate';
+import { Shaft, type Beam } from './engine/shaft';
+import { Fixture, PanelFixture } from './engine/fixture';
 import { buildSprites, type GoboSprites } from './engine/gobos';
 import { rgbCss } from './engine/kelvin';
-import { Desk, strobeHz } from './desk/model';
+import { Desk, HAZER, PANELS, SPOTS, strobeHz, type AttrKey } from './desk/model';
 import { DeskUI } from './desk/ui';
 import { renderCredits } from './ui/credits';
 import { Sheet } from './ui/detail';
@@ -98,14 +98,62 @@ for (const el of litEls) {
 
 /* --------------------------------------------------------------- engine */
 
-const rig = new Rig();
-rig.reducedMotion = reduced;
-let sprites: GoboSprites = buildSprites(0.7, 0);
-let spriteKey = '0.70|0.00';
-let spriteBuilt = 0;
-const fixture = new Fixture($<HTMLCanvasElement>('#fixture'));
+/*
+  The rig, left to right along the truss: Spot L (fixture 1), Panel L (3),
+  Panel R (4), Spot R (2). The spots hang at the wings on moving heads and
+  cross their beams; the soft panels hang inside, pointing straight down.
+  On a touch screen the panels come up as a fill and the spots find the show
+  you're looking at by themselves.
+*/
+const touchMode = coarse;
+const spots = SPOTS.map(() => {
+  const r = new Rig();
+  r.reducedMotion = reduced;
+  return r;
+});
+const panels = PANELS.map(() => new PanelRig());
+const spotFx = SPOTS.map((id) => new Fixture($<HTMLCanvasElement>(`#fx-${id}`)));
+const panelFx = PANELS.map((id) => new PanelFixture($<HTMLCanvasElement>(`#fx-${id}`)));
+/** Top left of each fixture canvas on screen. */
+const spotAt = spots.map(() => ({ x: 0, y: 0 }));
+const panelAt = panels.map(() => ({ x: 0, y: 0 }));
+/** Spot L lands right of centre and Spot R left of it, so the beams cross. */
+const crossOf = (i: number) => (i === 0 ? 1 : -1);
+
+/** Gobo sprites for a focus and frost, shared between the spots. */
+const spriteCache = new Map<string, GoboSprites>();
+const spriteKey = (focus: number, frost: number) => `${focus.toFixed(2)}|${frost.toFixed(2)}`;
+function spritesFor(focus: number, frost: number) {
+  const key = spriteKey(focus, frost);
+  let s = spriteCache.get(key);
+  if (!s) {
+    s = buildSprites(focus, frost);
+    spriteCache.set(key, s);
+    if (spriteCache.size > 8) spriteCache.delete(spriteCache.keys().next().value!);
+  }
+  return s;
+}
+const spotSprites = spots.map(() => ({ key: spriteKey(0.7, 0), sprites: spritesFor(0.7, 0) }));
+let lastSpriteBuild = 0;
+function updateSprites(i: number, now: number) {
+  const { focus, frost } = spots[i].out;
+  const key = spriteKey(focus, frost);
+  const st = spotSprites[i];
+  if (key === st.key) return;
+  if (!spriteCache.has(key)) {
+    // Turning the focus encoder shouldn't rebuild masks every frame.
+    if (now - lastSpriteBuild < 90) return;
+    lastSpriteBuild = now;
+  }
+  st.sprites = spritesFor(focus, frost);
+  st.key = key;
+}
+
 const shaft = Shaft.create($<HTMLCanvasElement>('#shaft'));
 if (!shaft) root.classList.add('no-shaft');
+/** Development only: ?fast renders the haze coarsely and takes bigger time steps, for headless tests. */
+const fast = import.meta.env.DEV && new URLSearchParams(location.search).has('fast');
+if (fast && shaft) shaft.maxScale = 0.12;
 
 const plates: Plate[] = [];
 const heroPlate = new Plate($('.plate-hero'), hero.slug, hero.images.find((i) => i.id === hero.key)!, 0.55, 0.8);
@@ -115,6 +163,7 @@ document.querySelectorAll<HTMLElement>('#plates .plate').forEach((el, i) => {
   plates.push(new Plate(el, s.slug, s.images.find((im) => im.id === s.key)!));
 });
 const plateBySlug = (slug: string) => plates.find((p) => p.slug === slug) ?? null;
+const rectOf = (p: Plate) => (p.visible ? p.rect : p.stage.getBoundingClientRect());
 
 const near = new IntersectionObserver(
   (entries) => {
@@ -157,7 +206,7 @@ litEls.forEach((el) => litSeen.observe(el));
 /* ----------------------------------------------------------------- desk */
 
 const desk = new Desk();
-const goboIcons = sprites.pool.map((c) => {
+const goboIcons = spotSprites[0].sprites.pool.map((c) => {
   const t = document.createElement('canvas');
   t.width = t.height = 44;
   const x = t.getContext('2d')!;
@@ -172,8 +221,8 @@ const deskUI = new DeskUI($('#desk'), desk, goboIcons, reduced);
 deskUI.onOpenChange = () => requestAnimationFrame(() => measureDesk());
 
 desk.onCue = (c) => {
-  if (!c?.slug) return;
-  const p = plateBySlug(c.slug);
+  const slug = c?.slug ?? (c?.plates ? Object.values(c.plates)[0] : undefined);
+  const p = slug ? plateBySlug(slug) : null;
   if (!p) return;
   const r = p.stage.getBoundingClientRect();
   const visibleH = deskTop;
@@ -187,9 +236,11 @@ desk.onCue = (c) => {
 
 let vw = innerWidth, vh = innerHeight;
 const lowPower = coarse || (navigator.hardwareConcurrency || 8) <= 4;
-let fixtureRect = new DOMRect();
-/** Top edge of the desk: the part of the screen the beam can usefully reach. */
+/** Top edge of the desk: the part of the screen the light can usefully reach. */
 let deskTop = innerHeight;
+/** Centre line of the truss the rig hangs from. */
+let trussY = 53;
+let panelUsable = 0;
 
 function measureDesk() {
   deskTop = $('#desk').getBoundingClientRect().top || vh;
@@ -199,19 +250,28 @@ function layout() {
   vw = innerWidth;
   vh = innerHeight;
   const small = vw < 720;
-  const k = small ? 0.62 : vw < 1100 ? 0.8 : 1;
-  fixture.resize(k);
-  // Hang the clamp on the truss: the clamp top is 118 units above the pivot.
-  const trussY = ($('.truss').getBoundingClientRect().top || 16) + 7;
-  fixture.canvas.style.top = `${trussY - (fixture.pivotY - 118 * k)}px`;
-  // On a phone the nav takes the left, so the fixture hangs to the right.
-  fixture.canvas.style.left = small ? '74%' : '50%';
-  fixtureRect = fixture.canvas.getBoundingClientRect();
-  const pv = fixture.pivotOnScreen();
-  rig.layout(vw, vh, pv.x, pv.y);
+  const k = small ? 0.45 : vw < 1100 ? 0.7 : 0.9;
+  // Spots at the wings, panels inside: Spot L, Panel L, Panel R, Spot R.
+  const xs = small ? [0.09, 0.36, 0.64, 0.91] : [0.09, 0.38, 0.62, 0.91];
+  trussY = ($('.truss').getBoundingClientRect().top || 46) + 7;
+  measureDesk();
+  // The panels are hung for the screen with the desk tucked away; opening the desk doesn't move them.
+  if (!deskUI.isOpen || !panelUsable) panelUsable = Math.min(vh, deskTop);
+  const usable = panelUsable;
+  const hang = (fx: Fixture | PanelFixture, x: number, at: { x: number; y: number }) => {
+    fx.resize(k);
+    at.x = Math.round(x * vw - fx.w / 2);
+    at.y = Math.round(trussY);
+    fx.canvas.style.transform = `translate(${at.x}px, ${at.y}px)`;
+  };
+  hang(spotFx[0], xs[0], spotAt[0]);
+  hang(panelFx[0], xs[1], panelAt[0]);
+  hang(panelFx[1], xs[2], panelAt[1]);
+  hang(spotFx[1], xs[3], spotAt[1]);
+  spots.forEach((r, i) => r.layout(vw, vh, spotAt[i].x + spotFx[i].pivotX, spotAt[i].y + spotFx[i].pivotY));
+  panels.forEach((p, i) => p.layout(vw, usable, panelAt[i].x + panelFx[i].pivotX, panelAt[i].y + panelFx[i].pivotY, small));
   shaft?.resize(vw, vh, lowPower);
   plates.forEach((p) => p.resize());
-  measureDesk();
 }
 
 /* ---------------------------------------------------------------- input */
@@ -219,18 +279,27 @@ function layout() {
 let pointer: { x: number; y: number } | null = null;
 let lastInput = performance.now();
 const IDLE_AFTER = 6000;
-/** A plate the beam is briefly committed to: keyboard focus, or a click that opens it. */
+/** A plate the beams are briefly committed to: keyboard focus, or a click that opens it. */
 let momentary: { plate: Plate; fraction: number } | null = null;
+/** On a touch screen a finger on the page pulls both spots onto it, until a moment after it lifts. */
+let finger: { x: number; y: number } | null = null;
+let fingerDown = false;
+let fingerUp = -1e9;
+const FINGER_HOLD = 1200;
 
-function onInput(x: number, y: number) {
-  pointer = { x, y };
-  lastInput = performance.now();
-  if (momentary && momentary.fraction < 0.9) momentary = null;
+function dropAutoSweep() {
   if (desk.exec[3].auto) {
     desk.exec[3].level = 0;
     desk.exec[3].auto = false;
     desk.emit();
   }
+}
+
+function onInput(x: number, y: number) {
+  pointer = { x, y };
+  lastInput = performance.now();
+  if (momentary && momentary.fraction < 0.9) momentary = null;
+  dropAutoSweep();
 }
 
 const overControls = (t: EventTarget | null) => !!(t as Element)?.closest?.('#desk, .sheet');
@@ -239,27 +308,44 @@ addEventListener('pointermove', (e) => {
   if (e.pointerType === 'touch') return;
   finishOpening();
   if (overControls(e.target)) {
-    // Working the desk shouldn't drag the beam over to it.
+    // Working the desk shouldn't drag the beams over to it.
     lastInput = performance.now();
     return;
   }
   onInput(e.clientX, e.clientY);
 }, { passive: true });
 
+function onTouch(e: TouchEvent) {
+  const t = e.touches[0];
+  lastInput = performance.now();
+  if (!t || overControls(e.target)) return;
+  if (!touchMode) return onInput(t.clientX, t.clientY);
+  finger = { x: t.clientX, y: t.clientY };
+  fingerDown = true;
+  if (momentary && momentary.fraction < 0.9) momentary = null;
+}
 addEventListener('touchstart', (e) => {
   finishOpening();
-  const t = e.touches[0];
-  if (t && !overControls(e.target)) onInput(t.clientX, t.clientY);
-  else lastInput = performance.now();
+  onTouch(e);
 }, { passive: true });
-addEventListener('touchmove', (e) => {
-  const t = e.touches[0];
-  if (t && !overControls(e.target)) onInput(t.clientX, t.clientY);
-}, { passive: true });
+addEventListener('touchmove', onTouch, { passive: true });
+const onLift = (e: TouchEvent) => {
+  if (!e.touches.length && fingerDown) {
+    fingerDown = false;
+    fingerUp = performance.now();
+  }
+};
+addEventListener('touchend', onLift, { passive: true });
+addEventListener('touchcancel', onLift, { passive: true });
 
-addEventListener('keydown', () => finishOpening());
+addEventListener('keydown', () => {
+  finishOpening();
+  // Typing at the desk counts as being here; the idle sweep waits.
+  lastInput = performance.now();
+});
+addEventListener('pointerdown', () => (lastInput = performance.now()), { passive: true });
 
-// Keyboard focus on a plate swings the beam onto it.
+// Keyboard focus on a plate swings the beams onto it.
 document.addEventListener('focusin', (e) => {
   const el = (e.target as HTMLElement).closest?.('.plate');
   const p = el && plates.find((pl) => pl.el === el);
@@ -294,7 +380,7 @@ function route() {
 }
 addEventListener('hashchange', route);
 
-// Opening a show: swing onto the plate and open the beam wide, then the sheet.
+// Opening a show: swing onto the plate and open the beams wide, then the sheet.
 document.addEventListener('click', (e) => {
   const a = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="#/work/"]');
   if (!a || e.metaKey || e.ctrlKey || e.shiftKey) return;
@@ -311,20 +397,16 @@ document.addEventListener('click', (e) => {
   } else openIt();
 });
 
-/* ------------------------------------------------- opening cue and lamp */
+/* ------------------------------------------------- opening cue and lamps */
 
 let opening = false;
 let openStart = performance.now();
-/** When the lamp last struck; drives the flicker. */
-let strikeAt = -1e9;
-let lampOn = true;
-let resetUntil = 0;
 const ease = (t: number) => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
+/** Per spot: when its lamp last struck (drives the flicker), and a Reset in progress. */
+const lamps = spots.map(() => ({ strikeAt: -1e9, on: true, resetUntil: 0 }));
 
 /** Lamp level after a strike: a couple of flickers, then a slow fade up. */
-function strikeLevel(now: number) {
-  if (!lampOn) return 0;
-  const s = now - strikeAt;
+function strikeCurve(s: number) {
   if (s < 0) return 0;
   if (s < 60) return 0.55;
   if (s < 140) return 0.08;
@@ -333,49 +415,78 @@ function strikeLevel(now: number) {
   return 0.25 + 0.75 * ease((s - 300) / 1100);
 }
 
-desk.onLamp = (on) => {
-  if (on && !lampOn) strikeAt = performance.now();
-  lampOn = on;
+function lampLevel(i: number, now: number) {
+  // In the opening cue the spots strike one after the other.
+  if (opening) return strikeCurve(now - openStart - 1900 - i * 160);
+  const l = lamps[i];
+  return l.on ? strikeCurve(now - l.strikeAt) : 0;
+}
+
+desk.onLamp = (id, on) => {
+  const l = lamps[SPOTS.indexOf(id)];
+  if (!l) return;
+  if (on && !l.on) l.strikeAt = performance.now();
+  l.on = on;
 };
-desk.onReset = () => {
-  resetUntil = performance.now() + 1500;
+desk.onReset = (id) => {
+  const l = lamps[SPOTS.indexOf(id)];
+  if (l) l.resetUntil = performance.now() + 1500;
 };
+
+let fillRaised = false;
+/** On a touch screen the panels come up by themselves once the rig is lit. */
+function autoFill() {
+  if (!touchMode || fillRaised) return;
+  fillRaised = true;
+  const e = desk.exec[4];
+  if (e.level === 0 && !e.flash) {
+    e.level = 0.72;
+    e.auto = true;
+    desk.emit();
+  }
+}
 
 function finishOpening() {
   if (!opening) return;
   opening = false;
   root.classList.add('cue-done');
-  fixture.progress = 1;
+  [...spotFx, ...panelFx].forEach((f) => (f.progress = 1));
   heroPlate.renderSketch(1);
-  strikeAt = -1e9;
+  lamps.forEach((l) => (l.strikeAt = -1e9));
+  autoFill();
 }
 
 function runOpening(now: number) {
   const t = now - openStart;
-  fixture.progress = ease((t - 150) / 900);
+  spotFx.forEach((f) => (f.progress = ease((t - 150) / 900)));
+  panelFx.forEach((f) => (f.progress = ease((t - 420) / 900)));
   if (heroPlate.data) heroPlate.renderSketch(ease((t - 500) / 1700));
   if (t > 3600) finishOpening();
 }
 
 /* ---------------------------------------------------------------- frame */
 
+type RGB = [number, number, number];
 let last = performance.now();
 let clock = 0;
 let hazeClock = 0;
 let phaserClock = 0;
+let roamClock = 0;
 let sweepShown = 0;
-let zoomGoal = 0;
-const bounce: [number, number, number] = [0, 0, 0];
+const bounce: RGB = [0, 0, 0];
 let bounceAmt = 0;
+const bouncePos = { x: 0, y: 0 };
+const bounceAxes = { x: 1, y: 1 };
 const deskEl = $('#desk');
+let subjectPlate: Plate | null = null;
 
 function wordmarkPoint() {
   const wm = $('#wordmark').getBoundingClientRect();
   return { x: wm.left + wm.width * 0.42, y: wm.top + wm.height * 0.5 };
 }
 
-function zoomToCover(p: Plate, fraction: number) {
-  const r = p.stage.getBoundingClientRect();
+function zoomToCover(rig: Rig, p: Plate, fraction: number) {
+  const r = rectOf(p);
   const want = Math.min(r.width, r.height) * fraction;
   const pool = rig.pool();
   const base = rig.baseZoom();
@@ -384,164 +495,316 @@ function zoomToCover(p: Plate, fraction: number) {
   return Math.max(0, Math.min(60, deg - base));
 }
 
+/** The visible part of the page below the rig and above the desk. */
+const viewTop = () => trussY + 60;
+const viewBottom = () => Math.min(vh, deskTop);
+
+/** The show nearest the middle of the screen. It holds on a little so the spots don't flick between two. */
+function findSubject(visible: Plate[]) {
+  const top = viewTop(), bottom = viewBottom();
+  const span = Math.max(1, bottom - top);
+  const cy = (top + bottom) / 2;
+  const score = (p: Plate) => {
+    const r = p.rect;
+    if (r.bottom < top + 40 || r.top > bottom - 40) return Infinity;
+    return Math.abs((r.top + r.bottom) / 2 - cy) / span;
+  };
+  let best: Plate | null = null;
+  let bestS = Infinity;
+  for (const p of visible) {
+    const s = score(p);
+    if (s < bestS) {
+      bestS = s;
+      best = p;
+    }
+  }
+  if (subjectPlate?.visible) {
+    const cur = score(subjectPlate);
+    if (cur < Infinity && cur - bestS < 0.15) {
+      best = subjectPlate;
+      bestS = cur;
+    }
+  }
+  subjectPlate = bestS < 0.75 ? best : null;
+  return subjectPlate;
+}
+
 function frame(now: number) {
-  const dt = Math.min(0.05, (now - last) / 1000);
+  const dt = Math.min(fast ? 0.25 : 0.05, (now - last) / 1000);
   last = now;
   if (!reduced) clock += dt;
 
   if (opening) runOpening(now);
 
-  // Resolve the fixture's output from the desk.
-  const v = (a: Parameters<Desk['value']>[1]) => desk.value(1, a).v;
-  rig.out.zoom = v('zoom');
-  rig.out.iris = v('iris') / 100;
-  rig.out.cct = v('cct');
-  rig.out.gobo = Math.round(v('gobo'));
-  rig.out.goboRot = v('goboRot') / 100;
-  rig.out.focus = v('focus') / 100;
-  rig.out.frost = v('frost') / 100;
-  rig.out.haze = desk.value(2, 'haze').v / 100;
-  rig.out.fan = desk.value(2, 'fan').v / 100;
-  const key = `${rig.out.focus.toFixed(2)}|${rig.out.frost.toFixed(2)}`;
-  if (key !== spriteKey && now - spriteBuilt > 90) {
-    sprites = buildSprites(rig.out.focus, rig.out.frost);
-    spriteKey = key;
-    spriteBuilt = now;
-  }
+  const lightVisible = plates.filter((p) => p.visible);
+  for (const p of lightVisible) p.measure();
 
-  // Intensity: dimmer, Grand Master, B.O., lamp strike, strobe.
-  const shutter = v('shutter');
-  const strobe = shutter >= 0.5 && !reduced ? ((clock * strobeHz(shutter)) % 1 < 0.5 ? 1 : 0) : 1;
-  const lamp = opening ? strikeLevelOpening(now) : strikeLevel(now);
-  rig.intensity = sheet.isOpen ? 0 : desk.intensity() * lamp * strobe;
+  const haze = desk.value(HAZER, 'haze').v / 100;
+  const fan = desk.value(HAZER, 'fan').v / 100;
 
-  // Where the head should point.
-  const pos = desk.position();
-  let target = pointer ?? wordmarkPoint();
-  let cover: { plate: Plate; fraction: number } | null = null;
-  if (momentary) {
-    cover = momentary;
-  } else if (pos.kind === 'plate') {
-    const p = plateBySlug(pos.slug);
-    if (p) cover = { plate: p, fraction: 0.46 };
-  } else if (pos.kind === 'angles') {
-    target = rig.pointFor(pos.pan, pos.tilt);
-  }
-  if (cover) {
-    const r = cover.plate.stage.getBoundingClientRect();
-    target = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-  }
-  if (now < resetUntil) target = rig.pointFor(0, 6);
+  // Each spot's output, resolved from the desk: dimmer, Grand Master, B.O., lamp strike, strobe.
+  spots.forEach((rig, i) => {
+    const id = SPOTS[i];
+    const v = (a: AttrKey) => desk.value(id, a).v;
+    rig.out.zoom = v('zoom');
+    rig.out.iris = v('iris') / 100;
+    rig.out.cct = v('cct');
+    rig.out.gobo = Math.round(v('gobo'));
+    rig.out.goboRot = v('goboRot') / 100;
+    rig.out.focus = v('focus') / 100;
+    rig.out.frost = v('frost') / 100;
+    rig.out.haze = haze;
+    rig.out.fan = fan;
+    updateSprites(i, now);
+    const shutter = v('shutter');
+    const strobe = shutter >= 0.5 && !reduced ? ((clock * strobeHz(shutter)) % 1 < 0.5 ? 1 : 0) : 1;
+    rig.intensity = sheet.isOpen ? 0 : desk.intensity(id) * lampLevel(i, now) * strobe;
+  });
 
-  // Executor 3: a pan and tilt sweep phaser. It also comes up by itself when nobody's touching anything.
-  if (!opening && pos.kind === 'follow' && !momentary && now - lastInput > IDLE_AFTER && !sheet.isOpen && !reduced && desk.exec[3].level === 0 && !desk.exec[3].flash) {
+  // The panels are LED: no lamp to strike, but they fade rather than pop.
+  panels.forEach((pr, j) => {
+    const id = PANELS[j];
+    const want = sheet.isOpen || opening ? 0 : desk.intensity(id);
+    const rate = want > pr.intensity ? 2.2 : 9;
+    pr.intensity += (want - pr.intensity) * Math.min(1, dt * rate);
+    if (Math.abs(want - pr.intensity) < 0.001) pr.intensity = want;
+    pr.cct = desk.value(id, 'cct').v;
+  });
+
+  // Where the heads should point.
+  const pos = SPOTS.map((id) => desk.position(id));
+  const allFollow = pos.every((p) => p.kind === 'follow');
+
+  // Executor 3: a pan and tilt sweep phaser, mirrored so the beams cross. It
+  // comes up by itself on a desktop when nobody's touching anything.
+  if (!touchMode && !opening && allFollow && !momentary && now - lastInput > IDLE_AFTER && !sheet.isOpen && !reduced && desk.exec[3].level === 0 && !desk.exec[3].flash) {
     desk.exec[3].level = 0.55;
     desk.exec[3].auto = true;
     desk.emit();
   }
   sweepShown += (desk.sweepSize() - sweepShown) * Math.min(1, dt * 1.5);
-  if (sweepShown > 0.005 && !reduced) {
-    phaserClock += dt;
-    const free = pos.kind === 'follow' && !momentary;
-    const usable = Math.min(vh, deskTop);
-    const base = free ? { x: vw / 2, y: usable * 0.58 } : target;
-    const ax = (free ? vw * 0.3 : vw * 0.12) * sweepShown;
-    const ay = (free ? usable * 0.2 : usable * 0.08) * sweepShown;
-    const blend = free ? Math.min(1, sweepShown / 0.25) : 1;
-    const sx = base.x + ax * Math.sin((TAU * phaserClock) / 24);
-    const sy = base.y + ay * Math.sin((TAU * phaserClock) / 16 + 0.9);
-    target = { x: target.x + (sx - target.x) * blend, y: target.y + (sy - target.y) * blend };
-  }
-  rig.target = target;
+  if (sweepShown > 0.005 && !reduced) phaserClock += dt;
+  if (!reduced) roamClock += dt;
 
-  // Cue fade times set how heavily the head moves.
+  const fingerLive = touchMode && !!finger && (fingerDown || now - fingerUp < FINGER_HOLD);
+  const subject = touchMode && !opening ? findSubject(lightVisible) : null;
+  const slugs = pos.map((p) => (p.kind === 'plate' ? p.slug : null));
+  const sharePlate = !!slugs[0] && slugs[0] === slugs[1];
   const cue = desk.currentCue();
-  rig.omega = pos.kind !== 'follow' && pos.from === 'cue' && cue ? Math.max(2.5, Math.min(8, 15 / cue.fade)) : 5.2;
-  const hold = desk.exec[1].paused && pos.kind !== 'follow' && pos.from === 'cue';
+  const top = viewTop(), bottom = viewBottom();
 
-  zoomGoal = cover && desk.value(1, 'zoom').src !== 'programmer' ? zoomToCover(cover.plate, cover.fraction) : 0;
-  rig.zoomBoost += (zoomGoal - rig.zoomBoost) * Math.min(1, dt * 4);
-  rig.update(dt, hold);
-  desk.live = rig.degrees();
-
-  hazeClock += dt * (0.25 + rig.out.fan * 1.75) * (reduced ? 0 : 1);
-
-  const pool = rig.pool();
-  const colour = rig.colour();
-  const I = rig.intensity;
-  rig.poolI = I * rig.throwFalloff();
-  const lensLocal = fixture.draw(rig.pan, rig.tilt, I, colour);
-  const lens = { x: fixtureRect.left + lensLocal.x, y: fixtureRect.top + lensLocal.y };
-  const soft = Math.min(0.9, 0.25 + (1 - rig.out.focus) * 0.4 + rig.out.frost * 0.45);
-
-  // Tint for the photos: mostly the beam colour, a little towards white.
-  const tint = rgbCss(colour.map((c) => 0.25 + 0.75 * c) as [number, number, number]);
-  const halo = rgbCss(colour);
-  const lightVisible = plates.filter((p) => p.visible);
-  for (const p of lightVisible) p.measure();
-  let bounceTarget: [number, number, number, number] | null = null;
-  for (const p of lightVisible) {
-    if (sheet.isOpen) {
-      p.clearLight();
-      p.spill(pool, 0);
-      continue;
+  spots.forEach((rig, i) => {
+    const p = pos[i];
+    const cross = crossOf(i);
+    let target = pointer ?? wordmarkPoint();
+    let cover: { plate: Plate; fraction: number } | null = null;
+    let offset = 0;
+    let roam = false;
+    let omega = 5.2;
+    if (momentary) {
+      cover = momentary;
+    } else if (p.kind === 'plate') {
+      const pl = plateBySlug(p.slug);
+      if (pl) {
+        cover = { plate: pl, fraction: sharePlate ? 0.38 : 0.46 };
+        if (sharePlate) offset = 0.18 * cross;
+      }
+    } else if (p.kind === 'angles') {
+      target = rig.pointFor(p.pan, p.tilt);
+    } else if (touchMode && !opening) {
+      if (fingerLive) {
+        target = finger!;
+      } else {
+        roam = true;
+        omega = 3;
+        if (subject) {
+          cover = { plate: subject, fraction: 0.3 };
+          offset = 0.18 * cross;
+        } else {
+          target = { x: vw / 2 + cross * vw * 0.12, y: (top + bottom) / 2 };
+        }
+      }
     }
-    p.drawLight(pool, rig, sprites, tint, halo);
-    p.spill(pool, rig.poolI);
-    const b = p.sampleBounce(pool);
-    if (b && (!bounceTarget || b[3] > bounceTarget[3])) bounceTarget = b;
+    let span = { w: vw * 0.6, h: (bottom - top) * 0.6 };
+    if (cover) {
+      const r = rectOf(cover.plate);
+      target = { x: r.left + r.width * (0.5 + offset), y: r.top + r.height / 2 };
+      span = { w: r.width, h: r.height };
+    }
+    // A slow roam over the subject, the two spots mirrored.
+    if (roam && !reduced) {
+      const ph = i === 0 ? 0 : Math.PI;
+      target = {
+        x: target.x + 0.22 * span.w * Math.sin((TAU * roamClock) / 11 + ph),
+        y: Math.max(top, Math.min(bottom, target.y + 0.22 * span.h * Math.sin((TAU * roamClock) / 7 + ph))),
+      };
+    }
+    if (now < lamps[i].resetUntil) target = rig.pointFor(0, 6);
+
+    if (sweepShown > 0.005 && !reduced) {
+      const free = p.kind === 'follow' && !momentary && !touchMode;
+      const base = free ? { x: vw / 2, y: bottom * 0.58 } : target;
+      const ax = (free ? vw * 0.3 : vw * 0.12) * sweepShown * cross;
+      const ay = (free ? bottom * 0.2 : bottom * 0.08) * sweepShown;
+      const blend = free ? Math.min(1, sweepShown / 0.25) : 1;
+      const sx = base.x + ax * Math.sin((TAU * phaserClock) / 24);
+      const sy = base.y + ay * Math.sin((TAU * phaserClock) / 16 + 0.9);
+      target = { x: target.x + (sx - target.x) * blend, y: target.y + (sy - target.y) * blend };
+    }
+    rig.target = target;
+
+    // Cue fade times set how heavily the heads move.
+    rig.omega = p.kind !== 'follow' && p.from === 'cue' && cue ? Math.max(2.5, Math.min(8, 15 / cue.fade)) : omega;
+    const hold = desk.exec[1].paused && p.kind !== 'follow' && p.from === 'cue';
+    const zoomGoal = cover && desk.value(SPOTS[i], 'zoom').src !== 'programmer' ? zoomToCover(rig, cover.plate, cover.fraction) : 0;
+    rig.zoomBoost += (zoomGoal - rig.zoomBoost) * Math.min(1, dt * 4);
+    rig.update(dt, hold);
+    desk.live[SPOTS[i]] = rig.degrees();
+  });
+
+  hazeClock += dt * (0.25 + fan * 1.75) * (reduced ? 0 : 1);
+
+  // Draw the fixtures and gather what each light is doing on the page.
+  const beams: Beam[] = [];
+  const lights: SpotLight[] = [];
+  const spotPools: Pool[] = [];
+  spots.forEach((rig, i) => {
+    const pool = rig.pool();
+    const colour = rig.colour();
+    const I = rig.intensity;
+    rig.poolI = I * rig.throwFalloff();
+    const l = spotFx[i].draw(rig.pan, rig.tilt, I, colour);
+    const sp = spotSprites[i].sprites;
+    const mask = sp.pool[rig.out.gobo];
+    shaft?.setGobo(i as 0 | 1, mask);
+    spotPools.push(pool);
+    beams.push({
+      kind: 'spot',
+      lens: { x: spotAt[i].x + l.x, y: spotAt[i].y + l.y },
+      lensW: 18 * spotFx[i].scale,
+      pool,
+      colour,
+      I,
+      poolI: rig.throwFalloff(),
+      soft: Math.min(0.9, 0.25 + (1 - rig.out.focus) * 0.4 + rig.out.frost * 0.45),
+      gobo: rig.out.gobo,
+      spin: rig.goboSpin,
+    });
+    lights.push({
+      pool,
+      I: rig.poolI,
+      // Tint for the photos: mostly the beam colour, a little towards white.
+      tint: rgbCss(colour.map((c) => 0.25 + 0.75 * c) as RGB),
+      halo: rgbCss(colour),
+      mask,
+      haloMask: sp.halo,
+      spin: rig.goboSpin,
+      key: `${rig.out.gobo}.${sp.version}`,
+    });
+  });
+  const floods: Flood[] = panels.map((pr, j) => {
+    const colour = pr.colour();
+    const l = panelFx[j].draw(pr.intensity, colour);
+    beams.push({
+      kind: 'panel',
+      lens: { x: panelAt[j].x + l.x, y: panelAt[j].y + l.y },
+      lensW: panelFx[j].lensHalfWidth,
+      pool: pr.pool,
+      colour,
+      I: pr.intensity,
+      poolI: 1,
+      soft: 0.9,
+      gobo: 0,
+      spin: 0,
+    });
+    return { pool: pr.pool, I: pr.intensity, at: (x: number, y: number) => pr.at(x, y) };
+  });
+
+  let bounceFrom: { c: [number, number, number, number]; i: number; w: number } | null = null;
+  for (const p of lightVisible) {
+    p.drawLight(lights);
+    p.spill(lights, floods);
+    if (sheet.isOpen) continue;
+    lights.forEach((L, i) => {
+      if (L.I < 0.01) return;
+      const b = p.sampleBounce(L.pool);
+      if (b && (!bounceFrom || b[3] * L.I > bounceFrom.w)) bounceFrom = { c: b, i, w: b[3] * L.I };
+    });
   }
 
-  // Colour bounced off the set the pool is sitting on, lit by the beam's own colour.
+  // Colour bounced off the set under the brightest pool, lit by that spot's own colour.
   const k = Math.min(1, dt * 3);
-  if (bounceTarget) {
-    for (let i = 0; i < 3; i++) bounce[i] += (bounceTarget[i] * colour[i] - bounce[i]) * k;
-    bounceAmt += (0.09 - bounceAmt) * k;
+  const bf = bounceFrom as { c: [number, number, number, number]; i: number; w: number } | null;
+  if (bf) {
+    const col = spots[bf.i].colour();
+    const pool = spotPools[bf.i];
+    const snap = bounceAmt < 0.004 ? 1 : k;
+    for (let c = 0; c < 3; c++) bounce[c] += (bf.c[c] * col[c] - bounce[c]) * k;
+    bouncePos.x += (pool.x - bouncePos.x) * snap;
+    bouncePos.y += (pool.y - bouncePos.y) * snap;
+    bounceAxes.x += (pool.rx - bounceAxes.x) * snap;
+    bounceAxes.y += (pool.ry - bounceAxes.y) * snap;
+    bounceAmt += (0.09 * Math.min(1, lights[bf.i].I * 1.1) - bounceAmt) * k;
   } else {
     bounceAmt += (0 - bounceAmt) * k;
   }
 
-  shaft?.setGobo(sprites.pool[rig.out.gobo]);
-  shaft?.render({
-    vw, vh, lens, pool, colour,
-    dim: I, poolI: rig.throwFalloff(), haze: rig.out.haze, time: hazeClock, gobo: rig.out.gobo, spin: rig.goboSpin, soft,
-    bounce, bounceAmt,
-  });
+  shaft?.render({ vw, vh, haze, time: hazeClock, beams, bounce, bounceAmt, bouncePos, bounceAxes });
 
-  // Lit type: a pool-sized core with a long, faint tail.
-  root.style.setProperty('--light', `${Math.round(colour[0] * 255)} ${Math.round(colour[1] * 255)} ${Math.round(colour[2] * 255)}`);
-  root.style.setProperty('--lrx', `${Math.round(Math.max(pool.rx, pool.ry) * 2)}px`);
-  root.style.setProperty('--lry', `${Math.round(Math.min(pool.rx, pool.ry) * 2)}px`);
-  root.style.setProperty('--li', rig.poolI.toFixed(3));
-  const rects = [...litVisible].map((el) => [el, el.getBoundingClientRect()] as const);
-  for (const [el, r] of rects) {
-    el.style.setProperty('--lx', `${Math.round(pool.x - r.left)}px`);
-    el.style.setProperty('--ly', `${Math.round(pool.y - r.top)}px`);
+  // Lit type: each spot's pool-sized core with a long faint tail, and the panels' broad fields.
+  {
+    const lc = [0, 0, 0];
+    let wsum = 0;
+    const add = (c: RGB, w: number) => {
+      for (let n = 0; n < 3; n++) lc[n] += c[n] * w;
+      wsum += w;
+    };
+    spots.forEach((r, i) => add(r.colour(), lights[i].I));
+    panels.forEach((pr) => add(pr.colour(), pr.intensity * 0.6));
+    const light = wsum > 0.001 ? lc.map((v) => v / wsum) : spots[0].colour();
+    const rs = root.style;
+    rs.setProperty('--light', light.map((v) => Math.round(v * 255)).join(' '));
+    spotPools.forEach((pool, i) => {
+      rs.setProperty(`--l${i + 1}rx`, `${Math.round(Math.max(pool.rx, pool.ry) * 2)}px`);
+      rs.setProperty(`--l${i + 1}ry`, `${Math.round(Math.min(pool.rx, pool.ry) * 2)}px`);
+      rs.setProperty(`--l${i + 1}i`, lights[i].I.toFixed(3));
+    });
+    panels.forEach((pr, j) => {
+      rs.setProperty(`--f${j + 1}rx`, `${Math.round(pr.pool.rx)}px`);
+      rs.setProperty(`--f${j + 1}ry`, `${Math.round(pr.pool.ry)}px`);
+      rs.setProperty(`--f${j + 1}i`, (pr.intensity * 0.7).toFixed(3));
+    });
+    for (const el of litVisible) {
+      const r = el.getBoundingClientRect();
+      spotPools.forEach((pool, i) => {
+        el.style.setProperty(`--l${i + 1}x`, `${Math.round(pool.x - r.left)}px`);
+        el.style.setProperty(`--l${i + 1}y`, `${Math.round(pool.y - r.top)}px`);
+      });
+      panels.forEach((pr, j) => {
+        el.style.setProperty(`--f${j + 1}x`, `${Math.round(pr.pool.x - r.left)}px`);
+        el.style.setProperty(`--f${j + 1}y`, `${Math.round(pr.pool.y - r.top)}px`);
+      });
+    }
   }
 
-  // The desk's front edge catches the beam when it lands low on the page.
+  // The desk's front edge catches whichever light reaches it most.
   {
-    const reach = Math.max(pool.rx, pool.ry) * 2.4;
-    const gap = deskTop - (pool.y + pool.ry);
-    const a = sheet.isOpen ? 0 : Math.max(0, Math.min(1, 1 - gap / reach)) * rig.poolI;
-    deskEl.style.setProperty('--spill-x', `${Math.round(pool.x)}px`);
-    deskEl.style.setProperty('--spill-r', `${Math.round(Math.max(pool.rx, pool.ry) * 2.2)}px`);
-    deskEl.style.setProperty('--spill-a', a.toFixed(3));
+    let best = { a: 0, x: vw / 2, r: 1 };
+    const consider = (pool: Pool, I: number, reachK: number, weight: number) => {
+      const big = Math.max(pool.rx, pool.ry);
+      const gap = deskTop - (pool.y + pool.ry);
+      const a = Math.max(0, Math.min(1, 1 - gap / (big * reachK))) * I * weight;
+      if (a > best.a) best = { a, x: pool.x, r: big * 2.2 };
+    };
+    spotPools.forEach((pool, i) => consider(pool, lights[i].I, 2.4, 1));
+    panels.forEach((pr) => consider(pr.pool, pr.intensity, 1.2, 0.35));
+    deskEl.style.setProperty('--spill-x', `${Math.round(best.x)}px`);
+    deskEl.style.setProperty('--spill-r', `${Math.round(best.r)}px`);
+    deskEl.style.setProperty('--spill-a', (sheet.isOpen ? 0 : best.a).toFixed(3));
   }
 
   deskUI.tick(dt, desk.live);
   requestAnimationFrame(frame);
-}
-
-/** The opening cue's own strike, timed against the page load. */
-function strikeLevelOpening(now: number) {
-  const s = now - openStart - 1900;
-  if (s < 0) return 0;
-  if (s < 60) return 0.55;
-  if (s < 140) return 0.08;
-  if (s < 200) return 0.7;
-  if (s < 300) return 0.25;
-  return 0.25 + 0.75 * ease((s - 300) / 1100);
 }
 
 /* ---------------------------------------------------------------- start */
@@ -551,16 +814,17 @@ addEventListener('resize', () => layout());
 function start() {
   layout();
   const wm = wordmarkPoint();
-  rig.aimNow(wm.x, wm.y);
+  spots.forEach((r) => r.aimNow(wm.x, wm.y));
   if (reduced) {
     root.classList.add('cue-done');
+    autoFill();
   } else {
     opening = true;
     root.classList.add('cue-run');
     openStart = performance.now();
     heroPlate.progress = 0;
-    fixture.progress = 0;
-    rig.aimNow(vw / 2, vh * 0.62);
+    [...spotFx, ...panelFx].forEach((f) => (f.progress = 0));
+    spots.forEach((r, i) => r.aimNow(vw / 2 + crossOf(i) * vw * 0.05, vh * 0.62));
   }
   heroPlate.load();
   new IntersectionObserver(([e]) => root.classList.toggle('past-hero', !e.isIntersecting), {
@@ -574,3 +838,6 @@ function start() {
 }
 
 document.fonts.ready.then(start);
+
+// For poking at the rig from the console while developing.
+if (import.meta.env.DEV) Object.assign(window, { __rig: { spots, panels, desk, plates, shaft } });
