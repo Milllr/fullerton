@@ -16,26 +16,42 @@ export class Sheet {
   onClose: () => void = () => {};
   private token = 0;
 
+  private closing: number | null = null;
+
   constructor(root: HTMLElement, reduced: boolean) {
     this.root = root;
     this.reduced = reduced;
-    root.addEventListener('keydown', (e) => {
+    // Clicking a photo or empty space moves focus to the sheet itself, not the page behind.
+    root.tabIndex = -1;
+    // Listen on the document: the keys work wherever focus has ended up while the sheet is open.
+    document.addEventListener('keydown', (e) => {
+      if (!this.isOpen || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === 'Escape') this.onClose();
       else if (e.key === 'ArrowRight') this.step(1);
       else if (e.key === 'ArrowLeft') this.step(-1);
       else if (e.key === 'Tab') this.trap(e);
     });
-    addEventListener('resize', () => this.show && this.paintSketch());
+    addEventListener('resize', () => this.show && this.paintSketch().catch(() => {}));
   }
 
   get isOpen() {
-    return !this.root.hidden;
+    return !this.root.hidden && this.closing == null;
+  }
+
+  /** Everything behind the sheet, made inert while it's open so Tab and screen readers stay in the sheet. */
+  private background() {
+    return [...document.body.children].filter((el): el is HTMLElement => el !== this.root && el instanceof HTMLElement && el.tagName !== 'SCRIPT');
   }
 
   open(show: Show, from?: HTMLElement | null) {
+    if (this.closing != null) {
+      clearTimeout(this.closing);
+      this.closing = null;
+    }
     this.show = show;
     this.index = 0;
-    this.returnFocus = from ?? (document.activeElement as HTMLElement);
+    this.returnFocus = from ?? null;
+    for (const el of this.background()) el.inert = true;
     const meta = [show.network, show.year].filter(Boolean).join(', ');
     const thumbs = show.images
       .map(
@@ -89,17 +105,21 @@ export class Sheet {
   }
 
   close() {
-    if (this.root.hidden) return;
+    if (this.root.hidden || this.closing != null) return;
     this.root.classList.remove('is-open');
     document.documentElement.classList.remove('sheet-open');
+    for (const el of this.background()) el.inert = false;
     const done = () => {
+      this.closing = null;
       this.root.hidden = true;
       this.root.innerHTML = '';
       this.show = null;
     };
     if (this.reduced) done();
-    else setTimeout(done, 380);
-    this.returnFocus?.focus({ preventScroll: true });
+    else this.closing = window.setTimeout(done, 380);
+    if (this.returnFocus?.isConnected) this.returnFocus.focus({ preventScroll: true });
+    else (document.activeElement as HTMLElement | null)?.blur?.();
+    this.returnFocus = null;
   }
 
   private step(d: number) {
@@ -124,7 +144,11 @@ export class Sheet {
     this.root.querySelector('.sheet-credit')!.textContent = im.credit ? `Photo: ${im.credit}` : '';
     this.root.querySelectorAll('.sheet-strip button').forEach((b, j) => b.setAttribute('aria-current', String(j === i)));
     photo.src = imageUrl(show.slug, im.id, 'full');
-    await this.paintSketch();
+    try {
+      await this.paintSketch();
+    } catch {
+      /* no sketch: the photo still comes up */
+    }
     try {
       await photo.decode();
     } catch {
@@ -142,8 +166,15 @@ export class Sheet {
     const c = this.root.querySelector<HTMLCanvasElement>('.sheet-sketch');
     if (!c) return;
     const data = await loadSketch(show.slug, im.id);
+    // Stepped on to another photo (or closed) while this sketch loaded.
+    if (this.show !== show || show.images[this.index] !== im || !c.isConnected) return;
     const r = c.getBoundingClientRect();
+    if (!r.width || !r.height) return;
     const dpr = Math.min(2, devicePixelRatio || 1);
+    // A phone's address bar showing or hiding shouldn't redraw an unchanged sketch.
+    const key = `${im.id}|${Math.round(r.width)}x${Math.round(r.height)}@${dpr}`;
+    if (c.dataset.k === key) return;
+    c.dataset.k = key;
     c.width = Math.round(r.width * dpr);
     c.height = Math.round(r.height * dpr);
     const ctx = c.getContext('2d')!;
@@ -155,10 +186,12 @@ export class Sheet {
     const f = [...this.root.querySelectorAll<HTMLElement>('button, a[href]')].filter((el) => !el.closest('[hidden]'));
     if (!f.length) return;
     const first = f[0], last = f[f.length - 1];
-    if (e.shiftKey && document.activeElement === first) {
+    const at = document.activeElement;
+    const inside = at instanceof HTMLElement && this.root.contains(at) && at !== this.root;
+    if (e.shiftKey && (at === first || !inside)) {
       e.preventDefault();
       last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
+    } else if (!e.shiftKey && (at === last || !inside)) {
       e.preventDefault();
       first.focus();
     }

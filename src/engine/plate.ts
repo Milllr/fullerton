@@ -1,5 +1,6 @@
 import type { Pool } from './rig';
 import { SPRITE } from './gobos';
+import { setVar } from './css';
 import { imageUrl, sketchUrl, type ShowImage } from '../data/shows';
 
 export interface SketchData {
@@ -15,7 +16,12 @@ export function loadSketch(slug: string, id: string) {
   const key = `${slug}/${id}`;
   let p = sketchCache.get(key);
   if (!p) {
-    p = fetch(sketchUrl(slug, id)).then((r) => r.json());
+    p = fetch(sketchUrl(slug, id)).then((r) => {
+      if (!r.ok) throw new Error(`Sketch ${key}: HTTP ${r.status}`);
+      return r.json() as Promise<SketchData>;
+    });
+    // A failed download isn't remembered, so the next try fetches again.
+    p.catch(() => sketchCache.get(key) === p && sketchCache.delete(key));
     sketchCache.set(key, p);
   }
   return p;
@@ -242,40 +248,40 @@ export class Plate {
    * and the panels' broad, even fields. Both let the real photo through softly.
    */
   spill(spots: { pool: Pool; I: number }[], floods: Flood[]) {
-    const st = this.stage.style;
+    const st = this.stage;
     const r = this.rect;
     const on = this.photoReady;
     spots.forEach((sp, i) => {
       const n = i + 1;
       if (!on || sp.I < 0.004) {
-        st.setProperty(`--s${n}a`, '0');
+        setVar(st, `--s${n}a`, '0');
         return;
       }
       const { pool } = sp;
       const big = Math.max(pool.rx, pool.ry), small = Math.min(pool.rx, pool.ry);
-      st.setProperty(`--s${n}x`, `${Math.round(pool.x - r.left)}px`);
-      st.setProperty(`--s${n}y`, `${Math.round(pool.y - r.top)}px`);
-      st.setProperty(`--s${n}rx`, `${Math.round(big * 2.7)}px`);
-      st.setProperty(`--s${n}ry`, `${Math.round(small * 2.7 + (big - small) * 1.2)}px`);
-      st.setProperty(`--s${n}a`, (0.2 * sp.I).toFixed(3));
+      setVar(st, `--s${n}x`, `${Math.round(pool.x - r.left)}px`);
+      setVar(st, `--s${n}y`, `${Math.round(pool.y - r.top)}px`);
+      setVar(st, `--s${n}rx`, `${Math.round(big * 2.7)}px`);
+      setVar(st, `--s${n}ry`, `${Math.round(small * 2.7 + (big - small) * 1.2)}px`);
+      setVar(st, `--s${n}a`, (0.2 * sp.I).toFixed(3));
     });
     let lit = 0;
     floods.forEach((f, i) => {
       const n = i + 1;
       if (!on || f.I < 0.004) {
-        st.setProperty(`--p${n}a`, '0');
+        setVar(st, `--p${n}a`, '0');
         return;
       }
-      st.setProperty(`--p${n}x`, `${Math.round(f.pool.x - r.left)}px`);
-      st.setProperty(`--p${n}y`, `${Math.round(f.pool.y - r.top)}px`);
-      st.setProperty(`--p${n}rx`, `${Math.round(f.pool.rx)}px`);
-      st.setProperty(`--p${n}ry`, `${Math.round(f.pool.ry)}px`);
-      st.setProperty(`--p${n}a`, (0.95 * f.I).toFixed(3));
+      setVar(st, `--p${n}x`, `${Math.round(f.pool.x - r.left)}px`);
+      setVar(st, `--p${n}y`, `${Math.round(f.pool.y - r.top)}px`);
+      setVar(st, `--p${n}rx`, `${Math.round(f.pool.rx)}px`);
+      setVar(st, `--p${n}ry`, `${Math.round(f.pool.ry)}px`);
+      setVar(st, `--p${n}a`, (0.95 * f.I).toFixed(3));
       // How lit the plate is as a whole, for easing the sketch back.
       const c = f.at(r.left + r.width / 2, r.top + r.height / 2) * f.I;
       lit = 1 - (1 - lit) * (1 - c);
     });
-    st.setProperty('--pf', (on ? lit : 0).toFixed(3));
+    setVar(st, '--pf', (on ? lit : 0).toFixed(3));
   }
 
   async load() {
@@ -283,29 +289,45 @@ export class Plate {
     this.loading = true;
     const want = this.stage.clientWidth * Math.min(2, devicePixelRatio || 1) > 1150 ? 'full' : 'm';
     const src = imageUrl(this.slug, this.image.id, want);
+    // The page decides when to load, not the browser's lazy loading: Firefox
+    // won't fetch a lazy image just because decode() was called on it.
+    this.img.loading = 'eager';
+    const ready = () => {
+      if (this.photoReady || !this.img.naturalWidth) return;
+      this.photoReady = true;
+      this.lastSig = '';
+      this.buildThumb();
+    };
+    this.img.addEventListener('load', ready);
     if (!this.img.src.endsWith(src)) this.img.src = src;
-    const [data] = await Promise.all([
-      loadSketch(this.slug, this.image.id),
-      this.img.decode().then(
-        () => {
-          this.photoReady = true;
-          this.buildThumb();
-        },
-        () => (this.photoReady = false),
-      ),
-    ]);
-    this.data = data;
-    this.order = data.segs
-      .map((s, i) => [Math.hypot(s[2] - s[0], s[3] - s[1]), i])
-      .sort((a, b) => b[0] - a[0])
-      .map((a) => a[1]);
-    this.resize();
+    if (this.img.complete) ready();
+    this.img.decode().then(ready, () => {});
+    // The sketch doesn't wait for the photo.
+    try {
+      const data = await loadSketch(this.slug, this.image.id);
+      this.data = data;
+      this.order = data.segs
+        .map((s, i) => [Math.hypot(s[2] - s[0], s[3] - s[1]), i])
+        .sort((a, b) => b[0] - a[0])
+        .map((a) => a[1]);
+      this.resize(true);
+    } catch {
+      // Try again the next time the plate comes near.
+      this.loading = false;
+    }
   }
 
-  resize() {
+  private sized = '';
+
+  /** Size the canvases to the plate. Does nothing if the plate's size hasn't changed, unless forced. */
+  resize(force = false) {
     const W = this.stage.clientWidth, H = this.stage.clientHeight;
     if (!W || !H) return;
-    this.dpr = Math.min(2, devicePixelRatio || 1);
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    const key = `${W}x${H}@${dpr}`;
+    if (key === this.sized && !force) return;
+    this.sized = key;
+    this.dpr = dpr;
     for (const c of [this.sketchC, this.lightC]) {
       c.width = Math.round(W * this.dpr);
       c.height = Math.round(H * this.dpr);
@@ -375,6 +397,13 @@ export class Plate {
     const d = this.dpr;
     const boxOf = (o: (typeof live)[number]) => [Math.floor(o.x0 * d), Math.floor(o.y0 * d), Math.ceil((o.x1 - o.x0) * d) + 2, Math.ceil((o.y1 - o.y0) * d) + 2];
     const boxes = live.map(boxOf);
+    // The photo only shows inside the pool's own sprite, so its passes cover
+    // the pool, not the much wider halo: about a fifth of the pixels.
+    const poolBoxes = live.map((o) => {
+      const R = Math.max(o.L.pool.rx, o.L.pool.ry) * 1.04;
+      const x0 = Math.max(0, o.lx - R), y0 = Math.max(0, o.ly - R), x1 = Math.min(W, o.lx + R), y1 = Math.min(H, o.ly + R);
+      return x1 > x0 && y1 > y0 ? { x0, y0, x1, y1, box: [Math.floor(x0 * d), Math.floor(y0 * d), Math.ceil((x1 - x0) * d) + 2, Math.ceil((y1 - y0) * d) + 2] } : null;
+    });
     const ux0 = Math.min(...boxes.map((b) => b[0])), uy0 = Math.min(...boxes.map((b) => b[1]));
     const ux1 = Math.max(...boxes.map((b) => b[0] + b[2])), uy1 = Math.max(...boxes.map((b) => b[1] + b[3]));
     this.prevBox = [ux0, uy0, ux1 - ux0, uy1 - uy0];
@@ -411,12 +440,14 @@ export class Plate {
     if (this.photoReady) {
       const m = this.map;
       live.forEach((o, i) => {
-        const box = boxes[i];
+        const pb = poolBoxes[i];
+        if (!pb) return;
+        const box = pb.box;
         begin(box);
         sc.drawImage(this.img, m.ox, m.oy, m.s, m.s * this.aspect);
         sc.globalCompositeOperation = 'multiply';
         sc.fillStyle = o.L.tint;
-        sc.fillRect(o.x0, o.y0, o.x1 - o.x0, o.y1 - o.y0);
+        sc.fillRect(pb.x0, pb.y0, pb.x1 - pb.x0, pb.y1 - pb.y0);
         sc.globalCompositeOperation = 'destination-in';
         sc.globalAlpha = Math.min(1, o.L.I * 1.08);
         place(sc, o, 1);

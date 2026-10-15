@@ -79,6 +79,19 @@ The light is meant to read like a real rig on a black stage:
 - **Lines and type** near the beam catch light with a long, faint tail.
 - **The desk**: when a light reaches low on the page, the desk's front lip and nearest keys pick up a little of it.
 
+## Browsers and devices
+
+Checked on phone, tablet, laptop and large screen sizes, with touch and mouse, without WebGL, and with reduced motion. Things that keep it working everywhere:
+
+- The address only ever holds an open show (`#/work/<show>`). The nav, skip link and brand scroll without changing it, so Back from a show never jumps the page to an old section.
+- Photos load when a plate comes near, not through the browser's lazy loading (Firefox won't fetch a lazy image for `decode()`); a failed sketch download is retried rather than remembered.
+- A phone's address bar showing or hiding doesn't rebuild the rig or redraw the sketches; only width or pixel ratio changes do.
+- Frame work reads layout first and writes after, and only writes CSS variables that changed.
+- The beams survive a lost WebGL context (iOS drops it in background tabs); without WebGL the beams and haze are simply absent and the photos still light.
+- Safari without canvas filters still gets soft gobos; Safari before 17.4 gets faders turned on their side (it can't draw vertical sliders).
+- If the script never runs, the photos show plainly.
+- The show sheet makes the page behind it inert, keeps the keys working after a click, and returns focus to the link it was opened from.
+
 ## Hosted preview
 
 In development, `?fast` renders the haze coarsely and takes bigger time steps, which makes headless screenshot tests usable; it does nothing in a build.

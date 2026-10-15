@@ -22,7 +22,8 @@
   --l2i: 0; --l2x: -999px; --l2y: -999px; --l2rx: 160px; --l2ry: 160px;
   --f1i: 0; --f1x: -999px; --f1y: -999px; --f1rx: 160px; --f1ry: 160px;
   --f2i: 0; --f2x: -999px; --f2y: -999px; --f2rx: 160px; --f2ry: 160px;
-  --gutter: clamp(16px, 4.2vw, 72px);
+  /* Never narrower than the notch on a phone held sideways. */
+  --gutter: max(clamp(16px, 4.2vw, 72px), env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
   --font: 'Archivo Variable', 'Archivo', 'Helvetica Neue', Arial, sans-serif;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   color-scheme: dark;
@@ -124,8 +125,13 @@ a {
   opacity: 0;
   transition: opacity 0.5s var(--ease);
 }
-.past-hero .brand {
+.past-hero .brand,
+.brand:focus-visible {
   opacity: 1;
+}
+/* The hero clips its overflow, so its focus ring sits inside the frame. */
+.plate-hero:focus-visible {
+  outline-offset: -12px;
 }
 
 .nav {
@@ -466,6 +472,11 @@ a {
 
 /* ------------------------------------------------------------ sections */
 
+.section-title:focus,
+.wordmark:focus {
+  outline: none;
+}
+
 .section-title {
   margin: 0 0 clamp(48px, 9vh, 112px);
   font-size: clamp(48px, 8.4vw, 132px);
@@ -692,6 +703,9 @@ a {
 }
 .sheet.is-open {
   opacity: 1;
+}
+.sheet:focus {
+  outline: none;
 }
 .sheet-open body {
   overflow: hidden;
@@ -931,6 +945,19 @@ a {
   }
   .sheet-nav {
     justify-content: space-between;
+  }
+}
+
+/* Short screens, like a phone held sideways: the wordmark sizes to the height so it clears the rig. */
+@media (max-height: 540px) and (orientation: landscape) {
+  .wordmark {
+    font-size: clamp(40px, 15vh, 120px);
+  }
+  .hero-type {
+    bottom: calc(clamp(16px, 4vh, 40px) + 64px);
+  }
+  .byline {
+    margin-top: 0.9em;
   }
 }
 

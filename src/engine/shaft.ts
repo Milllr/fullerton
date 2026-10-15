@@ -16,7 +16,11 @@ void main(){ gl_Position = vec4(aPos, 0.0, 1.0); }
   - the glow at each fixture's lens or diffuser.
 */
 const FRAG = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
+#else
+precision mediump float;
+#endif
 uniform vec2 uRes;
 uniform float uScale;
 uniform float uHaze;
@@ -74,7 +78,9 @@ void main(){
 
     vec2 ea = vec2(cos(uAngle[i]), sin(uAngle[i]));
     vec2 eb = vec2(-ea.y, ea.x);
-    float wP = sqrt(pow(uAxes[i].x * dot(ea, n), 2.0) + pow(uAxes[i].y * dot(eb, n), 2.0));
+    float wa = uAxes[i].x * dot(ea, n);
+    float wb = uAxes[i].y * dot(eb, n);
+    float wP = sqrt(wa * wa + wb * wb);
     float w = mix(uLensW[i], wP, clamp(t, 0.0, 1.0));
     float s = d / w;
 
@@ -99,7 +105,8 @@ void main(){
     float floorL;
     if (panel) {
       // Even field, soft towards the edge; the panel's light on bare stage is faint.
-      float f = e2 >= 1.0 ? 0.0 : pow(1.0 - e2, 1.5);
+      float f1 = max(1.0 - e2, 0.0);
+      float f = f1 * sqrt(f1);
       floorL = f * 0.024 + exp(-e2 * 0.6) * 0.006;
     } else {
       float cs = cos(uSpin[i]), sn = sin(uSpin[i]);
@@ -165,14 +172,29 @@ export class Shaft {
   private texSource: (HTMLCanvasElement | null)[] = [null, null];
   ok = true;
 
+  /** True while the GPU has taken the context away (iOS does this to background tabs). */
+  private lost = false;
+
   private constructor(canvas: HTMLCanvasElement, gl: WebGLRenderingContext) {
     this.canvas = canvas;
     this.gl = gl;
+    this.ok = this.init();
+    canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      this.lost = true;
+    });
+    canvas.addEventListener('webglcontextrestored', () => {
+      this.texSource = [null, null];
+      this.lost = !this.init();
+      if (!this.lost) this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+    });
+  }
+
+  /** Compile, upload and bind everything. Runs again after a lost context comes back. */
+  private init() {
+    const gl = this.gl;
     const prog = this.program();
-    if (!prog) {
-      this.ok = false;
-      return;
-    }
+    if (!prog) return false;
     gl.useProgram(prog);
     const buf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buf);
@@ -200,6 +222,7 @@ export class Shaft {
     }
     gl.uniform1i(this.u.uGoboTex0, 0);
     gl.uniform1i(this.u.uGoboTex1, 1);
+    return true;
   }
 
   static create(canvas: HTMLCanvasElement): Shaft | null {
@@ -233,7 +256,7 @@ export class Shaft {
 
   /** The gobo mask each spot reveals the photos through, so its floor pool matches. */
   setGobo(spot: 0 | 1, mask: HTMLCanvasElement) {
-    if (mask === this.texSource[spot]) return;
+    if (this.lost || mask === this.texSource[spot]) return;
     this.texSource[spot] = mask;
     const gl = this.gl;
     gl.activeTexture(gl.TEXTURE0 + spot);
@@ -248,10 +271,11 @@ export class Shaft {
     this.scale = Math.min(this.maxScale, (devicePixelRatio || 1) * (lowPower ? 0.35 : 0.5));
     this.canvas.width = Math.max(1, Math.round(vw * this.scale));
     this.canvas.height = Math.max(1, Math.round(vh * this.scale));
-    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+    if (!this.lost) this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
   }
 
   render(o: ShaftFrame) {
+    if (this.lost) return;
     const gl = this.gl, u = this.u;
     gl.uniform2f(u.uRes, o.vw, o.vh);
     gl.uniform1f(u.uScale, this.scale);
