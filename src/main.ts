@@ -8,8 +8,9 @@ import { PanelRig, Rig, type Pool } from './engine/rig';
 import { Plate, type Flood, type SpotLight } from './engine/plate';
 import { Shaft, type Beam } from './engine/shaft';
 import { Fixture, PanelFixture } from './engine/fixture';
-import { buildSprites, type GoboSprites } from './engine/gobos';
+import { buildSprites, releaseSprites, type GoboSprites } from './engine/gobos';
 import { rgbCss } from './engine/kelvin';
+import { setVar } from './engine/css';
 import { Desk, HAZER, PANELS, SPOTS, strobeHz, type AttrKey } from './desk/model';
 import { DeskUI } from './desk/ui';
 import { renderCredits } from './ui/credits';
@@ -71,6 +72,18 @@ $('#foot').innerHTML = `
   <p>© ${new Date().getFullYear()} ${esc(site.name)}, ${esc(site.city)}</p>
   ${site.photoCredits.map((c) => `<p>Photography of ${esc(c.for)} by ${esc(c.name)}</p>`).join('')}`;
 
+/**
+ * An IntersectionObserver rooted on the document. Inside a cross-origin iframe
+ * (the hosted preview) rootMargin is ignored unless the root is explicit.
+ */
+function observer(cb: IntersectionObserverCallback, opts: IntersectionObserverInit = {}) {
+  try {
+    return new IntersectionObserver(cb, { root: document, ...opts });
+  } catch {
+    return new IntersectionObserver(cb, opts);
+  }
+}
+
 /* Lit type: an outlined word with a filled copy that only shows under the beam. */
 const litEls = [...document.querySelectorAll<HTMLElement>('.lit')];
 for (const el of litEls) {
@@ -84,7 +97,7 @@ for (const el of litEls) {
 /* Nav keys light for the section you're in. */
 {
   const links = [...document.querySelectorAll<HTMLAnchorElement>('.nav a')];
-  const io = new IntersectionObserver(
+  const io = observer(
     (entries) => {
       for (const e of entries) {
         const a = links.find((l) => l.hash === `#${e.target.id}`);
@@ -95,6 +108,24 @@ for (const el of litEls) {
   );
   ['work', 'credits', 'contact'].forEach((id) => document.getElementById(id) && io.observe(document.getElementById(id)!));
 }
+
+/*
+  In-page links (the nav, the skip link, the brand) scroll without touching
+  the address. The address only ever holds an open show, so closing a show
+  with Back never lands on an old #credits and jumps the page there.
+*/
+document.addEventListener('click', (e) => {
+  const a = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="#"]');
+  if (!a || a.getAttribute('href')!.startsWith('#/') || e.metaKey || e.ctrlKey || e.shiftKey) return;
+  const target = document.getElementById(a.getAttribute('href')!.slice(1));
+  if (!target) return;
+  e.preventDefault();
+  target.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+  // Move keyboard focus along with the view, to the section's heading.
+  const h = target.querySelector<HTMLElement>('h1, h2') ?? target;
+  if (!h.hasAttribute('tabindex')) h.tabIndex = -1;
+  h.focus({ preventScroll: true });
+});
 
 /* --------------------------------------------------------------- engine */
 
@@ -129,11 +160,18 @@ function spritesFor(focus: number, frost: number) {
   if (!s) {
     s = buildSprites(focus, frost);
     spriteCache.set(key, s);
-    if (spriteCache.size > 8) spriteCache.delete(spriteCache.keys().next().value!);
+    // Keep a few; release the rest so phones don't run out of canvas memory.
+    while (spriteCache.size > 3) {
+      const [oldKey, old] = spriteCache.entries().next().value!;
+      spriteCache.delete(oldKey);
+      if (!spotSprites.some((st) => st.sprites === old)) releaseSprites(old);
+    }
   }
   return s;
 }
-const spotSprites = spots.map(() => ({ key: spriteKey(0.7, 0), sprites: spritesFor(0.7, 0) }));
+/** The masks each spot is using right now. */
+const spotSprites: { key: string; sprites: GoboSprites }[] = [];
+spots.forEach(() => spotSprites.push({ key: spriteKey(0.7, 0), sprites: spritesFor(0.7, 0) }));
 let lastSpriteBuild = 0;
 function updateSprites(i: number, now: number) {
   const { focus, frost } = spots[i].out;
@@ -142,7 +180,7 @@ function updateSprites(i: number, now: number) {
   if (key === st.key) return;
   if (!spriteCache.has(key)) {
     // Turning the focus encoder shouldn't rebuild masks every frame.
-    if (now - lastSpriteBuild < 90) return;
+    if (now - lastSpriteBuild < 200) return;
     lastSpriteBuild = now;
   }
   st.sprites = spritesFor(focus, frost);
@@ -165,7 +203,7 @@ document.querySelectorAll<HTMLElement>('#plates .plate').forEach((el, i) => {
 const plateBySlug = (slug: string) => plates.find((p) => p.slug === slug) ?? null;
 const rectOf = (p: Plate) => (p.visible ? p.rect : p.stage.getBoundingClientRect());
 
-const near = new IntersectionObserver(
+const near = observer(
   (entries) => {
     for (const e of entries) {
       const p = plates.find((pl) => pl.el === e.target);
@@ -177,7 +215,7 @@ const near = new IntersectionObserver(
   },
   { rootMargin: '900px 0px' },
 );
-const seen = new IntersectionObserver(
+const seen = observer(
   (entries) => {
     for (const e of entries) {
       const p = plates.find((pl) => pl.el === e.target);
@@ -192,9 +230,16 @@ plates.forEach((p) => {
   near.observe(p.el);
   seen.observe(p.el);
 });
+// Plates resize their canvases when their own size changes (fonts, layout), not on every window resize.
+if ('ResizeObserver' in window) {
+  const ro = new ResizeObserver((entries) => {
+    for (const e of entries) plates.find((p) => p.stage === e.target)?.resize();
+  });
+  plates.forEach((p) => ro.observe(p.stage));
+}
 
 const litVisible = new Set<HTMLElement>();
-const litSeen = new IntersectionObserver((entries) => {
+const litSeen = observer((entries) => {
   for (const e of entries) {
     const el = e.target as HTMLElement;
     if (e.isIntersecting) litVisible.add(el);
@@ -246,20 +291,28 @@ function measureDesk() {
   deskTop = $('#desk').getBoundingClientRect().top || vh;
 }
 
+let laidWidth = '';
+
 function layout() {
   vw = innerWidth;
   vh = innerHeight;
+  // A phone's address bar showing or hiding changes only the height: the rig
+  // and the plates stay as they are, and only what depends on height updates.
+  const widthKey = `${vw}@${devicePixelRatio || 1}@${vh < 540}`;
+  const widthChanged = widthKey !== laidWidth;
+  laidWidth = widthKey;
   const small = vw < 720;
-  const k = small ? 0.45 : vw < 1100 ? 0.7 : 0.9;
+  // Short screens (a phone held sideways) hang the rig small too, to leave room for the wordmark.
+  const k = small || vh < 540 ? 0.45 : vw < 1100 ? 0.7 : 0.9;
   // Spots at the wings, panels inside: Spot L, Panel L, Panel R, Spot R.
   const xs = small ? [0.09, 0.36, 0.64, 0.91] : [0.09, 0.38, 0.62, 0.91];
   trussY = ($('.truss').getBoundingClientRect().top || 46) + 7;
   measureDesk();
   // The panels are hung for the screen with the desk tucked away; opening the desk doesn't move them.
-  if (!deskUI.isOpen || !panelUsable) panelUsable = Math.min(vh, deskTop);
+  if ((widthChanged && !deskUI.isOpen) || !panelUsable) panelUsable = Math.min(vh, deskTop);
   const usable = panelUsable;
   const hang = (fx: Fixture | PanelFixture, x: number, at: { x: number; y: number }) => {
-    fx.resize(k);
+    if (widthChanged) fx.resize(k);
     at.x = Math.round(x * vw - fx.w / 2);
     at.y = Math.round(trussY);
     fx.canvas.style.transform = `translate(${at.x}px, ${at.y}px)`;
@@ -369,11 +422,15 @@ sheet.onClose = () => {
   momentary = null;
 };
 
+/** The link a show was opened from, so closing it puts focus back there. */
+let opener: HTMLElement | null = null;
+
 function route() {
   const m = location.hash.match(/^#\/work\/([\w-]+)$/);
   const s = m && allShows.find((x) => x.slug === m[1]);
   if (s) {
-    if (!sheet.isOpen) sheet.open(s, document.querySelector<HTMLElement>(`.plate[data-slug="${s.slug}"]`));
+    if (!sheet.isOpen) sheet.open(s, opener);
+    opener = null;
   } else if (sheet.isOpen) {
     sheet.close();
   }
@@ -389,7 +446,11 @@ document.addEventListener('click', (e) => {
   const p = plates.find((pl) => pl.slug === slug && pl.visible);
   const openIt = () => {
     openedFromPage = true;
-    location.hash = `#/work/${slug}`;
+    opener = a;
+    // Already at this show's address (say, after Back then Forward): setting
+    // the same hash fires nothing, so open it directly.
+    if (location.hash === `#/work/${slug}`) route();
+    else location.hash = `#/work/${slug}`;
   };
   if (p && !reduced) {
     momentary = { plate: p, fraction: 0.95 };
@@ -422,12 +483,6 @@ function lampLevel(i: number, now: number) {
   return l.on ? strikeCurve(now - l.strikeAt) : 0;
 }
 
-desk.onLamp = (id, on) => {
-  const l = lamps[SPOTS.indexOf(id)];
-  if (!l) return;
-  if (on && !l.on) l.strikeAt = performance.now();
-  l.on = on;
-};
 desk.onReset = (id) => {
   const l = lamps[SPOTS.indexOf(id)];
   if (l) l.resetUntil = performance.now() + 1500;
@@ -529,15 +584,40 @@ function findSubject(visible: Plate[]) {
   return subjectPlate;
 }
 
+let frameFailed = false;
+/** One error shouldn't stop the lights for good: log it once and keep going. */
 function frame(now: number) {
+  try {
+    step(now);
+  } catch (e) {
+    if (!frameFailed) console.error(e);
+    frameFailed = true;
+  }
+  requestAnimationFrame(frame);
+}
+
+let sheetSince = 0;
+
+function step(now: number) {
   const dt = Math.min(fast ? 0.25 : 0.05, (now - last) / 1000);
   last = now;
-  if (!reduced) clock += dt;
 
+  // With a show's photos open the page is covered: once the lights have
+  // faded, stop drawing a stage nobody can see.
+  if (sheet.isOpen) {
+    sheetSince ||= now;
+    if (now - sheetSince > 700) return;
+  } else sheetSince = 0;
+
+  if (!reduced) clock += dt;
   if (opening) runOpening(now);
 
+  // Read everything from the layout first, then write, so the browser lays
+  // the page out once per frame rather than once per element.
   const lightVisible = plates.filter((p) => p.visible);
   for (const p of lightVisible) p.measure();
+  const litRects = [...litVisible].map((el) => [el, el.getBoundingClientRect()] as const);
+  const wmPoint = wordmarkPoint();
 
   const haze = desk.value(HAZER, 'haze').v / 100;
   const fan = desk.value(HAZER, 'fan').v / 100;
@@ -556,6 +636,12 @@ function frame(now: number) {
     rig.out.haze = haze;
     rig.out.fan = fan;
     updateSprites(i, now);
+    // The lamp follows the desk's output, however it got there (a value,
+    // Clear, Oops, Blind): switching on strikes it.
+    const lamp = lamps[i];
+    const lampOn = v('lamp') >= 0.5;
+    if (lampOn && !lamp.on) lamp.strikeAt = now;
+    lamp.on = lampOn;
     const shutter = v('shutter');
     const strobe = shutter >= 0.5 && !reduced ? ((clock * strobeHz(shutter)) % 1 < 0.5 ? 1 : 0) : 1;
     rig.intensity = sheet.isOpen ? 0 : desk.intensity(id) * lampLevel(i, now) * strobe;
@@ -596,7 +682,7 @@ function frame(now: number) {
   spots.forEach((rig, i) => {
     const p = pos[i];
     const cross = crossOf(i);
-    let target = pointer ?? wordmarkPoint();
+    let target = pointer ?? wmPoint;
     let cover: { plate: Plate; fraction: number } | null = null;
     let offset = 0;
     let roam = false;
@@ -762,27 +848,24 @@ function frame(now: number) {
     spots.forEach((r, i) => add(r.colour(), lights[i].I));
     panels.forEach((pr) => add(pr.colour(), pr.intensity * 0.6));
     const light = wsum > 0.001 ? lc.map((v) => v / wsum) : spots[0].colour();
-    const rs = root.style;
-    rs.setProperty('--light', light.map((v) => Math.round(v * 255)).join(' '));
-    spotPools.forEach((pool, i) => {
-      rs.setProperty(`--l${i + 1}rx`, `${Math.round(Math.max(pool.rx, pool.ry) * 2)}px`);
-      rs.setProperty(`--l${i + 1}ry`, `${Math.round(Math.min(pool.rx, pool.ry) * 2)}px`);
-      rs.setProperty(`--l${i + 1}i`, lights[i].I.toFixed(3));
-    });
-    panels.forEach((pr, j) => {
-      rs.setProperty(`--f${j + 1}rx`, `${Math.round(pr.pool.rx)}px`);
-      rs.setProperty(`--f${j + 1}ry`, `${Math.round(pr.pool.ry)}px`);
-      rs.setProperty(`--f${j + 1}i`, (pr.intensity * 0.7).toFixed(3));
-    });
-    for (const el of litVisible) {
-      const r = el.getBoundingClientRect();
+    setVar(root, '--light', light.map((v) => Math.round(v * 255)).join(' '));
+    // Each lit word gets its own copy of the light, so the rest of the page isn't restyled every frame.
+    for (const [el, r] of litRects) {
       spotPools.forEach((pool, i) => {
-        el.style.setProperty(`--l${i + 1}x`, `${Math.round(pool.x - r.left)}px`);
-        el.style.setProperty(`--l${i + 1}y`, `${Math.round(pool.y - r.top)}px`);
+        const n = i + 1;
+        setVar(el, `--l${n}x`, `${Math.round(pool.x - r.left)}px`);
+        setVar(el, `--l${n}y`, `${Math.round(pool.y - r.top)}px`);
+        setVar(el, `--l${n}rx`, `${Math.round(Math.max(pool.rx, pool.ry) * 2)}px`);
+        setVar(el, `--l${n}ry`, `${Math.round(Math.min(pool.rx, pool.ry) * 2)}px`);
+        setVar(el, `--l${n}i`, lights[i].I.toFixed(3));
       });
       panels.forEach((pr, j) => {
-        el.style.setProperty(`--f${j + 1}x`, `${Math.round(pr.pool.x - r.left)}px`);
-        el.style.setProperty(`--f${j + 1}y`, `${Math.round(pr.pool.y - r.top)}px`);
+        const n = j + 1;
+        setVar(el, `--f${n}x`, `${Math.round(pr.pool.x - r.left)}px`);
+        setVar(el, `--f${n}y`, `${Math.round(pr.pool.y - r.top)}px`);
+        setVar(el, `--f${n}rx`, `${Math.round(pr.pool.rx)}px`);
+        setVar(el, `--f${n}ry`, `${Math.round(pr.pool.ry)}px`);
+        setVar(el, `--f${n}i`, (pr.intensity * 0.7).toFixed(3));
       });
     }
   }
@@ -798,13 +881,12 @@ function frame(now: number) {
     };
     spotPools.forEach((pool, i) => consider(pool, lights[i].I, 2.4, 1));
     panels.forEach((pr) => consider(pr.pool, pr.intensity, 1.2, 0.35));
-    deskEl.style.setProperty('--spill-x', `${Math.round(best.x)}px`);
-    deskEl.style.setProperty('--spill-r', `${Math.round(best.r)}px`);
-    deskEl.style.setProperty('--spill-a', (sheet.isOpen ? 0 : best.a).toFixed(3));
+    setVar(deskEl, '--spill-x', `${Math.round(best.x)}px`);
+    setVar(deskEl, '--spill-r', `${Math.round(best.r)}px`);
+    setVar(deskEl, '--spill-a', (sheet.isOpen ? 0 : best.a).toFixed(3));
   }
 
   deskUI.tick(dt, desk.live);
-  requestAnimationFrame(frame);
 }
 
 /* ---------------------------------------------------------------- start */
@@ -827,7 +909,7 @@ function start() {
     spots.forEach((r, i) => r.aimNow(vw / 2 + crossOf(i) * vw * 0.05, vh * 0.62));
   }
   heroPlate.load();
-  new IntersectionObserver(([e]) => root.classList.toggle('past-hero', !e.isIntersecting), {
+  observer(([e]) => root.classList.toggle('past-hero', !e.isIntersecting), {
     rootMargin: '-40% 0px 0px 0px',
   }).observe($('#top'));
   route();
@@ -838,6 +920,8 @@ function start() {
 }
 
 document.fonts.ready.then(start);
+// Tells the page's fallback (index.html) the script is running.
+(window as unknown as { __fullerton: boolean }).__fullerton = true;
 
 // For poking at the rig from the console while developing.
 if (import.meta.env.DEV) Object.assign(window, { __rig: { spots, panels, desk, plates, shaft } });

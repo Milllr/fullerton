@@ -96,6 +96,66 @@ export interface GoboSprites {
 
 let version = 0;
 
+/** The halo doesn't depend on focus or frost, so every set shares one. */
+let sharedHalo: HTMLCanvasElement | null = null;
+function halo() {
+  if (sharedHalo) return sharedHalo;
+  const c = makeCanvas();
+  const hc = c.getContext('2d')!;
+  const h = SPRITE / 2;
+  const g = hc.createRadialGradient(h, h, 0, h, h, h);
+  // Lines and type catch light well past the pool, fading out slowly.
+  g.addColorStop(0, 'rgba(255,255,255,0.95)');
+  g.addColorStop(0.35, 'rgba(255,255,255,0.6)');
+  g.addColorStop(0.65, 'rgba(255,255,255,0.22)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  hc.fillStyle = g;
+  hc.fillRect(0, 0, SPRITE, SPRITE);
+  return (sharedHalo = c);
+}
+
+/** Safari has no canvas filter, so it gets its blur by scaling down and back up. */
+let filterOk: boolean | null = null;
+function canFilter(ctx: CanvasRenderingContext2D) {
+  if (filterOk == null) {
+    ctx.filter = 'blur(2px)';
+    filterOk = ctx.filter === 'blur(2px)';
+    ctx.filter = 'none';
+  }
+  return filterOk;
+}
+
+let scratch: HTMLCanvasElement | null = null;
+let small: HTMLCanvasElement | null = null;
+
+function blurInto(ctx: CanvasRenderingContext2D, src: HTMLCanvasElement, px: number) {
+  scratch ??= makeCanvas();
+  const t = scratch.getContext('2d')!;
+  t.setTransform(1, 0, 0, 1, 0, 0);
+  t.clearRect(0, 0, SPRITE, SPRITE);
+  if (canFilter(t)) {
+    t.filter = `blur(${px.toFixed(1)}px)`;
+    t.drawImage(src, 0, 0);
+    t.filter = 'none';
+  } else {
+    // Downscale by about the blur radius, then smooth it back up.
+    const k = Math.max(1, Math.min(16, px * 0.9));
+    const w = Math.max(8, Math.round(SPRITE / k));
+    small ??= document.createElement('canvas');
+    small.width = small.height = w;
+    const sc = small.getContext('2d')!;
+    sc.imageSmoothingEnabled = true;
+    sc.imageSmoothingQuality = 'high';
+    sc.clearRect(0, 0, w, w);
+    sc.drawImage(src, 0, 0, w, w);
+    t.imageSmoothingEnabled = true;
+    t.imageSmoothingQuality = 'high';
+    t.drawImage(small, 0, 0, SPRITE, SPRITE);
+  }
+  ctx.clearRect(0, 0, SPRITE, SPRITE);
+  ctx.drawImage(scratch, 0, 0);
+}
+
 /**
  * focus 1 is a hard edge with crisp gobos, 0 is soft. Frost diffuses both
  * the edge and the gobo pattern.
@@ -107,28 +167,15 @@ export function buildSprites(focus = 0.7, frost = 0): GoboSprites {
     const c = makeCanvas();
     const ctx = c.getContext('2d')!;
     pattern(ctx, g);
-    if (g !== 0) {
-      const t = makeCanvas();
-      const tc = t.getContext('2d')!;
-      tc.filter = `blur(${blur.toFixed(1)}px)`;
-      tc.drawImage(c, 0, 0);
-      ctx.clearRect(0, 0, SPRITE, SPRITE);
-      ctx.drawImage(t, 0, 0);
-    }
+    if (g !== 0) blurInto(ctx, c, blur);
     ctx.globalCompositeOperation = 'destination-in';
     softDisc(ctx, inner);
     return c;
   });
-  const halo = makeCanvas();
-  const hc = halo.getContext('2d')!;
-  const h = SPRITE / 2;
-  const g = hc.createRadialGradient(h, h, 0, h, h, h);
-  // Lines and type catch light well past the pool, fading out slowly.
-  g.addColorStop(0, 'rgba(255,255,255,0.95)');
-  g.addColorStop(0.35, 'rgba(255,255,255,0.6)');
-  g.addColorStop(0.65, 'rgba(255,255,255,0.22)');
-  g.addColorStop(1, 'rgba(255,255,255,0)');
-  hc.fillStyle = g;
-  hc.fillRect(0, 0, SPRITE, SPRITE);
-  return { pool, halo, version: ++version };
+  return { pool, halo: halo(), version: ++version };
+}
+
+/** Free a set's canvases now rather than whenever the garbage collector gets to them (iOS counts them against a hard limit). */
+export function releaseSprites(s: GoboSprites) {
+  for (const c of s.pool) c.width = c.height = 0;
 }

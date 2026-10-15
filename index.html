@@ -12,10 +12,22 @@
     <meta property="og:title" content="Fullerton Productions" />
     <meta property="og:description" content="James Downey, Lighting Designer. Toronto." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/og.jpg" />
+    <meta property="og:image" content="https://fullertonproductions.ca/og.jpg" />
+    <meta property="og:url" content="https://fullertonproductions.ca/" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <script>
-      document.documentElement.classList.replace('no-js', 'js');
+      (function (d) {
+        d.classList.replace('no-js', 'js');
+        // Safari before 17.4 can't draw vertical range inputs; the desk turns its faders on their side there.
+        var ua = navigator.userAgent, m = ua.match(/(?:iPhone|iPad|iPod).* OS (\d+)_(\d+)/) || (!/Chrome|Chromium|Firefox|Edg/.test(ua) && ua.match(/Version\/(\d+)\.(\d+).*Safari/));
+        if (m && (+m[1] < 17 || (+m[1] === 17 && +m[2] < 4))) d.classList.add('range-rotate');
+        // If the script never gets going (an old browser, a failed download), show the photos plainly.
+        addEventListener('load', function () {
+          setTimeout(function () {
+            if (!window.__fullerton) d.classList.replace('js', 'no-js');
+          }, 1500);
+        });
+      })(document.documentElement);
     </script>
   </head>
   <body>

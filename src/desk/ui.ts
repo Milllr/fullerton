@@ -4,6 +4,7 @@ import {
 } from './model';
 import { execute, type Result } from './commandline';
 import { kelvinToRgb, rgbCss } from '../engine/kelvin';
+import { setAttr, setClass, setText } from '../engine/css';
 
 export type Live = Record<number, { pan: number; tilt: number }>;
 
@@ -300,6 +301,8 @@ export class DeskUI {
     // Typing anywhere while the desk is open goes to the command line, like a desk keyboard.
     addEventListener('keydown', (e) => {
       if (!this.isOpen || e.metaKey || e.ctrlKey || e.altKey) return;
+      // A show's photos are open over the desk: typing belongs to them.
+      if (document.documentElement.classList.contains('sheet-open')) return;
       const t = e.target as HTMLElement;
       if (t.closest('input, textarea, [role="slider"]')) return;
       if (/^[a-z0-9.+"]$/i.test(e.key)) {
@@ -311,6 +314,7 @@ export class DeskUI {
   private wireKnob(enc: Enc) {
     const k = enc.knob;
     let lastY = 0, lastX = 0, acc = 0, moved = false, first = true, startX = 0, startY = 0;
+    let wheelAcc = 0;
     const turn = (detents: number, record: boolean) => {
       if (!enc.attr) return;
       const msg = this.desk.nudge(enc.attr, detents, record);
@@ -359,8 +363,16 @@ export class DeskUI {
       'wheel',
       (e) => {
         if (!enc.attr) return;
+        // A sideways trackpad swipe isn't a turn.
+        if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
         e.preventDefault();
-        turn(e.deltaY < 0 ? 1 : -1, true);
+        // Trackpads send many small deltas, mouse wheels one big one per notch:
+        // gather them up so either gives one detent per notch's worth.
+        wheelAcc += e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
+        if (Math.abs(wheelAcc) >= 48) {
+          turn(wheelAcc < 0 ? 1 : -1, true);
+          wheelAcc = 0;
+        }
       },
       { passive: false },
     );
@@ -498,17 +510,17 @@ export class DeskUI {
     const r = this.root;
 
     // Fixtures (selected ones read yellow, as on the desk).
-    r.querySelector('.fixtures')!.innerHTML = FIXTURES.map(
+    this.html('.fixtures', FIXTURES.map(
       (f) => `<button type="button" class="fx ${d.selection.has(f.id) ? 'is-sel' : ''}" data-fixture="${f.id}" aria-pressed="${d.selection.has(f.id)}"><b>${f.id}</b> ${f.name}</button>`,
-    ).join('');
+    ).join(''));
 
     // Feature groups.
     const avail = d.availableFeatures();
-    r.querySelector('.fgroups')!.innerHTML = FEATURES.map(
+    this.html('.fgroups', FEATURES.map(
       (f) => `<button type="button" role="tab" class="fg ${f === d.feature ? 'is-on' : ''}" data-feature="${f}" aria-selected="${f === d.feature}" ${avail.includes(f) ? '' : 'disabled'}>${f}</button>`,
-    ).join('');
+    ).join(''));
     const res = r.querySelector<HTMLButtonElement>('.res')!;
-    res.textContent = d.fine ? 'Fine' : 'Coarse';
+    setText(res, d.fine ? 'Fine' : 'Coarse');
     res.classList.toggle('is-on', d.fine);
 
     // Encoders.
@@ -536,27 +548,50 @@ export class DeskUI {
     document.documentElement.classList.toggle('is-blind', d.blind);
 
     // Pools.
-    r.querySelector('.pool-tabs')!.innerHTML = Object.entries(POOL_NAMES)
+    this.html('.pool-tabs', Object.entries(POOL_NAMES)
       .map(([n, name]) => `<button type="button" role="tab" class="pt ${Number(n) === this.poolType ? 'is-on' : ''}" data-pool="${n}" aria-selected="${Number(n) === this.poolType}">${n} ${name}</button>`)
-      .join('');
-    r.querySelector('.pool-grid')!.innerHTML = PRESETS.filter((p) => p.type === this.poolType)
+      .join(''));
+    this.html('.pool-grid', PRESETS.filter((p) => p.type === this.poolType)
       .map((p) => {
         const on = this.presetActive(p);
         return `<button type="button" class="tile ${on ? 'is-on' : ''}" data-preset="${p.type}.${p.n}" aria-pressed="${on}">
           <span class="tile-num">${p.type}.${p.n}</span>${this.tileArt(p)}<span class="tile-name">${esc(p.name)}</span></button>`;
       })
-      .join('');
+      .join(''));
 
     // Cue list.
     const cur = d.exec[1].cue;
     const next = cur == null ? d.cues[0]?.n : d.nextCue().n;
-    r.querySelector('.cue-table tbody')!.innerHTML = d.cues
+    this.html('.cue-table tbody', d.cues
       .map(
         (c) => `<tr class="${c.n === cur ? 'is-cur' : ''} ${c.n === next && c.n !== cur ? 'is-next' : ''}" data-cue="${c.n}">
           <td class="cue-mark">${c.n === cur ? (d.exec[1].paused ? '‖' : '▶') : ''}</td><td>${c.n}</td><td><button type="button" data-cue="${c.n}">${esc(c.name)}</button></td><td>${c.fade}</td></tr>`,
       )
-      .join('');
-    r.querySelector('.seq-state')!.textContent = cur == null ? 'Off' : `Cue ${cur}${d.exec[1].paused ? ', paused' : ''}`;
+      .join(''));
+    setText(r.querySelector('.seq-state')!, cur == null ? 'Off' : `Cue ${cur}${d.exec[1].paused ? ', paused' : ''}`);
+  }
+
+  private lastHtml = new Map<string, string>();
+  /**
+   * Replace a group of buttons only when its markup changed, and keep keyboard
+   * focus on the same button (matched by its data key) when it is rebuilt.
+   */
+  private html(sel: string, markup: string) {
+    if (this.lastHtml.get(sel) === markup) return;
+    this.lastHtml.set(sel, markup);
+    const el = this.root.querySelector<HTMLElement>(sel)!;
+    const a = document.activeElement as HTMLElement | null;
+    let key: string | null = null;
+    if (a && el.contains(a)) {
+      for (const k of ['fixture', 'feature', 'pool', 'preset', 'cue']) {
+        if (a.dataset[k] != null) {
+          key = `button[data-${k}="${a.dataset[k]}"]`;
+          break;
+        }
+      }
+    }
+    el.innerHTML = markup;
+    if (key) el.querySelector<HTMLElement>(key)?.focus({ preventScroll: true });
   }
 
   private presetActive(p: Preset) {
@@ -580,21 +615,23 @@ export class DeskUI {
   private paintEncoders() {
     for (const enc of this.encs) {
       if (!enc.attr) {
-        enc.name.textContent = enc.mini.name.textContent = '';
-        enc.val.textContent = enc.mini.val.textContent = '';
-        enc.bar.style.width = '0';
+        for (const el of [enc.name, enc.mini.name, enc.val, enc.mini.val]) setText(el, '');
+        if (enc.bar.style.width !== '0px') enc.bar.style.width = '0px';
         continue;
       }
       const a = ATTRS[enc.attr];
       const dsp = this.attrDisplay(enc.attr);
       const cls = SRC_CLASS[dsp.src];
-      enc.name.textContent = enc.mini.name.textContent = a.name;
-      enc.val.textContent = enc.mini.val.textContent = dsp.text;
-      enc.val.className = `lcd-val ${cls}`;
-      enc.mini.val.className = `lcd-val ${cls}`;
-      enc.bar.style.width = `${Math.max(0, Math.min(1, dsp.frac)) * 100}%`;
-      enc.knob.setAttribute('aria-label', `${a.name} encoder`);
-      enc.knob.setAttribute('aria-valuetext', dsp.text);
+      setText(enc.name, a.name);
+      setText(enc.mini.name, a.name);
+      setText(enc.val, dsp.text);
+      setText(enc.mini.val, dsp.text);
+      setClass(enc.val, `lcd-val ${cls}`);
+      setClass(enc.mini.val, `lcd-val ${cls}`);
+      const w = `${(Math.max(0, Math.min(1, dsp.frac)) * 100).toFixed(1)}%`;
+      if (enc.bar.style.width !== w) enc.bar.style.width = w;
+      setAttr(enc.knob, 'aria-label', `${a.name} encoder`);
+      setAttr(enc.knob, 'aria-valuetext', dsp.text);
     }
   }
 
@@ -610,10 +647,12 @@ export class DeskUI {
       }
       const d = this.desk;
       const pctTxt = `${Math.round(this.faderTarget(f.id) * 100)}%`;
-      f.lcd.textContent =
+      setText(
+        f.lcd,
         f.id === 'e1' ? (d.exec[1].cue == null ? `Off ${pctTxt}` : `Q${d.exec[1].cue} ${pctTxt}`)
         : (f.id === 'e3' && d.exec[3].auto) || (f.id === 'e4' && d.exec[4].auto) ? `Auto ${pctTxt}`
-        : pctTxt;
+        : pctTxt,
+      );
     }
     if (++this.frame % 6 === 0) this.paintEncoders();
   }

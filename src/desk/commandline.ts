@@ -204,7 +204,9 @@ function fixtureList(t: string[]) {
     const a = Number(t[i]);
     if (kw(t[i + 1]) === 'thru' && isNum(t[i + 2])) {
       const b = Number(t[i + 2]);
-      for (let n = Math.min(a, b); n <= Math.max(a, b); n++) ids.push(n);
+      // A typo like Thru 999999 shouldn't hang the page: there are only a handful of fixtures.
+      const lo = Math.max(0, Math.min(a, b)), hi = Math.min(Math.max(a, b), lo + 99);
+      for (let n = lo; n <= hi; n++) ids.push(n);
       i += 3;
     } else {
       ids.push(a);

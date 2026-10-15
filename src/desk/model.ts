@@ -227,7 +227,7 @@ export class Desk {
 
   select(ids: number[]) {
     const valid = ids.filter((id) => this.fixture(id));
-    if (!valid.length) return `Fixture ${ids.join(', ')} does not exist`;
+    if (!valid.length) return `Fixture ${ids.length > 2 ? `${ids[0]} Thru ${ids[ids.length - 1]}` : ids.join(' + ')} does not exist`;
     this.snapshot();
     this.selection = new Set(valid);
     const feats = this.availableFeatures();

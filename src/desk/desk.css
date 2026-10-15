@@ -839,6 +839,31 @@ body {
   outline-offset: 2px;
 }
 
+/*
+  Safari before 17.4 ignores writing-mode on range inputs and draws a small
+  horizontal slider. There the fader is a horizontal range turned on its side.
+*/
+.range-rotate .fader input[type='range'] {
+  writing-mode: horizontal-tb;
+  direction: ltr;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--fh, 104px);
+  height: 40px;
+  margin: -20px 0 0 calc(var(--fh, 104px) / -2);
+  transform: rotate(-90deg);
+  background:
+    linear-gradient(0deg, transparent calc(50% - 3px), #000 calc(50% - 3px), #050505 calc(50% + 3px), transparent calc(50% + 3px)) center / calc(100% - 16px) 100% no-repeat;
+}
+.range-rotate .fader input[type='range']::-webkit-slider-thumb {
+  width: 22px;
+  height: 38px;
+  background:
+    linear-gradient(90deg, transparent 45%, #e6dfd1 45%, #e6dfd1 55%, transparent 55%),
+    repeating-linear-gradient(90deg, #2e2e31 0 2px, #1a1a1c 2px 4px);
+}
+
 .keys {
   display: flex;
   align-items: flex-end;
@@ -921,6 +946,24 @@ body {
   .master { width: 104px; }
   .exec-lcd { padding: 3px 4px; }
   .exec-lcd .lcd-val { font-size: 10.5px; }
+}
+
+/* Tablet portrait and small windows: encoders, then executors with the master keys, then the keypad. */
+@media (max-width: 1099px) and (min-width: 721px) {
+  .desk .hw {
+    grid-template-columns: auto auto;
+    grid-template-areas:
+      'enc enc'
+      'exec master'
+      'keys keys';
+    justify-content: space-between;
+    row-gap: 16px;
+  }
+  .desk .keys { justify-self: start; }
+  .desk.is-open .desk-body {
+    max-height: min(74vh, 760px);
+    overflow-y: auto;
+  }
 }
 
 @media (max-width: 1359px) and (min-width: 721px) {
@@ -1015,19 +1058,31 @@ body {
     flex: none;
   }
 
+  /* Fixtures (and Coarse) on one row, feature groups on the next; either scrolls sideways if it must. */
   .fg-bar {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    padding-bottom: 2px;
+    flex-wrap: wrap;
     max-width: none;
-  }
-  .fgroups {
-    flex-basis: auto;
   }
   .fixtures,
   .fgroups {
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .fixtures::-webkit-scrollbar,
+  .fgroups::-webkit-scrollbar {
+    display: none;
+  }
+  .fixtures {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .fixtures .fx,
+  .fgroups .fg {
     flex: none;
+  }
+  .fgroups {
+    flex: 1 1 100%;
   }
   .res {
     margin-left: 0;
@@ -1067,6 +1122,7 @@ body {
     width: 66px;
   }
   .fader {
+    --fh: 120px;
     height: 120px;
   }
   .fader input[type='range'] {
