@@ -644,7 +644,10 @@ a {
 .contact-line {
   display: block;
   width: fit-content;
-  font-size: clamp(30px, 5.4vw, 84px);
+  max-width: 100%;
+  /* Big, but the email always fits the width on one line. */
+  font-size: min(clamp(30px, 5.4vw, 84px), calc((100vw - 2 * var(--gutter)) / 15.5));
+  overflow-wrap: anywhere;
   font-weight: 280;
   font-stretch: 112%;
   line-height: 1.1;

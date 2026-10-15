@@ -57,7 +57,7 @@ renderCredits($('#credits-table'), credits);
   const body = $('#contact-body');
   const lines: string[] = [];
   if (site.email) lines.push(`<a class="contact-line lit" href="mailto:${esc(site.email)}"><span class="lit-line">${esc(site.email)}</span></a>`);
-  if (site.phone) lines.push(`<a class="contact-line lit" href="tel:${esc(site.phone.replace(/[^+\d]/g, ''))}"><span class="lit-line">${esc(site.phone)}</span></a>`);
+  if (site.phone) lines.push(`<a class="contact-line lit" href="tel:${esc(site.phoneTel || site.phone.replace(/[^+\d]/g, ''))}"><span class="lit-line">${esc(site.phone)}</span></a>`);
   if (lines.length) {
     body.innerHTML = lines.join('') + `<p class="contact-city">${esc(site.city)}</p>`;
   } else if (import.meta.env.DEV) {
@@ -120,7 +120,18 @@ document.addEventListener('click', (e) => {
   const target = document.getElementById(a.getAttribute('href')!.slice(1));
   if (!target) return;
   e.preventDefault();
-  target.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+  // Line the section's heading up under the rig. Contact is short and is the
+  // point of the section: if its details would end up behind the desk bar
+  // (a phone held sideways), scroll on until they clear it.
+  const pad = parseFloat(getComputedStyle(root).scrollPaddingTop) || 0;
+  let y = scrollY + target.getBoundingClientRect().top - pad;
+  const details = target.dataset.showAll != null ? target.lastElementChild : null;
+  if (details) {
+    const bottom = scrollY + details.getBoundingClientRect().bottom;
+    const deskEdge = document.getElementById('desk')!.getBoundingClientRect().top || innerHeight;
+    y = Math.max(y, bottom - (deskEdge - 24));
+  }
+  scrollTo({ top: Math.max(0, y), behavior: reduced ? 'auto' : 'smooth' });
   // Move keyboard focus along with the view, to the section's heading.
   const h = target.querySelector<HTMLElement>('h1, h2') ?? target;
   if (!h.hasAttribute('tabindex')) h.tabIndex = -1;

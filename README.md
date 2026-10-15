@@ -20,7 +20,7 @@ Node 20 or newer.
 | Path | What it is |
 | --- | --- |
 | `src/data/shows.ts` | Every show, its photos, and the full credits list with sources |
-| `src/data/site.ts` | Name, role, city, **email and phone** (empty until confirmed) |
+| `src/data/site.ts` | Name, role, city, email and phone |
 | `src/engine/rig.ts` | The spots (pan and tilt on a damped spring, pool geometry) and the panels' fixed fields |
 | `src/engine/fixture.ts` | The spots and panels drawn as 3D wireframes |
 | `src/engine/shaft.ts` | WebGL beams through haze, floor pools, spill and lens glow, for all four lights |
@@ -34,7 +34,7 @@ Node 20 or newer.
 
 ## Contact details
 
-`src/data/site.ts` has `email` and `phone` left empty on purpose. While they're empty the contact section is hidden on the built site (and shows a reminder in `npm run dev`). Fill them in and they appear as outlined type that lights up under the beam.
+`src/data/site.ts` holds James's email and phone, confirmed by Miller. They show in the Contact section as outlined type that lights up under the beams; the phone shows spaced (no dashes) and dials as `+14168821379`. If a field is ever emptied it's hidden on the built site (and `npm run dev` shows a reminder).
 
 ## Adding or changing photos
 

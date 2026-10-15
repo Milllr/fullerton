@@ -1,15 +1,17 @@
 /**
- * Site-wide details. Contact fields are left empty on purpose until the real
- * ones are confirmed: empty fields are hidden on the live site, and shown as a
- * reminder in `npm run dev`.
+ * Site-wide details. Contact details are James's real ones, confirmed by
+ * Miller; if a field is ever emptied it's hidden on the live site.
  */
 export const site = {
   name: 'Fullerton Productions',
   person: 'James Downey',
   role: 'Lighting Designer',
   city: 'Toronto',
-  email: '',
-  phone: '',
+  email: 'fullertonproductions@me.com',
+  /** As shown: spaced, no dashes. */
+  phone: '416 882 1379',
+  /** For the tel: link, so it dials from anywhere. */
+  phoneTel: '+14168821379',
   /** Shown in the footer for photos that carry a credit. */
   photoCredits: [{ name: 'Arash Moallemi', for: 'Breakfast Television and Sportsnet Studios' }],
 };

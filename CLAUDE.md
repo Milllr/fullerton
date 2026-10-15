@@ -11,7 +11,7 @@ Portfolio for James Downey (Miller's dad), Lighting Designer, Fullerton Producti
 - The URL hash only ever holds an open show; in-page links scroll without touching it (see README, Browsers and devices).
 - Motion rule from James's lighting doctrine: nothing snaps. Pan/tilt use a damped spring with capped speed; idle sweep is 24 s across.
 - Copy is deliberately minimal: names, networks, years. No bio. No dashes (en or em) in copy.
-- Contact email/phone in `src/data/site.ts` stay empty until Miller confirms real ones. Never invent contact details.
+- Contact in `src/data/site.ts`: fullertonproductions@me.com and 416 882 1379 (shown spaced, no dashes; tel link +14168821379), confirmed by Miller 2026-10-15. Never invent or change contact details without him.
 - Credits must be sourced (NewscastStudio, TV Technology) or come from the family photo archive. Don't add unverified credits.
 - `raw/` holds original photos and is gitignored; `npm run assets` rebuilds `public/shows/` and `src/data/assets.json`.
 - Domain is fullertonproductions.ca (moving to Cloudflare later).
