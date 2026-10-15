@@ -1,6 +1,7 @@
 import type { Pool } from './rig';
 import { SPRITE } from './gobos';
 import { setVar } from './css';
+import { CAD, drawSheet, sheetInset, type SheetInfo } from './drafting';
 import { imageUrl, sketchUrl, type ShowImage } from '../data/shows';
 
 export interface SketchData {
@@ -60,7 +61,8 @@ export interface Flood {
   at: (x: number, y: number) => number;
 }
 
-export const CHALK = '214, 204, 188';
+/** Line colour for everything drawn as CAD: Vectorworks white on black. */
+export const CHALK = CAD;
 
 interface Mapping {
   ox: number;
@@ -69,8 +71,11 @@ interface Mapping {
 }
 
 /**
- * Draws a set as a hairline sketch, then lets the real photograph through
- * wherever the beam's pool lands on it.
+ * Draws a set the way Vectorworks shows a Hidden Line render on its black
+ * background: every edge one crisp, even line, no hand drawn overshoot.
+ * Unlit, the drawing sits back like a greyed layer; under the light it's
+ * the active layer, full white. Light sources in the photo are the set's
+ * own fixtures, drawn as plain outlines.
  */
 export function drawSketch(
   ctx: CanvasRenderingContext2D,
@@ -83,30 +88,21 @@ export function drawSketch(
   const segs = data.segs;
   const n = Math.floor(segs.length * progress);
   ctx.lineCap = 'round';
-  ctx.lineWidth = bright ? 1.15 : 0.85;
-  // Bucket by alpha so we stroke a handful of paths instead of thousands.
-  const buckets: Path2D[] = [new Path2D(), new Path2D(), new Path2D(), new Path2D()];
-  const ext = 2.2 / m.s; // drafting overshoot, in normalised units
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = bright ? 1 : 0.8;
+  // One path, one stroke: where segments meet or overlap they don't double up.
+  const edges = new Path2D();
   for (let k = 0; k < n; k++) {
-    const sg = segs[order ? order[k] : k];
-    const [x1, y1, x2, y2] = sg;
-    const len = Math.hypot(x2 - x1, y2 - y1);
-    const ux = (x2 - x1) / (len || 1), uy = (y2 - y1) / (len || 1);
-    const b = Math.min(3, Math.floor((len / 0.18) * 4));
-    const p = buckets[b];
-    p.moveTo(m.ox + (x1 - ux * ext) * m.s, m.oy + (y1 - uy * ext) * m.s);
-    p.lineTo(m.ox + (x2 + ux * ext) * m.s, m.oy + (y2 + uy * ext) * m.s);
+    const [x1, y1, x2, y2] = segs[order ? order[k] : k];
+    edges.moveTo(m.ox + x1 * m.s, m.oy + y1 * m.s);
+    edges.lineTo(m.ox + x2 * m.s, m.oy + y2 * m.s);
   }
-  const alphas = bright ? [0.55, 0.7, 0.85, 1] : [0.13, 0.19, 0.26, 0.34];
-  buckets.forEach((p, i) => {
-    ctx.strokeStyle = bright ? `rgba(255,255,255,${alphas[i]})` : `rgba(${CHALK}, ${alphas[i] * weight})`;
-    ctx.stroke(p);
-  });
-  // Light sources in the photo become fixture symbols.
+  const a = bright ? 0.92 : Math.min(1, 0.3 * weight);
+  ctx.strokeStyle = `rgba(${bright ? '255, 255, 255' : CHALK}, ${a})`;
+  ctx.stroke(edges);
   if (progress > 0.6) {
     const fxAlpha = Math.min(1, (progress - 0.6) / 0.4);
     const sym = new Path2D();
-    const fill = new Path2D();
     for (const f of data.fx) {
       const cx = m.ox + (f[1] as number) * m.s;
       const cy = m.oy + (f[2] as number) * m.s;
@@ -114,22 +110,12 @@ export function drawSketch(
         const r = Math.max(1.6, (f[3] as number) * m.s);
         sym.moveTo(cx + r, cy);
         sym.arc(cx, cy, r, 0, Math.PI * 2);
-        fill.moveTo(cx + r * 0.55, cy);
-        fill.arc(cx, cy, r * 0.55, 0, Math.PI * 2);
       } else {
         const hw = (f[3] as number) * m.s, hh = (f[4] as number) * m.s;
         sym.rect(cx - hw, cy - hh, hw * 2, hh * 2);
-        fill.rect(cx - hw * 0.6, cy - hh * 0.6, hw * 1.2, hh * 1.2);
       }
     }
-    if (bright) {
-      ctx.fillStyle = `rgba(255,255,255,${fxAlpha})`;
-      ctx.fill(fill);
-      ctx.strokeStyle = `rgba(255,255,255,${fxAlpha})`;
-    } else {
-      ctx.strokeStyle = `rgba(${CHALK}, ${0.42 * fxAlpha * weight})`;
-    }
-    ctx.lineWidth = 0.8;
+    ctx.strokeStyle = `rgba(${bright ? '255, 255, 255' : CHALK}, ${a * fxAlpha})`;
     ctx.stroke(sym);
   }
 }
@@ -148,6 +134,9 @@ export class Plate {
   readonly focusY: number;
   private sketchC: HTMLCanvasElement;
   private lightC: HTMLCanvasElement;
+  /** The sheet's drafting (border, centre line, focus points, title block), over everything. */
+  private notesC: HTMLCanvasElement;
+  readonly sheet: SheetInfo | null;
   private sctx: CanvasRenderingContext2D;
   private lctx: CanvasRenderingContext2D;
   private brightC: HTMLCanvasElement | null = null;
@@ -167,8 +156,9 @@ export class Plate {
 
   readonly weight: number;
 
-  constructor(el: HTMLElement, slug: string, image: ShowImage, focusY = 0.5, weight = 1) {
+  constructor(el: HTMLElement, slug: string, image: ShowImage, focusY = 0.5, weight = 1, sheet: SheetInfo | null = null) {
     this.el = el;
+    this.sheet = sheet;
     this.weight = weight;
     this.slug = slug;
     this.image = image;
@@ -182,7 +172,10 @@ export class Plate {
     this.lightC.className = 'plate-light';
     this.sketchC.setAttribute('aria-hidden', 'true');
     this.lightC.setAttribute('aria-hidden', 'true');
-    this.stage.append(this.sketchC, this.lightC);
+    this.notesC = document.createElement('canvas');
+    this.notesC.className = 'plate-notes';
+    this.notesC.setAttribute('aria-hidden', 'true');
+    this.stage.append(this.sketchC, this.lightC, this.notesC);
     this.sctx = this.sketchC.getContext('2d')!;
     this.lctx = this.lightC.getContext('2d')!;
     // The photo itself sits under the sketch and only shows where light spills.
@@ -335,6 +328,13 @@ export class Plate {
     this.map = coverMapping(W, H, this.aspect, this.focusY);
     this.prevBox = null;
     this.lastSig = '';
+    if (this.sheet) {
+      this.notesC.width = Math.round(W * this.dpr);
+      this.notesC.height = Math.round(H * this.dpr);
+      const nc = this.notesC.getContext('2d')!;
+      nc.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      drawSheet(nc, W, H, this.sheet);
+    }
     this.renderSketch();
     if (this.data) {
       this.brightC ??= document.createElement('canvas');
@@ -358,6 +358,16 @@ export class Plate {
 
   measure() {
     this.rect = this.stage.getBoundingClientRect();
+  }
+
+  /** The drawn sheet's inner border on screen, from the last measure(). */
+  innerRect() {
+    if (!this.sheet) return null;
+    const r = this.rect;
+    const top = this.sheet.topInset?.() ?? 0;
+    const H = r.height - (this.sheet.bottomInset?.() ?? 0) - top;
+    const i = sheetInset(r.width, H);
+    return { x0: r.left + i, y0: r.top + top + i, x1: r.right - i, y1: r.top + top + H - i, u: Math.max(6, Math.min(9.5, Math.min(r.width, H * 1.6) / 120)) };
   }
 
   clearLight() {

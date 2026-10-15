@@ -16,6 +16,9 @@
   --dim: #8d877e;
   --faint: #4b4741;
   --chalk: 214 204 188;
+  /* Drawings (sets, rig, drafting): Vectorworks white on its black background. */
+  --cad: 232 232 232;
+  --cad-font: Arial, 'Helvetica Neue', Helvetica, 'Liberation Sans', sans-serif;
   --light: 255 230 207;
   /* Where each light lands on the lit type: spots 1 and 2, panels (floods) 1 and 2. */
   --l1i: 0; --l1x: -999px; --l1y: -999px; --l1rx: 160px; --l1ry: 160px;
@@ -104,8 +107,30 @@ a {
   top: calc(46px + env(safe-area-inset-top, 0px));
   width: 100%;
   height: 14px;
-  color: rgb(var(--chalk) / 0.32);
+  color: rgb(var(--cad) / 0.4);
   overflow: visible;
+}
+
+/* The position's name on the truss, as a plot labels its pipe. */
+.pos-label {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 21;
+  font: 400 9px/1 var(--cad-font);
+  letter-spacing: 0.06em;
+  color: rgb(var(--cad) / 0.66);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.pos-label {
+  font-size: 11px;
+}
+.pos-label small {
+  display: block;
+  margin-top: 2px;
+  font-size: 8px;
+  color: rgb(var(--cad) / 0.5);
 }
 
 .brand,
@@ -157,13 +182,17 @@ a {
   pointer-events: none;
 }
 
-.shaft {
+.shaft,
+.beamcad {
   position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
   z-index: 5;
   pointer-events: none;
+}
+.beamcad {
+  z-index: 6;
 }
 
 /* ------------------------------------------------------------ plates */
@@ -285,7 +314,11 @@ a {
   opacity: calc(1 - 0.6 * var(--pf));
 }
 
-/* Hairline frame marks at the corners of each plate, like crop marks on a plot. */
+/* Without script: hairline crop marks at the corners. With it, each plate draws its own sheet border. */
+.js .plate-stage::before,
+.js .plate-stage::after {
+  display: none;
+}
 .plate-stage::before,
 .plate-stage::after {
   content: '';
@@ -449,25 +482,108 @@ a {
 
 .hero-cap {
   position: absolute;
-  right: var(--gutter);
-  bottom: calc(clamp(24px, 6vh, 80px) + 56px);
+  right: var(--sheet-inset, 26px);
+  bottom: calc(var(--bar-h, 56px) + var(--sheet-inset, 26px));
   z-index: 10;
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  font-size: 13px;
-  font-stretch: 80%;
-  color: var(--dim);
-  text-align: right;
 }
-.hero-cap a {
-  color: var(--ink);
+
+/*
+  The hero's title block, as a strip along the bottom of its sheet (USITT's
+  title strip): thick outline, thin rules, small field names over uppercase
+  Arial values, the sheet number large at the end. Same fields as the
+  title block drawn on every plate.
+*/
+.tblock {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 3fr);
+  width: clamp(560px, 52vw, 760px);
+  max-width: calc(100vw - 2 * var(--sheet-inset, 26px) - 360px);
+  font-family: var(--cad-font);
+  text-transform: uppercase;
+  color: rgb(var(--cad) / 0.85);
+  background: rgb(3 3 3 / 0.86);
+  border: 1.2px solid rgb(var(--cad) / 0.55);
+}
+.tblock p,
+.tblock dl,
+.tblock dd {
+  margin: 0;
+}
+.tb-main {
+  min-width: 0;
+  border-right: 0.5px solid rgb(var(--cad) / 0.4);
+}
+.tb-main p {
+  padding: 4px 8px 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tb-org {
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  color: rgb(var(--cad) / 0.6);
+  border-bottom: 0.5px solid rgb(var(--cad) / 0.4);
+}
+.tb-title {
+  font-size: 11.5px;
+}
+.tb-title a {
+  color: rgb(var(--cad) / 0.95);
   text-decoration: none;
 }
-.hero-cap a:hover {
+.tb-title a:hover {
   text-decoration: underline;
-  text-underline-offset: 4px;
+  text-underline-offset: 3px;
+}
+.tb-cells {
+  display: grid;
+  grid-template-columns: 1.15fr 1.45fr 1fr 0.7fr 0.75fr 0.8fr;
+  min-width: 0;
+}
+.tb-cells > div {
+  padding: 4px 7px 5px;
+  border-right: 0.5px solid rgb(var(--cad) / 0.4);
+  min-width: 0;
+}
+.tb-cells > div:last-child {
+  border-right: 0;
+}
+.tb-cells dt {
+  font-size: 6.5px;
+  letter-spacing: 0.05em;
+  color: rgb(var(--cad) / 0.48);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tb-cells dd {
+  margin-top: 3px;
+  font-size: 9.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tb-sheet dd {
+  font-size: 14px;
+  line-height: 0.9;
+}
+/* Narrower screens: one short row, the production with date, scale and sheet, clear of the wordmark. */
+@media (max-width: 1099px) {
+  .tblock {
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1.3fr);
+    width: min(380px, calc(100vw - 2 * var(--sheet-inset, 26px) - 330px));
+    max-width: none;
+  }
+  .tb-cells {
+    grid-template-columns: 1fr 0.8fr 0.9fr;
+  }
+  .tb-cells > div:nth-child(1),
+  .tb-cells > div:nth-child(2),
+  .tb-cells > div:nth-child(3) {
+    display: none;
+  }
 }
 
 /* ------------------------------------------------------------ sections */
@@ -848,6 +964,10 @@ a {
 
 .cue-run:not(.cue-done) .truss {
   animation: truss-in 0.9s var(--ease) both;
+}
+.cue-run:not(.cue-done) .plate-notes,
+.cue-run:not(.cue-done) .pos-label {
+  animation: rise 1s var(--ease) 1.6s both;
 }
 .cue-run:not(.cue-done) .nav,
 .cue-run:not(.cue-done) .byline,

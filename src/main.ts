@@ -6,7 +6,9 @@ import { allShows, credits, hero, imageUrl, shows, type Show } from './data/show
 import { site } from './data/site';
 import { PanelRig, Rig, type Pool } from './engine/rig';
 import { Plate, type Flood, type SpotLight } from './engine/plate';
+import { sheetInset } from './engine/drafting';
 import { Shaft, type Beam } from './engine/shaft';
+import { BeamCad } from './engine/beamcad';
 import { Fixture, PanelFixture } from './engine/fixture';
 import { buildSprites, releaseSprites, type GoboSprites } from './engine/gobos';
 import { rgbCss } from './engine/kelvin';
@@ -36,8 +38,24 @@ function plateMarkup(s: Show, cls: string, eager = false) {
   </a>`;
 }
 
+// The hero's title block, a strip along the bottom of its sheet with the
+// same fields as every plate's (and still a link to the show).
+const heroDate = hero.year.match(/\d{4}(?!.*\d{4})/)?.[0] ?? '';
 $('#hero-plate').innerHTML = `${plateMarkup(hero, 'plate-hero', true)}
-  <p class="hero-cap"><a href="#/work/${hero.slug}">${esc(hero.title)}</a><span>${esc(meta(hero))}</span></p>`;
+  <div class="hero-cap tblock">
+    <div class="tb-main">
+      <p class="tb-org">Fullerton Productions</p>
+      <p class="tb-title"><a href="#/work/${hero.slug}">${esc(hero.title)}</a></p>
+    </div>
+    <dl class="tb-cells">
+      <div><dt>Drawing</dt><dd>Perspective</dd></div>
+      <div><dt>Lighting designer</dt><dd>James Downey</dd></div>
+      <div><dt>Client</dt><dd>${esc(hero.network)}</dd></div>
+      <div><dt>Scale</dt><dd>NTS</dd></div>
+      <div><dt>Date</dt><dd>${esc(heroDate)}</dd></div>
+      <div class="tb-sheet"><dt>Sheet</dt><dd>LX1</dd></div>
+    </dl>
+  </div>`;
 
 $('#plates').innerHTML = shows
   .map(
@@ -154,8 +172,10 @@ const spots = SPOTS.map(() => {
   return r;
 });
 const panels = PANELS.map(() => new PanelRig());
-const spotFx = SPOTS.map((id) => new Fixture($<HTMLCanvasElement>(`#fx-${id}`)));
-const panelFx = PANELS.map((id) => new PanelFixture($<HTMLCanvasElement>(`#fx-${id}`)));
+// Labelled as on a plot: channel is the desk's fixture number, units count left to right along the truss.
+const UNIT: Record<number, number> = { 1: 1, 3: 2, 4: 3, 2: 4 };
+const spotFx = SPOTS.map((id) => new Fixture($<HTMLCanvasElement>(`#fx-${id}`), id, UNIT[id]));
+const panelFx = PANELS.map((id) => new PanelFixture($<HTMLCanvasElement>(`#fx-${id}`), id, UNIT[id]));
 /** Top left of each fixture canvas on screen. */
 const spotAt = spots.map(() => ({ x: 0, y: 0 }));
 const panelAt = panels.map(() => ({ x: 0, y: 0 }));
@@ -199,17 +219,28 @@ function updateSprites(i: number, now: number) {
 }
 
 const shaft = Shaft.create($<HTMLCanvasElement>('#shaft'));
+const beamCad = new BeamCad($<HTMLCanvasElement>('#beamcad'));
 if (!shaft) root.classList.add('no-shaft');
 /** Development only: ?fast renders the haze coarsely and takes bigger time steps, for headless tests. */
 const fast = import.meta.env.DEV && new URLSearchParams(location.search).has('fast');
 if (fast && shaft) shaft.maxScale = 0.12;
 
 const plates: Plate[] = [];
-const heroPlate = new Plate($('.plate-hero'), hero.slug, hero.images.find((i) => i.id === hero.key)!, 0.55, 0.8);
+// Every show is its own production's sheet LX1, a perspective.
+const sheetOf = (s: Show, _n: number, titleBlock = true) => ({ title: s.title, network: s.network, year: s.year, sheet: 'LX1', titleBlock });
+// The hero is a full sheet; its bottom edge stops above the desk bar.
+const barHeight = () => document.querySelector('.desk-bar')?.getBoundingClientRect().height ?? 56;
+const heroPlate = new Plate($('.plate-hero'), hero.slug, hero.images.find((i) => i.id === hero.key)!, 0.55, 0.8, {
+  ...sheetOf(hero, 1, false),
+  bottomInset: barHeight,
+  // Starts just under the truss, so the rig hangs in front of the sheet rather than over its edge.
+  topInset: () => (document.querySelector('.truss')?.getBoundingClientRect().bottom ?? 60) + 6,
+  hazer: { channel: HAZER },
+});
 plates.push(heroPlate);
 document.querySelectorAll<HTMLElement>('#plates .plate').forEach((el, i) => {
   const s = shows[i];
-  plates.push(new Plate(el, s.slug, s.images.find((im) => im.id === s.key)!));
+  plates.push(new Plate(el, s.slug, s.images.find((im) => im.id === s.key)!, 0.5, 1, sheetOf(s, i + 2)));
 });
 const plateBySlug = (slug: string) => plates.find((p) => p.slug === slug) ?? null;
 const rectOf = (p: Plate) => (p.visible ? p.rect : p.stage.getBoundingClientRect());
@@ -332,9 +363,25 @@ function layout() {
   hang(panelFx[0], xs[1], panelAt[0]);
   hang(panelFx[1], xs[2], panelAt[1]);
   hang(spotFx[1], xs[3], spotAt[1]);
+  // The position's name sits on the truss just inboard of Spot L, as a plot labels its pipe.
+  // Its name goes at the end of the position, outside Spot L; where there's
+  // no room (a phone) it sits just inboard of Spot L instead.
+  const pos = document.querySelector<HTMLElement>('.pos-label');
+  if (pos) {
+    const outside = spotAt[0].x + spotFx[0].pivotX - 40 * k - pos.offsetWidth - 6;
+    const x = outside >= 8 ? 8 : spotAt[0].x + spotFx[0].pivotX + 44 * k;
+    pos.style.transform = `translate(${Math.round(x)}px, ${Math.round(trussY + 9)}px)`;
+  }
   spots.forEach((r, i) => r.layout(vw, vh, spotAt[i].x + spotFx[i].pivotX, spotAt[i].y + spotFx[i].pivotY));
   panels.forEach((p, i) => p.layout(vw, usable, panelAt[i].x + panelFx[i].pivotX, panelAt[i].y + panelFx[i].pivotY, small));
   shaft?.resize(vw, vh, lowPower);
+  beamCad.resize(vw, vh);
+  // The hero's HTML title block sits in the corner of its drawn border, above the desk bar.
+  const bar = barHeight();
+  const heroBox = heroPlate.stage.getBoundingClientRect();
+  setVar(root, '--bar-h', `${Math.round(bar)}px`);
+  const heroTop = ($('.truss').getBoundingClientRect().bottom || 60) + 6;
+  setVar(root, '--sheet-inset', `${Math.floor(sheetInset(heroBox.width || vw, (heroBox.height || vh) - bar - heroTop))}px`);
   plates.forEach((p) => p.resize());
 }
 
@@ -847,6 +894,10 @@ function step(now: number) {
   }
 
   shaft?.render({ vw, vh, haze, time: hazeClock, beams, bounce, bounceAmt, bouncePos, bounceAxes });
+  beamCad.draw(
+    beams.filter((b) => b.kind === 'spot').map((b) => ({ lens: b.lens, pool: b.pool, I: b.I })),
+    lightVisible.map((p) => p.innerRect()).filter((r): r is NonNullable<typeof r> => !!r),
+  );
 
   // Lit type: each spot's pool-sized core with a long faint tail, and the panels' broad fields.
   {
