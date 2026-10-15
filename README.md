@@ -2,7 +2,7 @@
 
 Portfolio site for James Downey, Lighting Designer, and his company Fullerton Productions (Toronto).
 
-The site is a dark stage. Every show is drawn as a hairline sketch traced from his photos, and a small rig hanging off the truss line at the top of the page lights it up: two moving head spots at the wings that cross their beams, and two soft LED panels inside them pointing straight down. Wherever the light lands, the real photograph shows through.
+The site is a dark stage drawn the way Vectorworks Spotlight draws on its black background. Every show is a sheet: its set as a Hidden Line render traced from his photos, inside a title block border with Spotlight drafting. A small rig hangs off the truss at the top of the page and lights it up: two moving head spots at the wings that cross their beams, and two soft LED panels inside them pointing straight down. Wherever the light lands, the real photograph shows through.
 
 ## Run it
 
@@ -49,7 +49,17 @@ python tools/build_assets.py --sketch-only   # just re-trace sketches
 
 Then add the show to `src/data/shows.ts` (the `images` come from `src/data/assets.json`, which the pipeline writes).
 
-The tracer (`tools/sketch.py`) finds straight edges with OpenCV's line segment detector, merges collinear pieces, keeps curved outlines for people and round sets, and turns small bright light sources into fixture symbols.
+The tracer (`tools/sketch.py`) finds straight edges with OpenCV's line segment detector, merges collinear pieces, keeps curved outlines for people and round sets, and turns small bright light sources into fixture symbols. Then `tools/hiddenline.py` cleans each trace so it reads as a Hidden Line render, which only ever draws model geometry: it drops specks, cuts reflections below the floor line, and clears LED wall video, haze beams, crowds and floorboards using per photo rules at the top of the file. Add a rule there when you add a key photo.
+
+## The drawings
+
+Built to Vectorworks Spotlight defaults and USITT practice so an LD reads them as Vectorworks on sight. The labels are placeholders in Vectorworks' default style, not James's own paperwork.
+
+- **Black background, white lines**, as Vectorworks shows a black pen with its black background preference. Unlit, a drawing sits back like a greyed layer; under the light it goes full white.
+- **Sets** are Hidden Line renders: one even line weight, no hand drawn overshoot, only model edges.
+- **The rig** is Hidden Line solids: faces filled black, back faces culled, the round heads showing only rims and silhouette. Each unit carries its unit number on the body and its channel (the desk's fixture number) in a circle in front. The position is labelled at its end: TRUSS 1, TRIM 6500. The hazer, channel 5, sits on the hero's deck.
+- **Every sheet** has a title block border (thin outer line, heavy inner line, numbered and lettered grid zones), a centre line with the CL mark, a Vectorworks drawing label (1 over LX1, PERSPECTIVE on a heavy rule, SCALE: NTS) and a title block bottom right with the production, drawing, lighting designer, client, scale, date and sheet. Perspectives aren't to scale, so they say NTS; there's no scale bar or dimension on them. The hero's title block is a strip in HTML with the same fields (and a link to the show).
+- **Draw Beam**: each spot's beam is drawn as a wireframe cone from the lens to its field ellipse, with the beam angle dashed inside, cropped to the sheet it lands on. A focus point (Vectorworks' octagon with a locus) sits where each beam is aimed: FP1, and FP2 when the spots cross to different points.
 
 ## The desk
 
