@@ -26,7 +26,7 @@ Node 20 or newer.
 | `src/engine/shaft.ts` | WebGL beams through haze, floor pools, spill and lens glow, for all four lights |
 | `src/engine/plate.ts` | Sketch rendering, the photo reveal in each spot's pool, and the panels' flood |
 | `src/engine/gobos.ts` | Gobo masks (open, breakup, dots, ring) |
-| `src/desk/` | The grandMA3 style desk: model, command line, screen and hardware UI in two skins |
+| `src/desk/` | The grandMA3 desk: model, command line, screen and console |
 | `src/ui/detail.ts` | The show sheet with every photo |
 | `src/ui/credits.ts` | The sortable credits list |
 | `public/shows/<show>/` | Web photos (`.webp`, `-m.webp`) and traced sketches (`.json`) |
@@ -75,14 +75,7 @@ The screen follows the grandMA3 user manual (help.malighting.com), colour for co
 
 The MA logo that sits in grandMA3 title fields is replaced by a neutral glyph; no MA artwork is used.
 
-**Two skins**, switched with **A** and **B** beside Close while Miller compares them (also `?desk=a` or `?desk=b`; the choice is remembered in the browser):
-
-- **A**: the grandMA3 screen on our own hardware: anodised panel, rubber keys with LEDs, knurled encoders, LCD labels and the Grand Master fader with B.O. beside the executors.
-- **B**: grandMA3 everywhere. Backlit black keys whose legends light when on (the header keys too), dual encoders with a light under each that turns red once the programmer is in use, executor labels on one letterbox screen (number, pool index, name, the cue list with the active cue on blue, a bar for the fader; the selected sequence in yellow), the key under each fader marked with two lines and the one below with one, and the large Pause, Go- and Go+. There's no Goto key (Help is in its place), no B.O. key and no Grand Master fader: the Grand Master is the one on screen, and `Black` on the command line blacks out. (The manual also describes a Grand Master fader on the full size consoles; B follows the compact layout.)
-
-In both, the executors are numbered as grandMA3 numbers fader executors, 201 to 204, and the playback key is Go+.
-
-Both skins are the same elements and the same programmer; the skin only restyles and rearranges them.
+**The console** is a grandMA3 too (Miller chose it over our own hardware after an A/B test): backlit black keys whose legends light when on (the header keys are the same keys), dual encoders with a light under each that turns red once the programmer is in use, executors 201 to 204 with their labels on one letterbox screen (number, pool index, name, the cue list with the active cue on blue, a bar for the fader; the selected sequence in yellow), the key under each fader marked with two lines and the one below with one, and the large Pause, Go- and Go+. There's no Goto key (Help is in its place), no B.O. key and no Grand Master fader: the Grand Master is the one on screen, and `Black` on the command line blacks out. (The manual also describes a Grand Master fader on the full size consoles; the desk follows the compact layout.)
 
 - **Fixtures**: 1 Spot L and 2 Spot R are the moving heads, 3 Panel L and 4 Panel R the soft panels (Dimmer and Color Temp only), 5 the hazer. The spots are selected to begin with, so the encoders drive both.
 - **Encoders**: drag, scroll or arrow keys; press to toggle Fine. Each sits under its field on screen.
