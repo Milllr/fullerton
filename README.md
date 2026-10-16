@@ -26,7 +26,7 @@ Node 20 or newer.
 | `src/engine/shaft.ts` | WebGL beams through haze, floor pools, spill and lens glow, for all four lights |
 | `src/engine/plate.ts` | Sketch rendering, the photo reveal in each spot's pool, and the panels' flood |
 | `src/engine/gobos.ts` | Gobo masks (open, breakup, dots, ring) |
-| `src/desk/` | The grandMA style desk: model, command line, hardware UI |
+| `src/desk/` | The grandMA3 style desk: model, command line, screen and hardware UI in two skins |
 | `src/ui/detail.ts` | The show sheet with every photo |
 | `src/ui/credits.ts` | The sortable credits list |
 | `public/shows/<show>/` | Web photos (`.webp`, `-m.webp`) and traced sketches (`.json`) |
@@ -63,14 +63,35 @@ Built to Vectorworks Spotlight defaults and USITT practice so an LD reads them a
 
 ## The desk
 
-The controls are a pull-up lighting desk modelled on grandMA3. The bar along the bottom holds the command line and the live encoder readouts; **Desk** pulls up the rest.
+The controls are a pull-up lighting desk modelled on grandMA3. Closed, the bar along the bottom holds the command line and the live encoder readouts; **Desk** pulls up the rest: the screen above the command line, the hardware below it.
 
-- **Fixtures**: 1 Spot L and 2 Spot R are the moving heads, 3 Panel L and 4 Panel R the soft panels (Dimmer and Color Temp only), 5 the hazer. The spots are selected to begin with, so the encoders drive both. Selected fixtures read yellow.
-- **Feature groups and encoders**: Dimmer, Position, Gobo, Color, Beam, Focus and Control page five endless encoders (drag, scroll or arrow keys; press to toggle Fine). Values go into the programmer and show red; playback values show cyan.
+The screen follows the grandMA3 user manual (help.malighting.com), colour for colour:
+
+- **Fixture sheet**: Name, FID, IDType and CID, then one column per attribute, as the manual orders them. Fixture names and IDs read white on black, yellow on gray when selected. Active programmer values are white on red, inactive ones red on gray, the running cue's values cyan, other playbacks yellow, defaults light gray; attributes a fixture doesn't have are black. Position presets carry the bright cyan preset marker; colour temperature shows a swatch. Prog Only in the title bar shows just the fixtures with programmer values. Tapping a fixture selects it (on a touch screen it adds or removes it, so any combination can be picked).
+- **Dynamic preset pool**: it follows the feature group, as grandMA3's Dynamic pool does. The blue title field comes first, then the objects: the bar over each is green when every selected fixture can use the preset, yellow when some can, dimmed when none can; the cyan number under the object number counts the fixtures using it. Empty objects fill the window.
+- **Sequence sheet**: Sequence 1 Shows, with No, Part, Name, CueIn Fade and CueIn Delay. The active cue has a green frame and a fade runs as a moving bar.
+- **Encoder bar**: the feature group control bar along the top (the bar over a group turns the layer colour when the selection has it; a thin line marks active values), the encoder page button, five encoder fields with the name above the value and the encoder icon whose centre shows the resolution, the layer toolbar in the layer colours (Absolute red and selected, Relative mauve, Fade green, Delay orange) and the Grand Master at the right edge, green while enabled. Tapping a field puts `Attribute "Name" At` on the command line; pressing an encoder toggles Fine.
+- **Command line**: along the bottom of the screen, `James[Fixture]>` with the default keyword in yellow brackets and a white box when focused, the network session light (red: standalone) at its right. The line under it is the last line of the history: what was executed, in desk syntax (`fi 1 thru 2 at 60` comes back as `Fixture 1 Thru 2 At 60`); errors show in red.
+
+The MA logo that sits in grandMA3 title fields is replaced by a neutral glyph; no MA artwork is used.
+
+**Two skins**, switched with **A** and **B** beside Close while Miller compares them (also `?desk=a` or `?desk=b`; the choice is remembered in the browser):
+
+- **A**: the grandMA3 screen on our own hardware: anodised panel, rubber keys with LEDs, knurled encoders, LCD labels and the Grand Master fader with B.O. beside the executors.
+- **B**: grandMA3 everywhere. Backlit black keys whose legends light when on (the header keys too), dual encoders with a light under each that turns red once the programmer is in use, executor labels on one letterbox screen (number, pool index, name, the cue list with the active cue on blue, a bar for the fader; the selected sequence in yellow), the key under each fader marked with two lines and the one below with one, and the large Pause, Go- and Go+. There's no Goto key (Help is in its place), no B.O. key and no Grand Master fader: the Grand Master is the one on screen, and `Black` on the command line blacks out. (The manual also describes a Grand Master fader on the full size consoles; B follows the compact layout.)
+
+In both, the executors are numbered as grandMA3 numbers fader executors, 201 to 204, and the playback key is Go+.
+
+Both skins are the same elements and the same programmer; the skin only restyles and rearranges them.
+
+- **Fixtures**: 1 Spot L and 2 Spot R are the moving heads, 3 Panel L and 4 Panel R the soft panels (Dimmer and Color Temp only), 5 the hazer. The spots are selected to begin with, so the encoders drive both.
+- **Encoders**: drag, scroll or arrow keys; press to toggle Fine. Each sits under its field on screen.
 - **Programmer**: values hold until Clear. Clear works in three stages like the desk (deselect, deactivate, release); hold it for a full clear. Oops undoes, Highlight brings the head to open white, Blind hides the programmer from the output (the page gets a red frame), Store saves the programmer as a new cue.
-- **Executors**: Exec 1 runs Sequence 1, where each cue is a show and both spots cross on it (Go+, Go-, Pause, fade times). Exec 2 is the hazer master, Exec 3 a pan and tilt sweep phaser that mirrors the two spots so they cross, Exec 4 the Fill master for the panels. On a desktop Sweep comes up by itself after six idle seconds and drops when you move; on a touch screen Fill comes up by itself to 72% once the rig is lit. Grand Master and B.O. sit over everything. Faders are motorised: commands move them.
+- **Executors**: 201 runs Sequence 1, where each cue is a show and both spots cross on it (Go+, Go-, Pause, fade times). 202 is the hazer master, 203 a pan and tilt sweep phaser that mirrors the two spots so they cross, 204 the Fill master for the panels. On a desktop Sweep comes up by itself after six idle seconds and drops when you move; on a touch screen Fill comes up by itself to 72% once the rig is lit. The Grand Master sits over everything. Faders are motorised: commands move them.
 - **Preset pools**: 1 Dimmer, 2 Position (one per show; with both spots selected they cross on it), 3 Gobo, 4 Color, 5 Beam, 6 Focus.
-- **Command line**: real grandMA syntax, keywords can be shortened. `Fixture 1 Thru 2 At 75`, `Fixture 3 + 4 At 60`, `Fi 5 At 80`, `Attribute "Zoom" At 30`, `Preset 4.2`, `Go`, `Go-`, `Goto Cue 3`, `Pause`, `Off`, `Executor 3 At 60`, `Executor 4 At 70`, `Store Cue 12 "My look"`, `Clear`, `ClearAll`, `Oops`, `Highlight`, `Blind`, `Help`. The keys type into it and Please runs it.
+- **Command line**: real grandMA syntax, keywords can be shortened. `Fixture 1 Thru 2 At 75`, `Fixture 3 + 4 At 60`, `Fi 5 At 80`, `Attribute "Zoom" At 30`, `Preset 4.2`, `Go`, `Go-`, `Goto Cue 3`, `Pause`, `Off`, `Executor 203 At 60` (or `Executor 3 At 60`), `Fixture 1 Thru 4 - 3`, `Store Cue 12 "My look"`, `Clear`, `ClearAll`, `Oops`, `Highlight`, `Blind`, `Black`, `Help`. The keys type into it and Please runs it.
+
+On a phone the desk is one column that scrolls: fixture sheet, encoder bar, command line, encoders, executors, playback keys, pool, sequence sheet, keypad. The command line stays in view while the rest scrolls.
 
 With nothing running and nothing programmed, both spots converge on the cursor and the panels stay off until Fill is raised. On a touch screen the panels come up as a fill, so whichever show is in the middle of the screen is lit as you scroll; the spots cross on that show and roam slowly over it. A finger on the page pulls both spots onto it, and they go back to roaming a moment after it lifts. Keyboard focus on a show swings the beams onto it; clicking a show opens them wide on it and then opens every photo. `prefers-reduced-motion` turns off the opening cue, sweep, roam, haze drift, strobe and transitions.
 

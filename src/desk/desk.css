@@ -1,25 +1,44 @@
 /*
-  The desk. Built like hardware: an anodised panel, rubber keys with LEDs,
-  knurled endless encoders over small LCDs, motor faders in slotted tracks.
-  Screen windows (feature groups, pools, the cue list) follow grandMA's
-  conventions: selected fixtures read yellow, programmer values red,
-  playback values cyan.
+  The desk, in two skins (see ui.ts):
+    A  grandMA3 screens on our own hardware: anodised panel, rubber keys with
+       LEDs, knurled encoders, motor faders in slotted tracks.
+    B  grandMA3 everywhere: the same screens on a grandMA3 style console,
+       backlit keys, dual encoders with their lights, letterbox executor
+       labels, the large Pause, Go- and Go+.
+  The screen follows the grandMA3 manual in both: fixture sheet, Dynamic
+  preset pool, sequence sheet, encoder bar, command line at the bottom.
 */
 
 :root {
   --panel: #0b0b0c;
-  --panel-hi: #141416;
-  --seam: #1e1e21;
   --engrave: #8e887f;
   --engrave-hi: #cfc8bb;
   --lcd-bg: #060808;
   --lcd-ink: #e8e2d4;
-  --prog: #ff5a47;
-  --inactive: #a65a50;
-  --cue: #6cc4e6;
-  --sel: #f0cf4a;
   --bo: #ff3b30;
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  /* grandMA3 screen colours (manual, Colors). */
+  --g-frame: #2c2c2e;
+  --g-title: #1d1d1f;
+  --g-head: #19191a;
+  --g-cell: #2a2a2b;
+  --g-cell-hi: #3d3d3f;
+  --g-btn: #313133;
+  --g-btn-on: #5a5a5e;
+  --g-text: #ececec;
+  --g-dim: #9d9d9d;
+  --g-faint: #6b6b6b;
+  --g-blue: #2b5da8;
+  --g-yellow: #ffd60a;
+  --g-red: #cf2a1f;
+  --g-red-text: #ff5a4c;
+  --g-cyan: #2fd4f0;
+  --g-cyan-hi: #7ff6ff;
+  --g-green: #3bc94b;
+  --g-tile: #4b4b4e;
+  --g-tile-empty: #161617;
+  --g-pool: #6f7f93;
 }
 
 body {
@@ -65,16 +84,46 @@ body {
   box-shadow: 0 0 6px rgb(var(--light) / 0.8);
 }
 
+/* B: the header keys are backlit grandMA3 keys; the lit one is the page you're on. */
+[data-desk-skin='b'] .nav a {
+  padding: 0 11px;
+  font-weight: 600;
+  color: #b9b9b9;
+  background: linear-gradient(#1f1f21, #141415);
+  border: 1px solid #000;
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), inset 0 -2px 0 rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.6);
+}
+[data-desk-skin='b'] .nav .led {
+  display: none;
+}
+[data-desk-skin='b'] .nav a.on {
+  color: #fff;
+  text-shadow: 0 0 6px rgb(255 255 255 / 0.7);
+}
+
 /* ------------------------------------------------------------ desk shell */
 
 .desk {
+  --pad: clamp(12px, 2vw, 36px);
+  --bar-h: 56px;
+  /* The screen's bezel: border plus padding. The encoders line up under their fields. */
+  --bz: 7px;
+  --ef-w: 86px;
+  --ef-gap: 6px;
+  --ep-w: 64px;
+  --lt-w: 104px;
+  --gm-w: 56px;
+  /* The encoder bar's width: page button, five fields, layers, Grand Master. */
+  --ea-w: calc(var(--ep-w) + 5 * var(--ef-w) + 7 * var(--ef-gap) + var(--lt-w) + var(--gm-w));
+  --win-h: 140px;
+  --open-h: 640px;
+  --open-max: 78vh;
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 30;
-  display: flex;
-  flex-direction: column;
   font-family: var(--font);
   font-stretch: 82%;
   color: var(--engrave);
@@ -84,6 +133,10 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0px);
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
+}
+.desk[data-skin='b'] {
+  background: var(--grain), linear-gradient(#131314, #0c0c0d 40%);
+  box-shadow: 0 -1px 0 #202022, 0 -18px 40px rgb(0 0 0 / 0.65);
 }
 
 .desk button {
@@ -104,7 +157,7 @@ body {
   left: 0;
   right: 0;
   pointer-events: none;
-  z-index: 3;
+  z-index: 6;
 }
 .desk::before {
   top: 0;
@@ -127,54 +180,114 @@ body {
   );
 }
 
+/*
+  One scroll box holds the screen, the bar and the hardware. Closed, only the
+  bar shows. Open, the screen sits above the bar (the command line is the
+  bottom of the screen on a grandMA3) and the hardware below it. The bar is
+  sticky, so on a small screen it stays in view while the rest scrolls.
+*/
+.desk-scroll {
+  position: relative;
+  max-height: var(--bar-h);
+  overflow: hidden;
+  transition: max-height 0.32s var(--ease);
+}
+.desk.is-shut .desk-scroll {
+  overflow: visible;
+}
+.desk.is-open .desk-scroll {
+  max-height: min(var(--open-max), var(--open-h));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a2c transparent;
+}
+.desk-screen[hidden],
+.desk-hw[hidden] {
+  display: none !important;
+}
+
 /* ------------------------------------------------------------ the bar */
 
 .desk-bar {
-  position: relative;
+  position: sticky;
+  top: 0;
+  bottom: 0;
+  z-index: 4;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: auto;
   align-items: center;
-  gap: 12px;
-  height: 56px;
-  padding: 0 12px 0 var(--gutter);
+  gap: 10px;
+  height: var(--bar-h);
+  padding: 0 12px 0 var(--pad);
+  background: var(--grain), linear-gradient(#111113, #0d0d0e);
+}
+.desk[data-skin='b'] .desk-bar {
+  background: var(--grain), linear-gradient(#131314, #0f0f10);
+}
+/* Open, the command line reads as the bottom strip of the screen above it. */
+.desk:not(.is-shut) .desk-bar {
+  margin: 0 var(--pad);
+  padding: 0 8px;
+  background: #050505;
+  border: 1px solid #000;
+  border-top: 0;
+  border-radius: 0 0 4px 4px;
+  box-shadow: inset 1px 0 0 #1c1c1e, inset -1px 0 0 #1c1c1e, inset 0 -1px 0 #1c1c1e;
 }
 
 .cmd {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  column-gap: 8px;
-  row-gap: 2px;
+  row-gap: 3px;
+  min-width: 0;
+}
+/* The grandMA3 command line: user, default keyword in yellow brackets, a white box when focused. */
+.cmd-field {
+  display: flex;
   align-items: center;
   min-width: 0;
+  height: 28px;
+  padding: 0 0 0 8px;
+  background: #000;
+  border: 1px solid #2e2e30;
+  border-radius: 2px;
+  cursor: text;
+}
+.cmd-field:focus-within {
+  border-color: #f4f4f4;
 }
 .cmd-prompt {
-  font-size: 12px;
-  color: var(--engrave-hi);
+  flex: none;
+  font-size: 13px;
+  font-weight: 500;
+  font-stretch: 88%;
+  color: var(--g-text);
   white-space: nowrap;
+  cursor: text;
+}
+.cmd-kw {
+  color: var(--g-yellow);
 }
 .cmd-input {
-  height: 28px;
+  flex: 1;
   min-width: 0;
-  padding: 0 10px;
+  height: 100%;
+  padding: 0 8px 0 3px;
   font: 400 14px/1 var(--font);
   font-stretch: 90%;
   font-variant-numeric: tabular-nums;
-  color: var(--lcd-ink);
-  caret-color: rgb(var(--light));
-  background: var(--lcd-bg);
-  border: 1px solid #000;
-  border-radius: 2px;
-  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.9), 0 1px 0 #1d1d20;
+  color: var(--g-text);
+  caret-color: #fff;
+  background: transparent;
+  border: 0;
   outline: none;
 }
 .cmd-input::placeholder {
-  color: #4a4741;
-}
-.cmd-input:focus-visible {
-  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.9), 0 0 0 1px rgb(var(--light) / 0.6);
+  color: #4b4b4d;
 }
 .cmd-fb {
-  grid-column: 2;
   margin: 0;
   font-size: 11px;
   color: var(--engrave);
@@ -182,60 +295,104 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.desk[data-skin='b'] .cmd-fb {
+  color: #8f8f8f;
+}
+.cmd-fb.is-echo {
+  color: #b9b9b9;
+}
 .cmd-fb.is-error {
-  color: var(--prog);
+  color: var(--g-red-text) !important;
 }
 .cmd-fb.is-multi {
   position: absolute;
-  left: var(--gutter);
-  bottom: 60px;
-  z-index: 2;
+  left: var(--pad);
+  bottom: calc(100% + 6px);
+  z-index: 5;
   padding: 10px 14px;
   font-size: 12px;
   line-height: 1.7;
   white-space: pre-line;
-  color: var(--lcd-ink);
-  background: var(--lcd-bg);
-  border: 1px solid #26262a;
+  color: var(--g-text) !important;
+  background: #000;
+  border: 1px solid #2e2e30;
   border-radius: 2px;
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.6);
-}
-.desk-open .cmd-fb.is-multi {
-  position: static;
-  padding: 0;
-  border: 0;
-  box-shadow: none;
-  background: none;
-  white-space: nowrap;
 }
 
 .bar-lcds {
   display: flex;
   gap: 4px;
 }
-.mini-lcd {
-  display: grid;
-  align-content: center;
-  width: 86px;
-  height: 38px;
-  padding: 0 8px;
-  text-align: left;
-  background: var(--lcd-bg);
-  border: 1px solid #000;
-  border-radius: 2px;
-  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.9), 0 1px 0 #1d1d20;
-  cursor: pointer;
-}
-.mini-lcd.is-empty {
+.desk:not(.is-shut) .bar-lcds,
+.desk:not(.is-shut) .bar-go {
   display: none;
 }
-.desk-open .bar-lcds {
-  display: none;
-}
-
 .bar-go {
   display: flex;
   gap: 6px;
+}
+
+/* The network session light at the right of the command line: red, standalone. */
+.session {
+  display: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: #d8352a;
+  box-shadow: 0 0 0 1px #000;
+}
+.desk:not(.is-shut) .session {
+  display: block;
+}
+/* Open, Close sits in the command line strip as a screen button. */
+.desk:not(.is-shut) .desk-handle {
+  height: 30px;
+  padding: 0 4px;
+  align-content: center;
+  background: var(--g-btn);
+  border: 0;
+  border-radius: 1px;
+  box-shadow: none;
+}
+.desk:not(.is-shut) .grip {
+  display: none;
+}
+.desk:not(.is-shut) .handle-label {
+  font-weight: 500;
+  color: #fff;
+}
+
+/* The A/B switch, while Miller compares the two looks. */
+.skin-switch {
+  display: none;
+  gap: 2px;
+  padding: 2px;
+  background: #000;
+  border: 1px solid #2a2a2c;
+  border-radius: 3px;
+}
+.desk:not(.is-shut) .skin-switch {
+  display: flex;
+}
+.desk .skin-switch button {
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--g-dim);
+  background: transparent;
+  border: 0;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.desk .skin-switch button[aria-pressed='true'] {
+  color: #fff;
+  background: var(--g-btn-on);
+}
+.desk .skin-switch button:focus-visible {
+  outline: 1px solid #fff;
 }
 
 .desk-handle {
@@ -260,80 +417,826 @@ body {
   font-size: 11px;
   color: var(--engrave-hi);
 }
+.desk[data-skin='b'] .desk-handle {
+  background: linear-gradient(#1f1f21, #141415);
+  border-color: #000;
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), inset 0 -2px 0 rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.6);
+}
+.desk[data-skin='b'] .handle-label {
+  font-weight: 600;
+  color: #c9c9c9;
+}
+.desk[data-skin='b'] .grip {
+  background: repeating-linear-gradient(#4a4a4c 0 1px, transparent 1px 3px);
+}
 
-/* ------------------------------------------------------------ LCDs */
+/* ------------------------------------------------------------ the screen */
 
-.lcd {
+.desk-screen {
   display: grid;
-  grid-template-rows: auto 1fr auto;
-  width: 100%;
-  padding: 5px 7px 6px;
-  background: var(--lcd-bg);
+  grid-template-columns: var(--ea-w) minmax(130px, 1fr) minmax(200px, 380px);
+  grid-template-rows: var(--win-h) auto auto;
+  grid-template-areas:
+    'fs pool seq'
+    'fg pool seq'
+    'er pool seq';
+  gap: 4px;
+  margin: var(--pad) var(--pad) 0;
+  padding: 6px 6px 4px;
+  font-stretch: 86%;
+  color: var(--g-text);
+  background: #050505;
   border: 1px solid #000;
-  border-radius: 2px;
-  box-shadow: inset 0 1px 4px rgb(0 0 0 / 0.95), 0 1px 0 #1f1f22;
-  overflow: hidden;
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+  box-shadow: inset 1px 1px 0 #1c1c1e, inset -1px 0 0 #1c1c1e;
 }
-.lcd-name {
-  font-size: 10px;
-  line-height: 1.2;
-  color: #9a948a;
+
+.glyph {
+  display: inline-grid;
+  grid-template-columns: 3px 3px;
+  gap: 2px;
+  place-content: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  background: #2a2a2d;
+}
+.glyph b {
+  width: 3px;
+  height: 3px;
+  background: #d8d8d8;
+}
+
+/* The fixture sheet over the encoder bar, the pool and the sequence sheet beside them. */
+.windows,
+.encbar {
+  display: contents;
+}
+.fsheet { grid-area: fs; }
+.pool { grid-area: pool; }
+.seqsheet { grid-area: seq; }
+.fgcb { grid-area: fg; }
+.enc-row { grid-area: er; }
+.win {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  background: #000;
+  border: 1px solid var(--g-frame);
+}
+.win.pool {
+  grid-template-rows: minmax(0, 1fr);
+}
+.win-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--g-text);
+  background: var(--g-title);
+  border-bottom: 1px solid #000;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
-.lcd-val {
-  font-size: 14px;
-  line-height: 1.3;
+.win-title b {
+  font-weight: 600;
+  margin-right: 4px;
+}
+.wt-tools {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  padding-right: 2px;
+}
+.desk .wt-btn {
+  display: grid;
+  place-items: center;
+  height: 16px;
+  padding: 0 7px;
+  font-size: 9.5px;
+  color: #cfcfcf;
+  background: var(--g-btn);
+  border: 0;
+  border-radius: 1px;
+}
+.desk button.wt-btn {
+  cursor: pointer;
+}
+.desk .wt-btn[aria-pressed='true'] {
+  color: #fff;
+  background: var(--g-btn-on);
+}
+.desk .wt-btn.is-inert {
+  color: #8a8a8d;
+}
+.desk .wt-btn:focus-visible {
+  outline: 1px solid #fff;
+  outline-offset: -1px;
+}
+
+/* Fixture sheet. */
+.fs-scroll,
+.cue-scroll {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a3c #000;
+}
+.fs-table,
+.cue-table {
+  border-collapse: separate;
+  border-spacing: 1px;
+  font-size: 11px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
-  color: var(--lcd-ink);
+  line-height: 1;
+  background: #000;
+}
+.fs-table {
+  min-width: 100%;
+}
+.fs-table th,
+.cue-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 17px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 500;
+  text-align: left;
+  color: var(--g-dim);
+  background: var(--g-head);
   white-space: nowrap;
+}
+.fs-table td,
+.cue-table td {
+  height: 18px;
+  padding: 0 5px;
+  white-space: nowrap;
+  background: var(--g-cell);
+}
+/* Name and FID stay put when the sheet scrolls sideways. Widths are border box: FID sits at 1 + 58 + 1. */
+.fs-table .fs-name {
+  position: sticky;
+  left: 1px;
+  z-index: 1;
+  width: 58px;
+  min-width: 58px;
+  max-width: 58px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.mini-lcd .lcd-val {
-  font-size: 12.5px;
+.fs-table .fs-fid {
+  position: sticky;
+  left: 60px;
+  z-index: 1;
+  width: 28px;
+  min-width: 28px;
+  text-align: right;
 }
-.lcd-bar {
+.fs-table th.fs-fid,
+.fs-table th.fs-name {
+  z-index: 2;
+}
+.fs-table td.fs-idt,
+.fs-table td.fs-cid {
+  color: #bdbdbd;
+  background: #000;
+}
+.fs-table .fs-cid {
+  min-width: 22px;
+}
+/* Fixture names and IDs: white on black, yellow on gray when selected. */
+.fs-table td.fs-fid,
+.fs-table td.fs-name {
+  color: var(--g-text);
+  background: #000;
+  cursor: pointer;
+}
+.fs-table tr.is-sel td.fs-fid,
+.fs-table tr.is-sel td.fs-name {
+  color: var(--g-yellow);
+  background: var(--g-cell-hi);
+}
+.desk .fs-name button {
+  all: unset;
   display: block;
-  height: 2px;
-  background: #171b1c;
+  width: 100%;
+  cursor: pointer;
 }
-.lcd-bar i {
+.desk .fs-name button:focus-visible {
+  outline: 1px solid var(--g-yellow);
+  outline-offset: 1px;
+}
+.fs-v {
+  min-width: 30px;
+  color: #bdbdbd;
+}
+.fs-table td.v-prog {
+  color: #fff;
+  background: var(--g-red);
+}
+.fs-table td.v-none {
+  background: #000;
+}
+.v-inact {
+  color: var(--g-red-text) !important;
+}
+.v-cue {
+  color: var(--g-cyan) !important;
+}
+.v-exec {
+  color: var(--g-yellow) !important;
+}
+.v-hi {
+  color: #fff !important;
+}
+.v-def {
+  color: #bdbdbd;
+}
+.fs-table td[data-a='cct']:not(.v-none) {
+  position: relative;
+  padding-left: 15px;
+}
+.fs-table td[data-a='cct']:not(.v-none)::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: calc(50% - 4px);
+  width: 8px;
+  height: 8px;
+  background: var(--sw, #fff);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.6);
+}
+.mk-preset {
+  position: relative;
+}
+.mk-preset::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--g-cyan-hi);
+}
+
+/* The Dynamic preset pool: a blue title field, then the objects. */
+.pool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  grid-auto-rows: 60px;
+  align-content: start;
+  gap: 2px;
+  padding: 2px;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a3c #000;
+}
+.desk .tile {
+  position: relative;
+  display: block;
+  min-width: 0;
+  padding: 0;
+  font-size: 10px;
+  line-height: 1.15;
+  text-align: center;
+  color: var(--g-text);
+  background: var(--g-tile);
+  border: 0;
+  border-radius: 1px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.desk .tile:hover {
+  background: #57575a;
+}
+.desk .tile:focus-visible {
+  outline: 2px solid var(--g-yellow);
+  outline-offset: -2px;
+}
+.desk .tile.is-empty {
+  background: var(--g-tile-empty);
+  cursor: default;
+}
+.tile-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 4px;
+  background: var(--g-pool);
+}
+.fit-all .tile-bar {
+  background: var(--g-green);
+}
+.fit-some .tile-bar {
+  background: var(--g-yellow);
+}
+.desk .tile.fit-none {
+  opacity: 0.4;
+}
+.tile-num {
+  position: absolute;
+  left: 4px;
+  top: 7px;
+  font-size: 9.5px;
+  color: #dcdcdc;
+}
+.is-empty .tile-num {
+  color: #5a5a5c;
+}
+.tile-count {
+  position: absolute;
+  left: 4px;
+  top: 19px;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--g-cyan);
+}
+.tile-name {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  bottom: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.tile-swatch,
+.tile-gobo {
+  position: absolute;
+  left: calc(50% - 9px);
+  top: 13px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #000;
+}
+.tile-level {
+  position: absolute;
+  left: 22px;
+  right: 8px;
+  top: 21px;
+  height: 4px;
+  background: #222;
+}
+.tile-level b {
   display: block;
   height: 100%;
-  background: currentColor;
-  color: #6f6a62;
+  background: #e8e8e8;
 }
-.src-prog {
-  color: var(--prog);
+.desk .title-cell {
+  background: var(--g-blue);
+  cursor: default;
 }
-.src-inactive {
-  color: var(--inactive);
+.desk .title-cell:hover {
+  background: var(--g-blue);
 }
-.src-cue {
-  color: var(--cue);
+.title-cell .glyph {
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 14px;
+  height: 14px;
+  grid-template-columns: 2px 2px;
+  background: rgb(0 0 0 / 0.25);
 }
-.src-hi {
-  color: rgb(var(--light));
+.title-cell .glyph b {
+  width: 2px;
+  height: 2px;
 }
-.src-def {
-  color: var(--lcd-ink);
+.tc-icon {
+  position: absolute;
+  left: calc(50% - 9px);
+  top: 13px;
+  width: 18px;
+  height: 18px;
+  color: #fff;
+}
+.tc-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.tc-name {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 14px;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tc-sub {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 3px;
+  font-size: 8.5px;
+  color: rgb(255 255 255 / 0.72);
+}
+
+/* Sequence sheet: the active cue in a green frame, fades as moving bars. */
+.cue-table {
+  width: 100%;
+}
+.cue-table td {
+  color: #d4d4d4;
+}
+.cue-table .cs-no,
+.cue-table .cs-part,
+.cue-table .cs-fade,
+.cue-table .cs-delay {
+  width: 1%;
+}
+.cue-table td.cs-no {
+  text-align: right;
+}
+.cue-table td.cs-name {
+  width: 100%;
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.desk .cue-table button {
+  all: unset;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.desk .cue-table button:focus-visible {
+  outline: 1px solid var(--g-yellow);
+}
+.cue-table td.cs-fade {
+  position: relative;
+}
+.fade-bar {
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: calc(var(--p, 0) * 100%);
+  background: rgb(59 201 75 / 0.45);
+}
+.fade-t {
+  position: relative;
+}
+.cue-table tr.is-cur td {
+  color: #fff;
+  box-shadow: inset 0 2px 0 var(--g-green), inset 0 -2px 0 var(--g-green);
+}
+.cue-table tr.is-cur td:first-child {
+  box-shadow: inset 2px 0 0 var(--g-green), inset 0 2px 0 var(--g-green), inset 0 -2px 0 var(--g-green);
+}
+.cue-table tr.is-cur td:last-child {
+  box-shadow: inset -2px 0 0 var(--g-green), inset 0 2px 0 var(--g-green), inset 0 -2px 0 var(--g-green);
+}
+
+/* The encoder bar: feature group control bar on top, then the encoder fields, Grand Master at the right edge. */
+.fgcb {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.fgcb::-webkit-scrollbar {
+  display: none;
+}
+.desk .fg {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 64px;
+  height: 25px;
+  padding: 4px 8px 0;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: #d8d8d8;
+  background: var(--g-btn);
+  border: 0;
+  border-radius: 1px;
+  cursor: pointer;
+}
+.desk .fg.is-on {
+  color: #fff;
+  background: var(--g-btn-on);
+}
+.desk .fg:focus-visible {
+  outline: 1px solid #fff;
+  outline-offset: -1px;
+}
+.fg-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: #58585b;
+}
+.fg.is-avail .fg-bar {
+  background: var(--g-red);
+}
+.fg-mark {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--g-red);
+}
+.fg.has-mark .fg-mark {
+  display: block;
+}
+
+.enc-row {
+  display: flex;
+  align-items: stretch;
+  gap: var(--ef-gap);
+  height: 50px;
+}
+.enc-page {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  flex: none;
+  width: var(--ep-w);
+}
+.desk .ep {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: left;
+  color: #fff;
+  background: var(--g-btn);
+  border: 0;
+  border-radius: 1px;
+  cursor: pointer;
+  overflow: hidden;
+}
+.ep-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ep-count {
+  font-size: 9.5px;
+  color: var(--g-dim);
+}
+.desk .res {
+  padding: 0;
+  font-size: 9.5px;
+  color: var(--g-dim);
+  background: #1c1c1e;
+  border: 0;
+  border-radius: 1px;
+  cursor: pointer;
+}
+.desk .res.is-on {
+  color: #fff;
+  background: var(--g-btn-on);
+}
+.desk .ep:focus-visible,
+.desk .res:focus-visible,
+.desk .ef:focus-visible {
+  outline: 1px solid #fff;
+  outline-offset: -1px;
+}
+.enc-fields {
+  display: flex;
+  gap: var(--ef-gap);
+  flex: none;
+}
+.desk .ef,
+.desk .mini-lcd {
+  position: relative;
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  min-width: 0;
+  padding: 7px 6px 0;
+  text-align: left;
+  color: var(--g-text);
+  background: #0a0a0a;
+  border: 1px solid #262628;
+  border-radius: 1px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.desk .ef {
+  width: var(--ef-w);
+}
+.desk .ef:disabled {
+  cursor: default;
+}
+.ef-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: #48484b;
+}
+.is-live .ef-bar {
+  background: var(--g-red);
+}
+.is-empty .ef-bar {
+  opacity: 0.45;
+}
+.ef-name {
+  max-width: 100%;
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--g-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ef-val {
+  max-width: 100%;
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--g-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The encoder icon: its centre shows the resolution, a full dot for Coarse, a fine one for Fine. */
+.ef-res {
+  position: absolute;
+  right: 5px;
+  top: 7px;
+  width: 11px;
+  height: 11px;
+  border: 1px solid #5a5a5d;
+  border-radius: 50%;
+}
+.ef-res::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: #9d9d9d;
+}
+.desk.is-fine .ef-res::after {
+  inset: 3.5px;
+  background: #fff;
+}
+.ef.is-empty .ef-res {
+  display: none;
+}
+
+/* Active programmer values: white on the layer's red. */
+.ef-val.v-prog {
+  margin-left: -3px;
+  padding: 0 3px;
+  color: #fff;
+  background: var(--g-red);
+  border-radius: 1px;
+}
+
+/* The layer toolbar: Absolute is the only layer this show uses. */
+.layers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+  flex: none;
+  width: var(--lt-w);
+}
+/* Each layer has its colour: Absolute red, Relative mauve, Fade green, Delay orange. */
+.ly {
+  --ly: var(--g-red);
+  position: relative;
+  display: grid;
+  place-items: center;
+  font-size: 9.5px;
+  color: #8a8a8a;
+  color: color-mix(in srgb, var(--ly) 70%, #000);
+  background: #161617;
+  border-radius: 1px;
+}
+.ly::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: var(--ly);
+  opacity: 0.55;
+}
+.ly-rel { --ly: #c08fd8; }
+.ly-fade { --ly: var(--g-green); }
+.ly-delay { --ly: #ff9f1c; }
+.ly.is-on {
+  color: #fff;
+  background: var(--ly);
+}
+.ly.is-on::before {
+  display: none;
+}
+
+.sgm {
+  position: relative;
+  display: grid;
+  grid-template-rows: 14px minmax(0, 1fr);
+  flex: none;
+  width: var(--gm-w);
+  margin-left: auto;
+  background: #0a0a0a;
+  border: 1px solid #262628;
+  border-radius: 1px;
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  --v: 1;
+}
+.sgm:focus-visible {
+  outline: 1px solid #fff;
+  outline-offset: -1px;
+}
+.sgm-title {
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 14px;
+  text-align: center;
+  color: #04140a;
+  background: var(--g-green);
+}
+.sgm.is-black .sgm-title {
+  color: #fff;
+  background: #5a5a5e;
+}
+.sgm-fill {
+  position: relative;
+}
+.sgm-fill i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--v) * 100%);
+  background: rgb(59 201 75 / 0.3);
+  border-top: 1px solid var(--g-green);
+}
+.sgm-val {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 5px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: #fff;
+  pointer-events: none;
+}
+
+/* The encoder mirrors in the bar, while the desk is closed. */
+.desk .mini-lcd {
+  width: 86px;
+  height: 38px;
+  padding-top: 6px;
+}
+.mini-lcd.is-empty {
+  display: none !important;
+}
+.mini-lcd .ef-name {
+  font-size: 9.5px;
+  line-height: 1.2;
+}
+.mini-lcd .ef-val {
+  font-size: 12.5px;
 }
 
 /* ------------------------------------------------------------ keys */
 
-.key {
+.desk .key {
   position: relative;
   display: inline-grid;
   place-items: center;
   min-width: 46px;
   height: 34px;
   padding: 0 8px;
-  font-size: 11.5px !important;
+  font-size: 11.5px;
   font-weight: 500;
   letter-spacing: 0.01em;
-  color: #d8d1c5 !important;
+  color: #d8d1c5;
   background: linear-gradient(#1d1d20, #131315);
   border: 1px solid #040404;
   border-radius: 3px;
@@ -344,11 +1247,11 @@ body {
   touch-action: manipulation;
   transition: transform 0.05s, box-shadow 0.05s;
 }
-.key:active {
+.desk .key:active {
   transform: translateY(2px);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 0 0 #000;
 }
-.key:focus-visible {
+.desk .key:focus-visible {
   outline: 1px solid rgb(var(--light));
   outline-offset: 2px;
 }
@@ -372,297 +1275,91 @@ body {
   }
 }
 .key .led-clear.on {
-  background: var(--prog);
-  box-shadow: 0 0 6px var(--prog);
+  background: var(--g-red-text);
+  box-shadow: 0 0 6px var(--g-red-text);
 }
-.key-go {
+.desk .key-go {
   min-width: 58px;
-  font-weight: 650 !important;
+  font-weight: 650;
 }
-.key-go:has(.led.on) {
+.desk .key-go.is-lit {
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07), inset 0 0 14px rgb(var(--light) / 0.22), 0 2px 0 #000;
 }
-.key-big {
+.desk .key-big {
   width: 100%;
   height: 58px;
-  font-size: 15px !important;
+  font-size: 15px;
+}
+.only-b {
+  display: none !important;
+}
+.desk[data-skin='b'] .only-a {
+  display: none !important;
+}
+.desk[data-skin='b'] .only-b {
+  display: revert !important;
+}
+.desk[data-skin='b'] .key.only-b {
+  display: inline-grid !important;
 }
 
-/* ------------------------------------------------------------ body */
-
-.desk-body {
-  display: grid;
-  gap: 12px;
-  max-height: 0;
-  padding: 0 var(--gutter);
-  overflow: hidden;
-  transition: max-height 0.32s var(--ease), padding 0.32s var(--ease);
-  border-top: 1px solid transparent;
-}
-.desk.is-open .desk-body {
-  max-height: min(72vh, 480px);
-  padding: 12px var(--gutter) 16px;
-  overflow-y: auto;
-  border-top-color: #000;
-  box-shadow: inset 0 1px 0 #1f1f22;
-}
-.desk-body[hidden] {
-  display: none;
-}
-
-/* The screen: a recessed touchscreen in a bezel. */
-.screen {
-  display: grid;
-  gap: 8px;
-  padding: 8px;
-  background: #0d0e0f;
+/* B: grandMA3 keys. Black caps, legends lit from behind, brighter when the key is on. */
+.desk[data-skin='b'] .key {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #c4c4c4;
+  background: linear-gradient(#1f1f21, #141415);
   border: 1px solid #000;
   border-radius: 4px;
-  box-shadow: inset 0 0 0 1px #1d1e20, inset 0 2px 12px rgb(0 0 0 / 0.8);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), inset 0 -2px 0 rgb(0 0 0 / 0.5), 0 1px 0 #000, 0 2px 5px rgb(0 0 0 / 0.5);
 }
-
-.enc-bank {
-  display: grid;
-  gap: 10px;
+.desk[data-skin='b'] .key:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03), inset 0 -1px 0 rgb(0 0 0 / 0.5), 0 0 0 #000;
 }
-.fg-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 8px;
-  max-width: 462px;
+.desk[data-skin='b'] .key:focus-visible {
+  outline: 1px solid #fff;
 }
-.fgroups {
-  flex-basis: 100%;
+.desk[data-skin='b'] .key .led {
+  display: none;
 }
-.fixtures,
-.fgroups {
-  display: flex;
-  gap: 4px;
+.desk[data-skin='b'] .key.is-lit {
+  color: #fff;
+  text-shadow: 0 0 6px rgb(255 255 255 / 0.75), 0 0 1px #fff;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), inset 0 0 12px rgb(255 255 255 / 0.07), inset 0 -2px 0 rgb(0 0 0 / 0.5), 0 1px 0 #000, 0 2px 5px rgb(0 0 0 / 0.5);
 }
-.fx,
-.fg,
-.pt,
-.res {
-  height: 26px;
-  padding: 0 10px;
-  font-size: 11.5px !important;
-  color: #bdb6aa;
-  background: #17181a;
-  border: 1px solid #26272a;
-  border-radius: 2px;
-  cursor: pointer;
-}
-.fx b {
-  font-weight: 600;
-}
-.fx.is-sel {
-  color: var(--sel);
-  border-color: rgb(240 207 74 / 0.45);
-}
-.fg.is-on,
-.pt.is-on {
-  color: var(--lcd-ink);
-  background: #212226;
-  box-shadow: inset 0 -2px 0 rgb(var(--light));
-}
-.fg:disabled {
-  opacity: 0.28;
-  cursor: default;
-}
-.res {
-  margin-left: auto;
-}
-.res.is-on {
-  color: rgb(var(--light));
-  border-color: rgb(var(--light) / 0.5);
-}
-
-.windows {
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-  gap: 8px;
-  height: 118px;
-}
-.win {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  min-height: 0;
-  background: #101113;
-  border: 1px solid #222326;
-  border-radius: 2px;
-}
-.win-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  height: 26px;
-  padding: 0 8px;
-  font-size: 11px;
-  color: var(--engrave-hi);
-  background: #18191b;
-  border-bottom: 1px solid #222326;
-}
-.pool-tabs {
-  display: flex;
-  gap: 2px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.pt {
-  height: 20px;
-  padding: 0 7px;
-  font-size: 10.5px !important;
-  white-space: nowrap;
-}
-.pool-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-  grid-auto-rows: 42px;
-  gap: 4px;
-  padding: 5px;
-  overflow-y: auto;
-}
-.tile {
-  position: relative;
-  display: grid;
-  align-content: end;
-  padding: 4px 6px;
-  text-align: left;
-  background: #18191b;
-  border: 1px solid #27282b;
-  border-radius: 2px;
-  cursor: pointer;
-}
-.tile:hover {
-  border-color: #3a3b3f;
-}
-.tile.is-on {
-  border-color: rgb(var(--light) / 0.8);
-  box-shadow: inset 0 0 0 1px rgb(var(--light) / 0.35);
-}
-.tile-num {
-  position: absolute;
-  left: 6px;
-  top: 4px;
-  font-size: 9.5px;
-  color: #7d786f;
-}
-.tile-name {
-  font-size: 11px;
-  line-height: 1.15;
-  color: var(--lcd-ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.tile-swatch,
-.tile-gobo {
-  position: absolute;
-  right: 5px;
-  top: 5px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  box-shadow: 0 0 0 1px #000;
-}
-.tile-level {
-  position: absolute;
-  right: 6px;
-  top: 8px;
-  width: 30px;
-  height: 3px;
-  background: #24262a;
-}
-.tile-level b {
-  display: block;
-  height: 100%;
-  background: rgb(var(--light));
-}
-
-.seq-state {
-  color: var(--cue);
-}
-.cue-scroll {
-  overflow-y: auto;
-}
-.cue-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 11.5px;
-  font-variant-numeric: tabular-nums;
-}
-.cue-table th {
-  position: sticky;
-  top: 0;
-  padding: 3px 6px;
-  text-align: left;
-  font-weight: inherit;
-  color: #7d786f;
-  background: #101113;
-}
-.cue-table td {
-  padding: 3px 6px;
-  color: #bdb6aa;
-  border-top: 1px solid #1a1b1e;
-  white-space: nowrap;
-}
-.cue-table td:nth-child(3) {
-  max-width: 0;
-  width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.cue-table button {
-  all: unset;
-  cursor: pointer;
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.cue-table button:focus-visible {
-  outline: 1px solid rgb(var(--light));
-}
-.cue-table tr.is-cur td {
-  color: var(--lcd-ink);
-  background: rgb(108 196 230 / 0.12);
-}
-.cue-table tr.is-next td {
-  color: var(--engrave-hi);
-}
-.cue-mark {
-  width: 14px;
-  color: var(--cue);
+.desk[data-skin='b'] [data-act='bo'].is-lit {
+  color: #fff;
 }
 
 /* ------------------------------------------------------------ hardware */
 
-.hw {
+.desk-hw {
   display: grid;
   grid-template-columns: auto auto auto auto;
   justify-content: space-between;
   align-items: end;
-  gap: 18px;
+  gap: 16px;
+  padding: 12px var(--pad) 16px;
 }
 
+/* The encoders sit right under their fields on screen. */
 .encoders {
   display: flex;
-  gap: 8px;
+  gap: var(--ef-gap);
+  align-self: start;
+  padding-left: calc(var(--bz) + var(--ep-w) + var(--ef-gap));
 }
 .enc {
   display: grid;
   justify-items: center;
-  gap: 10px;
-  width: 86px;
+  align-content: start;
+  gap: 8px;
+  width: var(--ef-w);
 }
-.enc .lcd {
-  height: 50px;
+.enc-spacer {
+  display: none;
 }
-.enc.is-empty .lcd {
-  opacity: 0.4;
-}
-
 .knob {
   position: relative;
   width: 58px;
@@ -678,6 +1375,9 @@ body {
 }
 .knob.is-turning {
   cursor: grabbing;
+}
+.knob-ring {
+  display: none;
 }
 .knob-cap {
   position: absolute;
@@ -705,7 +1405,51 @@ body {
   opacity: 0.35;
   cursor: default;
 }
+.enc-led {
+  display: none;
+}
 
+/* B: dual encoders, an outer ring around an inner knob, with a light under each. */
+.desk[data-skin='b'] .knob {
+  width: 62px;
+  height: 62px;
+  background: repeating-conic-gradient(from 0deg, #242426 0deg 2deg, #0d0d0e 2deg 4deg);
+  box-shadow: 0 0 0 1px #000, 0 7px 12px rgb(0 0 0 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.08);
+}
+.desk[data-skin='b'] .knob-ring {
+  display: block;
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: #08080a;
+  box-shadow: inset 0 1px 3px #000, 0 1px 0 rgb(255 255 255 / 0.05);
+}
+.desk[data-skin='b'] .knob-cap {
+  inset: 12px;
+  background:
+    radial-gradient(circle at 40% 32%, rgb(255 255 255 / 0.14), transparent 55%),
+    repeating-conic-gradient(from 0deg, #2b2b2e 0deg 10deg, #161618 10deg 20deg);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.6), 0 2px 3px rgb(0 0 0 / 0.8);
+}
+.desk[data-skin='b'] .knob-cap::after {
+  display: none;
+}
+.desk[data-skin='b'] .knob:focus-visible {
+  outline: 1px solid #fff;
+}
+.desk[data-skin='b'] .enc-led {
+  display: block;
+  width: 28px;
+  height: 3px;
+  border-radius: 2px;
+  background: #3a3a3d;
+}
+.desk[data-skin='b'] .enc-led.on {
+  background: var(--g-red);
+  box-shadow: 0 0 6px rgb(207 42 31 / 0.9);
+}
+
+/* Executors. */
 .execs {
   display: flex;
   align-items: flex-end;
@@ -725,12 +1469,12 @@ body {
   gap: 4px;
   width: 100%;
 }
-.exec-keys .key {
+.desk .exec-keys .key {
   width: 100%;
   min-width: 0;
   height: 24px;
   padding: 0;
-  font-size: 10px !important;
+  font-size: 10px;
 }
 .exec-keys .key .led {
   top: 3px;
@@ -738,14 +1482,44 @@ body {
   width: 4px;
   height: 4px;
 }
-.exec-lcd {
-  height: 34px;
+.lcd {
+  display: grid;
   grid-template-rows: auto auto;
+  width: 100%;
+  height: 34px;
   padding: 3px 6px;
+  background: var(--lcd-bg);
+  border: 1px solid #000;
+  border-radius: 2px;
+  box-shadow: inset 0 1px 4px rgb(0 0 0 / 0.95), 0 1px 0 #1f1f22;
+  overflow: hidden;
 }
-.exec-lcd .lcd-val {
+.lcd .lcd-name {
+  font-size: 10px;
+  line-height: 1.2;
+  color: #9a948a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lcd .lcd-val {
   font-size: 11.5px;
-  color: var(--cue);
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  color: #6cc4e6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gm-col .lcd .lcd-val {
+  color: var(--lcd-ink);
+}
+.xl-top,
+.xl-num,
+.xl-idx,
+.xl-cues,
+.xl-bar {
+  display: none;
 }
 .exec-num {
   font-size: 10px;
@@ -756,12 +1530,9 @@ body {
   justify-items: center;
   gap: 8px;
 }
-.gm-col .exec-lcd .lcd-val {
-  color: var(--lcd-ink);
-}
-.key-bo {
+.desk .key-bo {
   width: 62px;
-  height: 24px !important;
+  height: 24px;
 }
 
 .fader {
@@ -769,7 +1540,7 @@ body {
   display: grid;
   justify-items: center;
   width: 52px;
-  height: 104px;
+  height: var(--fh, 104px);
 }
 .fader-scale {
   position: absolute;
@@ -786,8 +1557,6 @@ body {
   width: 6px;
   height: 1px;
   background: #3a3833;
-  font-style: normal;
-  font-size: 0;
 }
 .fader-scale i:first-child,
 .fader-scale i:nth-child(5),
@@ -801,7 +1570,7 @@ body {
   writing-mode: vertical-lr;
   direction: rtl;
   width: 40px;
-  height: 104px;
+  height: var(--fh, 104px);
   margin: 0;
   background:
     linear-gradient(90deg, transparent calc(50% - 3px), #000 calc(50% - 3px), #050505 calc(50% + 3px), transparent calc(50% + 3px)) center / 100% calc(100% - 16px) no-repeat;
@@ -864,6 +1633,225 @@ body {
     repeating-linear-gradient(90deg, #2e2e31 0 2px, #1a1a1c 2px 4px);
 }
 
+/*
+  B: executors as on a grandMA3. The labels are sections of one letterbox
+  screen above the faders; the key under each fader is marked with two lines,
+  the one below it with one. There is no B.O. key or Grand Master fader: the
+  Grand Master lives on screen, at the right edge of the encoder bar.
+*/
+.desk[data-skin='b'] .execs {
+  position: relative;
+  justify-self: start;
+  width: max-content;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 4px;
+  --xl-h: 58px;
+}
+.desk[data-skin='b'] .execs::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: calc(var(--xl-h) + 8px);
+  background: #000;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px #1c1c1e, 0 1px 0 rgb(255 255 255 / 0.03);
+}
+.desk[data-skin='b'] .gm-col {
+  display: none;
+}
+.desk[data-skin='b'] .exec {
+  position: relative;
+  width: 72px;
+  gap: 8px;
+}
+.desk[data-skin='b'] .exec-lcd {
+  order: 0;
+  position: relative;
+  display: block;
+  height: var(--xl-h);
+  padding: 0;
+  background: #0b0b0c;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.desk[data-skin='b'] .fader {
+  order: 1;
+}
+.desk[data-skin='b'] .exec-keys {
+  order: 2;
+  grid-auto-flow: row;
+  grid-template-columns: 1fr;
+  gap: 5px;
+}
+.desk[data-skin='b'] .exec-keys .xk2 {
+  order: 0;
+}
+.desk[data-skin='b'] .exec-keys .xk1 {
+  order: 1;
+}
+.desk[data-skin='b'] .exec-num {
+  display: none;
+}
+.desk[data-skin='b'] .xl-top {
+  display: block;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: #7d7d80;
+}
+.desk[data-skin='b'] .xl-num,
+.desk[data-skin='b'] .xl-idx {
+  display: block;
+  position: absolute;
+  top: 6px;
+  font-size: 9px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.desk[data-skin='b'] .xl-num {
+  left: 4px;
+  color: #e6e6e6;
+}
+.desk[data-skin='b'] .xl-idx {
+  right: 4px;
+  color: var(--g-dim);
+}
+.desk[data-skin='b'] .exec-lcd .lcd-name {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: 17px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+}
+.desk[data-skin='b'] .xl-cues {
+  display: grid;
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 31px;
+  font-size: 9px;
+  line-height: 10px;
+}
+.desk[data-skin='b'] .xl-cues span {
+  padding: 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #bdbdbd;
+}
+.desk[data-skin='b'] .xl-c1:not(:empty) {
+  color: #fff;
+  background: #2453a3;
+}
+.desk[data-skin='b'] .exec-lcd .lcd-val {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 8px;
+  font-size: 10px;
+  text-align: right;
+  color: var(--g-dim);
+}
+.desk[data-skin='b'] [data-exec='e1'] .exec-lcd .lcd-val {
+  display: none;
+}
+/* Sequence 1 is the selected sequence: its label shows it in yellow. */
+.desk[data-skin='b'] [data-exec='e1'] .exec-lcd .lcd-name {
+  color: var(--g-yellow);
+}
+.desk[data-skin='b'] .xl-bar {
+  display: block;
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  bottom: 3px;
+  height: 3px;
+  background: #222224;
+}
+.desk[data-skin='b'] .xl-bar i {
+  display: block;
+  width: calc(var(--v, 0) * 100%);
+  height: 100%;
+  background: #d6d6d6;
+}
+.desk[data-skin='b'] .exec + .exec::after {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: 0;
+  width: 1px;
+  height: var(--xl-h);
+  background: #1e1e20;
+}
+.desk[data-skin='b'] .exec-keys .key {
+  height: 26px;
+  padding-top: 6px;
+  font-size: 9.5px;
+}
+.desk[data-skin='b'] .xk1::before,
+.desk[data-skin='b'] .xk2::before {
+  content: '';
+  position: absolute;
+  left: calc(50% - 7px);
+  top: 4px;
+  width: 14px;
+  height: 1px;
+  background: #8c8c8c;
+}
+.desk[data-skin='b'] .xk2::before {
+  height: 4px;
+  background: linear-gradient(#8c8c8c 0 1px, transparent 1px 3px, #8c8c8c 3px 4px);
+}
+.desk[data-skin='b'] .fader {
+  --fh: 120px;
+  width: 56px;
+}
+.desk[data-skin='b'] .fader-scale {
+  left: -4px;
+}
+.desk[data-skin='b'] .fader-scale i {
+  background: #333335;
+}
+.desk[data-skin='b'] .fader-scale i:first-child,
+.desk[data-skin='b'] .fader-scale i:nth-child(5),
+.desk[data-skin='b'] .fader-scale i:last-child {
+  background: #4c4c4f;
+}
+.desk[data-skin='b'] .fader input[type='range']::-webkit-slider-thumb {
+  width: 40px;
+  height: 26px;
+  border-radius: 3px;
+  background:
+    linear-gradient(transparent 46%, #f2f2f2 46%, #f2f2f2 54%, transparent 54%),
+    linear-gradient(#2a2a2d, #0f0f10);
+  box-shadow: 0 0 0 1px #000, 0 4px 8px rgb(0 0 0 / 0.8), inset 0 1px 0 rgb(255 255 255 / 0.1);
+}
+.desk[data-skin='b'] .fader input[type='range']::-moz-range-thumb {
+  width: 40px;
+  height: 26px;
+  border-radius: 3px;
+  background:
+    linear-gradient(transparent 46%, #f2f2f2 46%, #f2f2f2 54%, transparent 54%),
+    linear-gradient(#2a2a2d, #0f0f10);
+  box-shadow: 0 0 0 1px #000, 0 4px 8px rgb(0 0 0 / 0.8);
+}
+.range-rotate .desk[data-skin='b'] .fader input[type='range']::-webkit-slider-thumb {
+  width: 26px;
+  height: 40px;
+  background:
+    linear-gradient(90deg, transparent 46%, #f2f2f2 46%, #f2f2f2 54%, transparent 54%),
+    linear-gradient(90deg, #2a2a2d, #0f0f10);
+}
+
+/* Command keys and the keypad. */
 .keys {
   display: flex;
   align-items: flex-end;
@@ -876,13 +1864,11 @@ body {
   gap: 5px;
   align-content: end;
 }
-.prog-keys .key,
-.keypad .key {
+.desk .prog-keys .key,
+.desk .keypad .key {
+  min-width: 0;
   height: 32px;
   padding: 0;
-}
-.prog-keys .key {
-  min-width: 0;
 }
 .keypad {
   display: grid;
@@ -890,32 +1876,41 @@ body {
   grid-auto-rows: 32px;
   gap: 5px;
 }
-.keypad .key {
-  min-width: 0;
-}
-.key-please {
+.desk .key-please {
   grid-column: 4;
-  grid-row: 1 / span 4;
+  grid-row: 3 / span 2;
   height: auto !important;
 }
-.fg {
-  padding: 0 8px;
+.desk .keypad [data-kp='0'] {
+  grid-column: span 2;
 }
 
+/* Master: Pause, Go- and Go. */
 .master {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 5px;
   width: 116px;
 }
-.master .key {
+.desk .master .key {
+  min-width: 0;
   height: 32px;
 }
-.master .key {
-  min-width: 0;
-}
-.master .key-big {
+.desk .master .key-big {
   grid-column: 1 / -1;
+  height: 58px;
+}
+/* B: the three large playback keys of a grandMA3, side by side. */
+.desk[data-skin='b'] .master {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  width: 186px;
+}
+.desk[data-skin='b'] .master .key,
+.desk[data-skin='b'] .master .key-big {
+  grid-column: auto;
+  height: 56px;
+  font-size: 12.5px;
 }
 
 /* Blind: the output is not what the programmer says. Mark the page edge like a red preview frame. */
@@ -925,61 +1920,115 @@ body {
   inset: 0;
   z-index: 29;
   pointer-events: none;
-  box-shadow: inset 0 0 0 2px var(--prog);
+  box-shadow: inset 0 0 0 2px var(--g-red-text);
 }
 
-/* ------------------------------------------------------------ mid widths */
+/* ------------------------------------------------------------ widths */
 
-/* Laptop widths: one row still, with the hardware packed a little tighter. */
-@media (max-width: 1540px) and (min-width: 1360px) {
-  .hw { gap: 12px; }
-  .encoders { gap: 6px; }
-  .enc { width: 70px; }
+/* Laptops: still one row, packed tighter. */
+@media (max-width: 1599px) and (min-width: 1440px) {
+  .desk {
+    --ef-w: 74px;
+    --ep-w: 60px;
+  }
+  .desk-hw { gap: 12px; }
   .knob { width: 52px; height: 52px; }
   .knob-cap { inset: 9px; }
   .execs { gap: 6px; padding: 0 2px; }
-  .exec { width: 50px; }
-  .key-bo { width: 50px; }
+  .exec { width: 52px; }
+  .desk .key-bo { width: 52px; }
   .keys { gap: 8px; }
-  .prog-keys { grid-template-columns: repeat(5, 44px); }
+  .prog-keys { grid-template-columns: repeat(5, 45px); }
   .keypad { grid-template-columns: repeat(4, 34px); }
   .master { width: 104px; }
-  .exec-lcd { padding: 3px 4px; }
-  .exec-lcd .lcd-val { font-size: 10.5px; }
+  .lcd { padding: 3px 4px; }
+  .lcd .lcd-val { font-size: 10.5px; }
+  .desk[data-skin='b'] .exec { width: 60px; }
+  .desk[data-skin='b'] .knob { width: 56px; height: 56px; }
+  .desk[data-skin='b'] .master { width: 170px; }
 }
 
-/* Tablet portrait and small windows: encoders, then executors with the master keys, then the keypad. */
-@media (max-width: 1099px) and (min-width: 721px) {
-  .desk .hw {
-    grid-template-columns: auto auto;
-    grid-template-areas:
-      'enc enc'
-      'exec master'
-      'keys keys';
-    justify-content: space-between;
-    row-gap: 16px;
-  }
-  .desk .keys { justify-self: start; }
-  .desk.is-open .desk-body {
-    max-height: min(74vh, 760px);
-    overflow-y: auto;
-  }
-}
-
-@media (max-width: 1359px) and (min-width: 721px) {
-  .hw {
+/* Smaller windows: the hardware in two rows, encoders and keys over executors and master. */
+@media (max-width: 1439px) and (min-width: 721px) {
+  .desk-hw {
     grid-template-columns: auto auto;
     grid-template-areas:
       'enc keys'
       'exec master';
     justify-content: space-between;
-    row-gap: 14px;
+    row-gap: 16px;
   }
-  .enc-bank { grid-area: enc; }
+  .encoders { grid-area: enc; }
   .execs { grid-area: exec; }
   .keys { grid-area: keys; }
   .master { grid-area: master; width: 220px; grid-template-columns: 1fr 1fr 1.6fr; }
-  .master .key-big { grid-column: auto; height: 32px; }
+  .desk .master .key-big { grid-column: auto; height: 32px; }
+  .desk[data-skin='b'] .master { width: 200px; grid-template-columns: repeat(3, 1fr); }
+  .desk[data-skin='b'] .master .key { height: 52px; }
+  .desk {
+    --ef-w: 74px;
+    --ep-w: 60px;
+  }
+}
+
+/* Laptops: encoders over executors, then the keys, then the master keys, so the whole desk fits the screen. */
+@media (max-width: 1439px) and (min-width: 1100px) {
+  .desk {
+    --ef-w: 70px;
+    --ep-w: 58px;
+    --pad: 14px;
+    --open-max: 82vh;
+  }
+  .desk-hw {
+    grid-template-columns: auto auto auto;
+    grid-template-areas:
+      'enc keys master'
+      'exec keys master';
+    align-items: end;
+    row-gap: 8px;
+    padding-top: 10px;
+    padding-bottom: 12px;
+  }
+  .enc { gap: 6px; }
+  .desk[data-skin='b'] .exec { gap: 6px; }
+  .desk[data-skin='b'] .exec-keys .key { height: 24px; }
+  .execs { align-self: start; }
+  .knob { width: 52px; height: 52px; }
+  .knob-cap { inset: 9px; }
+  .prog-keys { grid-template-columns: repeat(5, 45px); }
+  .keypad { grid-template-columns: repeat(4, 34px); }
+  .keys { gap: 8px; }
+  .master { width: 116px; grid-template-columns: 1fr 1fr; }
+  .desk .master .key-big { grid-column: 1 / -1; height: 58px; }
+  .desk[data-skin='b'] .master { width: 162px; grid-template-columns: repeat(3, 1fr); }
+  .desk[data-skin='b'] .master .key,
+  .desk[data-skin='b'] .master .key-big { grid-column: auto; height: 54px; }
+  .desk[data-skin='b'] .knob { width: 56px; height: 56px; }
+  .desk[data-skin='b'] .fader { --fh: 104px; }
+}
+
+/* Tablet portrait: the sheet across the top, the pool and sequence under it; hardware in three rows. */
+@media (max-width: 1099px) and (min-width: 721px) {
+  .desk {
+    --ef-w: 86px;
+    --ep-w: 64px;
+  }
+  .desk-screen {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: var(--win-h) var(--win-h) auto auto;
+    grid-template-areas:
+      'fs fs'
+      'pool seq'
+      'fg fg'
+      'er er';
+  }
+  .desk-hw {
+    grid-template-areas:
+      'enc enc'
+      'exec master'
+      'keys keys';
+  }
+  .keys { justify-self: start; }
 }
 
 /* ------------------------------------------------------------ phones */
@@ -993,33 +2042,47 @@ body {
     padding: 0 8px 0 7px;
     font-size: 11.5px;
   }
+  [data-desk-skin='b'] .nav a {
+    padding: 0 9px;
+  }
   .nav {
     gap: 6px;
   }
+  .desk {
+    --bar-h: 60px;
+    --open-max: 68vh;
+    --open-h: 2000px;
+  }
   .desk-bar {
-    grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 8px;
-    height: 60px;
     padding: 0 10px;
   }
-  .cmd {
-    grid-template-columns: minmax(0, 1fr);
+  .desk:not(.is-shut) .desk-bar {
+    margin: 0;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 0;
+    background: var(--grain), linear-gradient(#111113, #0d0d0e);
+    box-shadow: 0 1px 0 #000, 0 -1px 0 #000;
+  }
+  .desk:not(.is-shut)[data-skin='b'] .desk-bar {
+    background: var(--grain), linear-gradient(#131314, #0f0f10);
+  }
+  .cmd-field {
+    height: 30px;
   }
   .cmd-prompt {
-    display: none;
-  }
-  .cmd-fb {
-    grid-column: 1;
-    font-size: 10.5px;
+    font-size: 12px;
   }
   .cmd-input {
     font-size: 16px; /* keeps iOS from zooming on focus */
-    height: 30px;
+  }
+  .cmd-fb {
+    font-size: 10.5px;
   }
   .cmd-fb.is-multi {
     left: 10px;
     right: 10px;
-    bottom: 64px;
   }
   .bar-lcds,
   .bar-go [data-act='goback'] {
@@ -1029,146 +2092,189 @@ body {
     width: 56px;
   }
 
-  .desk.is-open .desk-body {
-    max-height: 62vh;
-    padding: 12px 12px 20px;
-  }
-  .desk-body {
+  /* One column. The screen's windows and the hardware's sections reflow around the command line. */
+  .desk-scroll {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
   }
-  .screen,
-  .hw,
-  .enc-bank {
+  .desk-screen,
+  .desk-hw,
+  .windows,
+  .encbar {
     display: contents;
   }
-  .fg-bar { order: 1; }
-  .encoders { order: 2; }
-  .execs { order: 3; }
-  .master { order: 4; }
-  .windows { order: 5; }
-  .keys { order: 6; }
-  .fg-bar,
+  .fsheet { order: 1; margin-top: 12px; height: 138px; }
+  .fgcb { order: 2; }
+  .enc-row { order: 3; margin-top: -8px; }
+  .desk-bar { order: 4; flex: none; }
+  .encoders { order: 5; }
+  .execs { order: 6; }
+  .master { order: 7; }
+  .pool { order: 8; height: 132px; }
+  .seqsheet { order: 9; height: 180px; }
+  .keys { order: 10; }
+  .fsheet,
+  .fgcb,
+  .enc-row,
   .encoders,
   .execs,
   .master,
-  .windows,
+  .pool,
+  .seqsheet,
   .keys {
     flex: none;
+    margin-left: 12px;
+    margin-right: 12px;
   }
 
-  /* Fixtures (and Coarse) on one row, feature groups on the next; either scrolls sideways if it must. */
-  .fg-bar {
-    flex-wrap: wrap;
-    max-width: none;
+  .desk .fg {
+    flex: none;
+    min-width: 0;
+    padding: 4px 10px 0;
   }
-  .fixtures,
-  .fgroups {
-    overflow-x: auto;
-    scrollbar-width: none;
-    padding-bottom: 2px;
+  .enc-row {
+    height: 48px;
   }
-  .fixtures::-webkit-scrollbar,
-  .fgroups::-webkit-scrollbar {
+  .enc-page,
+  .layers {
     display: none;
   }
-  .fixtures {
-    flex: 1 1 0;
+  .enc-fields {
+    flex: 1;
     min-width: 0;
   }
-  .fixtures .fx,
-  .fgroups .fg {
-    flex: none;
-  }
-  .fgroups {
-    flex: 1 1 100%;
-  }
-  .res {
-    margin-left: 0;
-    flex: none;
-  }
-  .encoders {
-    justify-content: space-between;
-    gap: 6px;
-  }
-  .enc {
+  .desk .ef {
+    flex: 1 1 0;
     width: auto;
-    flex: 1;
-    gap: 10px;
+    padding: 7px 4px 0;
   }
-  .enc .lcd {
-    height: 50px;
-    padding: 4px 5px 5px;
-  }
-  .enc .lcd-name {
+  .ef-name {
     font-size: 9px;
   }
-  .enc .lcd-val {
-    font-size: 11.5px;
+  .ef-val {
+    font-size: 12px;
   }
-  .knob {
-    width: 54px;
-    height: 54px;
+  .ef-val.v-prog {
+    margin-left: -2px;
+    padding: 0 2px;
+  }
+  /* On our hardware the Grand Master is the fader beside the executors; on B it's only on screen. */
+  .sgm {
+    display: none;
+    width: 48px;
+  }
+  .desk[data-skin='b'] .sgm {
+    display: grid;
+  }
+
+  .encoders {
+    align-self: auto;
+    justify-content: space-between;
+    gap: 6px;
+    padding-left: 0;
+  }
+  .enc {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+  }
+  .desk[data-skin='b'] .enc-spacer {
+    display: block;
+    flex: none;
+    width: 48px;
+  }
+  /* Knobs shrink on the narrowest phones so five (and B's Grand Master) still fit under their fields. */
+  .knob,
+  .desk[data-skin='b'] .knob {
+    width: min(54px, 100%);
+    height: auto;
+    aspect-ratio: 1 / 1;
   }
   .execs {
     justify-content: space-between;
     padding: 0;
   }
   .exec {
-    width: 66px;
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    max-width: 72px;
   }
-  .gm-col .key-bo {
-    width: 66px;
+  .gm-col {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 72px;
+  }
+  .gm-col .exec {
+    width: 100%;
+  }
+  .desk .gm-col .key-bo {
+    width: 100%;
   }
   .fader {
     --fh: 120px;
-    height: 120px;
   }
-  .fader input[type='range'] {
-    height: 120px;
+  .desk[data-skin='b'] .execs {
+    width: auto;
+    padding: 4px;
+  }
+  .desk[data-skin='b'] .exec {
+    flex: 1 1 0;
+    width: auto;
+  }
+  .desk[data-skin='b'] .exec-keys .key {
+    height: 34px;
+  }
+  .desk[data-skin='b'] .fader {
+    --fh: 128px;
   }
   .master {
     width: auto;
     grid-template-columns: 1fr 1fr 2fr;
   }
-  .master .key {
-    height: 52px;
-  }
-  .master .key-big {
+  .desk .master .key,
+  .desk .master .key-big {
     grid-column: auto;
     height: 52px;
   }
-  .windows {
-    grid-template-columns: 1fr;
-    height: auto;
-  }
-  .pools {
-    height: 176px;
-  }
-  .cues {
-    height: 196px;
+  .desk[data-skin='b'] .master {
+    width: auto;
+    grid-template-columns: repeat(3, 1fr);
   }
   .keys {
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
+    margin-bottom: 20px;
   }
   .prog-keys {
     grid-template-columns: repeat(5, 1fr);
+    grid-auto-rows: 42px;
   }
   .keypad {
     grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: 42px;
   }
-  .prog-keys .key,
-  .keypad .key {
+  .desk .prog-keys .key,
+  .desk .keypad .key {
     height: 42px;
   }
+}
 
+@supports not (aspect-ratio: 1 / 1) {
+  .knob,
+  .desk[data-skin='b'] .knob {
+    width: 54px !important;
+    height: 54px !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .key .led-bo.on {
     animation: none;
+  }
+  .desk-scroll {
+    transition: none;
   }
 }

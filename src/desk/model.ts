@@ -187,6 +187,11 @@ export class Desk {
   private listeners = new Set<() => void>();
   /** Live head angles in degrees per spot, updated by the engine. */
   live: Record<number, { pan: number; tilt: number }> = { 1: { pan: 0, tilt: 30 }, 2: { pan: 0, tilt: 30 } };
+  /**
+   * The spots' resting dimmer level. A show file's default, not a programmer
+   * value: phones start the spots low so the panels' flood carries the page.
+   */
+  spotDim = ATTRS.dim.def;
   /** Called when the sequence moves to a cue, so the page can follow it. */
   onCue: (cue: Cue | null) => void = () => {};
   onReset: (id: number) => void = () => {};
@@ -531,7 +536,8 @@ export class Desk {
     const cv = c?.fixtures?.[fixture]?.[attr];
     if (cv != null) return { v: cv, src: 'cue' };
     if (kind === 'panel' && attr === 'dim') return { v: (this.exec[4].flash ? 1 : this.exec[4].level) * 100, src: 'executor' };
-    if (kind === 'spot' && attr === 'dim' && c) return { v: ATTRS.dim.def * this.exec[1].level, src: 'cue' };
+    if (kind === 'spot' && attr === 'dim' && c) return { v: this.spotDim * this.exec[1].level, src: 'cue' };
+    if (kind === 'spot' && attr === 'dim') return { v: this.spotDim, src: 'default' };
     return { v: ATTRS[attr].def, src: 'default' };
   }
 

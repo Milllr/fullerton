@@ -34,11 +34,13 @@ const KEYWORDS: Record<string, string[]> = {
   oops: ['oops'],
   highlight: ['highlight', 'highlt', 'hi'],
   blind: ['blind', 'bl'],
+  black: ['black', 'blackout', 'bo'],
   store: ['store', 'sto', 'st'],
   attribute: ['attribute', 'attrib', 'attr', 'att'],
   help: ['help', '?'],
   please: ['please'],
   plus: ['+'],
+  minus: ['-'],
 };
 
 const lookup = new Map<string, string>();
@@ -53,6 +55,31 @@ function tokenize(s: string) {
   while ((m = re.exec(s))) out.push(m[1] != null ? `"${m[1]}` : m[2]);
   // Split "1+2" style input into separate tokens, but keep Go+ and Go-.
   return out.flatMap((t) => (/^go[+-]$/i.test(t) || t.startsWith('"') ? [t] : t.split(/(\+)/).filter(Boolean)));
+}
+
+/** Messages that report something that didn't happen; they show red. */
+export const looksLikeError = (msg: string) => /does not|not on|is empty|needs|nothing|is a show|already off|is off|leaves no/i.test(msg);
+
+/** Keywords as the desk writes them, for echoing a command the way the command line history shows it. */
+const CANON: Record<string, string> = {
+  fixture: 'Fixture', at: 'At', thru: 'Thru', full: 'Full', zero: 'Zero', preset: 'Preset', go: 'Go+', goback: 'Go-',
+  pause: 'Pause', goto: 'Goto', cue: 'Cue', off: 'Off', on: 'On', executor: 'Executor', sequence: 'Sequence',
+  clear: 'Clear', clearall: 'ClearAll', clearactive: 'ClearActive', clearselection: 'ClearSelection', oops: 'Oops',
+  highlight: 'Highlight', blind: 'Blind', black: 'Black', store: 'Store', attribute: 'Attribute', help: 'Help',
+  plus: '+', minus: '-',
+};
+
+/** "fi 1 thru 2 at 60" as the desk echoes it: "Fixture 1 Thru 2 At 60". */
+export function echo(input: string) {
+  return tokenize(input.trim())
+    .filter((t) => kw(t) !== 'please')
+    .map((t) => {
+      if (t.startsWith('"')) return `${t}"`;
+      const k = kw(t);
+      if (k === 'executor' || k === 'sequence' || !k) return k ? CANON[k] : t;
+      return CANON[k] ?? t;
+    })
+    .join(' ');
 }
 
 const isNum = (t?: string) => !!t && /^-?\d+(\.\d+)?$/.test(t);
@@ -74,14 +101,14 @@ export const HELP = [
   'Go   Go-   Pause   Goto Cue 4   Off',
   'Executor 3 At 60   Executor 4 At 70 (Fill)',
   'Store Cue 12 "My look"',
-  'Clear   ClearAll   Oops   Highlight   Blind',
+  'Clear   ClearAll   Oops   Highlight   Blind   Black',
 ];
 
 export function execute(desk: Desk, input: string): Result {
   let t = tokenize(input.trim());
   while (t.length && kw(t[t.length - 1]) === 'please') t.pop();
   if (!t.length) return { ok: true, msg: '' };
-  const ok = (msg: string) => ({ ok: !/does not|not on|is empty|needs|nothing|is a show|already off|is off/i.test(msg), msg });
+  const ok = (msg: string) => ({ ok: !looksLikeError(msg), msg });
   const err = (msg: string) => ({ ok: false, msg });
   const first = kw(t[0]);
 
@@ -105,6 +132,8 @@ export function execute(desk: Desk, input: string): Result {
       if ((want === 'on' && cur) || (want === 'off' && !cur)) return ok(`${first === 'blind' ? 'Blind' : 'Highlight'} is already ${want}`);
       return ok(first === 'blind' ? desk.toggleBlind() : desk.toggleHighlight());
     }
+    case 'black':
+      return ok(desk.toggleBlackout());
     case 'go':
     case 'goback':
     case 'pause': {
@@ -127,7 +156,7 @@ export function execute(desk: Desk, input: string): Result {
     }
     case 'executor': {
       if (!isNum(t[1])) return err('Executor needs a number, like Executor 2 At 50');
-      const n = Number(t[1]);
+      const n = execNum(Number(t[1]));
       if (kw(t[2]) !== 'at') return err(`Executor ${n}: use At to set its fader, like Executor ${n} At 50`);
       const v = level(t[3]);
       if (v == null) return err('At needs a value');
@@ -163,8 +192,8 @@ export function execute(desk: Desk, input: string): Result {
         if (a && kw(t[1]) === 'at') return setAttr(desk, a, t.slice(1));
         return err(`Unknown command: ${input.trim()}. Type Help for the list`);
       }
-      const { ids, i } = fixtureList(rest);
-      if (!ids.length) return err('Fixture needs a number, like Fixture 1');
+      const { ids, i, any } = fixtureList(rest);
+      if (!ids.length) return err(any ? 'That leaves no fixtures selected' : 'Fixture needs a number, like Fixture 1');
       const sel = desk.select(ids);
       if (/does not/.test(sel)) return err(sel);
       if (i < rest.length) {
@@ -181,8 +210,14 @@ export function execute(desk: Desk, input: string): Result {
 
 function execTarget(t: string[]): number | null {
   const k = kw(t[0]);
-  if ((k === 'executor' || k === 'sequence') && isNum(t[1])) return Number(t[1]);
+  if (k === 'executor' && isNum(t[1])) return execNum(Number(t[1]));
+  if (k === 'sequence' && isNum(t[1])) return Number(t[1]);
   return null;
+}
+
+/** grandMA3 numbers the fader executors 201 and up; 201 to 204 are the same faders as 1 to 4. */
+function execNum(n: number) {
+  return n >= 201 && n <= 204 ? n - 200 : n;
 }
 
 function level(t?: string): number | null {
@@ -197,25 +232,38 @@ function presetNum(t?: string): [number, number] | null {
   return m ? [Number(m[1]), Number(m[2])] : null;
 }
 
+/** "1 Thru 4 - 3 + 5": plus adds, minus takes out. */
 function fixtureList(t: string[]) {
   const ids: number[] = [];
   let i = 0;
+  let remove = false;
+  let any = false;
+  const put = (n: number) => {
+    const at = ids.indexOf(n);
+    if (remove) {
+      if (at >= 0) ids.splice(at, 1);
+    } else if (at < 0) ids.push(n);
+  };
   while (i < t.length && isNum(t[i])) {
+    any = true;
     const a = Number(t[i]);
     if (kw(t[i + 1]) === 'thru' && isNum(t[i + 2])) {
       const b = Number(t[i + 2]);
       // A typo like Thru 999999 shouldn't hang the page: there are only a handful of fixtures.
       const lo = Math.max(0, Math.min(a, b)), hi = Math.min(Math.max(a, b), lo + 99);
-      for (let n = lo; n <= hi; n++) ids.push(n);
+      for (let n = lo; n <= hi; n++) put(n);
       i += 3;
     } else {
-      ids.push(a);
+      put(a);
       i += 1;
     }
-    if (kw(t[i]) === 'plus') i += 1;
-    else break;
+    const k = kw(t[i]);
+    if (k === 'plus' || k === 'minus') {
+      remove = k === 'minus';
+      i += 1;
+    } else break;
   }
-  return { ids, i };
+  return { ids, i, any };
 }
 
 /** "At 50", "At Full", "At Preset 4.2" against the current selection. */
