@@ -9,20 +9,20 @@ import { setAttr, setClass, setText, setVar } from '../engine/css';
 export type Live = Record<number, { pan: number; tilt: number }>;
 
 /*
-  The desk has two looks while Miller compares them with the A/B switch:
-    A  grandMA3 screens on our own hardware.
-    B  grandMA3 everywhere: the screens and the console.
-  Both are one set of elements. The skin restyles and rearranges them, so the
-  programmer, the command line and every control behave the same in either.
+  A grandMA3, screens and console.
 
   The screen follows the grandMA3 user manual (help.malighting.com): a fixture
   sheet, a Dynamic preset pool that follows the feature group, the sequence
   sheet, the encoder bar with its feature group control bar and the Grand
   Master at its right edge, and the command line along the bottom. The MA logo
   in title fields is replaced by a neutral glyph.
+
+  The console: backlit keys whose legends light when they're on, dual
+  encoders with a light under each, executors 201 to 204 with their labels on
+  a letterbox screen, the large Pause, Go- and Go+. As on a grandMA3 there is
+  no Goto or B.O. key and no Grand Master fader; Black on the command line
+  blacks out.
 */
-export type Skin = 'a' | 'b';
-const SKIN_KEY = 'fullerton-desk-skin';
 /** The logged in user, as the command line prompt shows it. */
 const USER = 'James';
 
@@ -32,23 +32,22 @@ type KeyAction =
   | { kind: 'type'; text: string }
   | { kind: 'do'; act: 'full' | 'highlight' | 'blind' | 'oops' | 'clear' | 'esc' | 'please' | 'help' };
 
-/** Command keys. Goto is ours; a grandMA3 has no Goto key, so B has Help in its place. */
-const PROG_KEYS: { label: string; act: KeyAction; led?: string; only?: Skin }[] = [
+/** Command keys. A grandMA3 has no Goto key; Help sits in that place. */
+const PROG_KEYS: { label: string; act: KeyAction; lit?: string }[] = [
   { label: 'Fixture', act: { kind: 'type', text: 'Fixture ' } },
   { label: 'Preset', act: { kind: 'type', text: 'Preset ' } },
   { label: 'Cue', act: { kind: 'type', text: 'Cue ' } },
   { label: 'Exec', act: { kind: 'type', text: 'Executor ' } },
   { label: 'Store', act: { kind: 'type', text: 'Store ' } },
-  { label: 'Goto', act: { kind: 'type', text: 'Goto ' }, only: 'a' },
-  { label: 'Help', act: { kind: 'do', act: 'help' }, only: 'b' },
+  { label: 'Help', act: { kind: 'do', act: 'help' } },
   { label: 'At', act: { kind: 'type', text: ' At ' } },
   { label: 'Thru', act: { kind: 'type', text: ' Thru ' } },
   { label: 'Full', act: { kind: 'do', act: 'full' } },
   { label: 'Off', act: { kind: 'type', text: 'Off ' } },
-  { label: 'Highlt', act: { kind: 'do', act: 'highlight' }, led: 'led-hi' },
-  { label: 'Blind', act: { kind: 'do', act: 'blind' }, led: 'led-blind' },
+  { label: 'Highlt', act: { kind: 'do', act: 'highlight' }, lit: 'hi' },
+  { label: 'Blind', act: { kind: 'do', act: 'blind' }, lit: 'blind' },
   { label: 'Oops', act: { kind: 'do', act: 'oops' } },
-  { label: 'Clear', act: { kind: 'do', act: 'clear' }, led: 'led-clear' },
+  { label: 'Clear', act: { kind: 'do', act: 'clear' }, lit: 'clear' },
   { label: 'Esc', act: { kind: 'do', act: 'esc' } },
 ];
 
@@ -139,7 +138,7 @@ interface Enc {
 }
 
 interface Fader {
-  id: 'e1' | 'e2' | 'e3' | 'e4' | 'gm';
+  id: 'e1' | 'e2' | 'e3' | 'e4';
   input: HTMLInputElement;
   lcd: HTMLElement;
   bar: HTMLElement | null;
@@ -178,7 +177,6 @@ export class DeskUI {
   private lastCue: number | null | undefined = undefined;
   private fade = { cue: null as number | null, t: 0, dur: 0, bar: null as HTMLElement | null };
   private progOnly = false;
-  skin: Skin = 'a';
   isOpen = false;
   onOpenChange: (open: boolean) => void = () => {};
 
@@ -189,21 +187,21 @@ export class DeskUI {
     this.reduced = reduced;
     this.build();
     desk.subscribe(() => this.render());
-    this.setSkin(initialSkin(), false);
+    this.render();
     this.say({ ok: true, msg: 'Type Help for commands' });
   }
 
   /* --------------------------------------------------------------- build */
 
   private build() {
-    const key = (label: string, attrs = '', led?: string) => {
+    // A key; `lit` names the state that lights its legend.
+    const key = (label: string, attrs = '', lit?: string) => {
       // Fold any extra classes into the one class attribute.
       const extra = attrs.match(/class="([^"]*)"/)?.[1] ?? '';
       const rest = attrs.replace(/class="[^"]*"\s*/, '');
       const cls = ['key', ...extra.split(/\s+/).filter((c) => c && c !== 'key')].join(' ');
-      return `<button class="${cls}" type="button" ${rest}>${led ? `<i class="led ${led}"></i>` : ''}<span>${label}</span></button>`;
+      return `<button class="${cls}" type="button" ${lit ? `data-lit="${lit}" ` : ''}${rest}><span>${label}</span></button>`;
     };
-    const goLabel = 'Go+';
 
     const mini = [0, 1, 2, 3, 4].map((i) => `<button class="mini-lcd" type="button" data-mini="${i}" tabindex="-1"><i class="ef-bar"></i><span class="ef-name"></span><span class="ef-val"></span></button>`).join('');
     // Each field carries the encoder icon; its centre shows the resolution.
@@ -217,8 +215,8 @@ export class DeskUI {
       )
       .join('');
 
-    // An executor: its keys, its label (an LCD on our hardware, a section of
-    // the letterbox screen on a grandMA3), its fader.
+    // An executor: its label (a section of the letterbox screen), its fader,
+    // the key under the fader (two lines) and the one below it (one line).
     const exec = (id: string, n: number, label: string, keys: string, cues = false) => `
       <div class="exec" data-exec="${id}">
         <div class="exec-keys">${keys}</div>
@@ -233,16 +231,6 @@ export class DeskUI {
           <span class="fader-scale" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
           <input type="range" min="0" max="100" step="1" aria-label="${label} fader" />
         </div>
-        <span class="exec-num">Exec ${200 + n}</span>
-      </div>`;
-    const gmFader = `
-      <div class="exec" data-exec="gm">
-        <div class="exec-lcd lcd" aria-hidden="true"><span class="lcd-name">Grand</span><span class="lcd-val"></span></div>
-        <div class="fader">
-          <span class="fader-scale" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
-          <input type="range" min="0" max="100" step="1" aria-label="Grand Master fader" />
-        </div>
-        <span class="exec-num">GM</span>
       </div>`;
 
     // As the fixture sheet orders them: Name, FID, IDType, CID, then the attributes.
@@ -253,7 +241,7 @@ export class DeskUI {
       ).join('')}</tr>`,
     ).join('');
 
-    this.root.classList.add('is-shut');
+    this.root.classList.add('ma3', 'is-shut');
     this.root.innerHTML = `
       <div class="desk-scroll">
         <div class="desk-screen" id="desk-screen" hidden>
@@ -300,13 +288,9 @@ export class DeskUI {
           <div class="bar-lcds">${mini}</div>
           <div class="bar-go">
             ${key('Go-', 'data-act="goback" aria-label="Go back one cue"')}
-            ${key(goLabel, 'class="key key-go" data-act="go" aria-label="Go to next cue"', 'led-go')}
+            ${key('Go+', 'class="key key-go" data-act="go" aria-label="Go to next cue"', 'go')}
           </div>
           <i class="session" title="Network session: standalone" aria-hidden="true"></i>
-          <div class="skin-switch" role="group" aria-label="Desk style">
-            <button type="button" data-skin="a" aria-pressed="true" title="A: grandMA3 screens, our hardware">A</button>
-            <button type="button" data-skin="b" aria-pressed="false" title="B: grandMA3 screens and console">B</button>
-          </div>
           <button class="desk-handle" type="button" aria-expanded="false" aria-controls="desk-screen desk-hw">
             <span class="grip" aria-hidden="true"></span><span class="handle-label">Desk</span>
           </button>
@@ -315,23 +299,19 @@ export class DeskUI {
         <div class="desk-hw" id="desk-hw" hidden>
           <div class="encoders">${knobs}<span class="enc-spacer" aria-hidden="true"></span></div>
           <div class="execs">
-            ${exec('e1', 1, 'Shows', key('Go-', 'class="xk1" data-act="goback"') + key('Go+', 'class="xk2" data-act="go"', 'led-go'), true)}
-            ${exec('e2', 2, 'Hazer', key('Flash', 'class="xk2" data-flash="2"', 'led-f2') + key('Off', 'class="xk1" data-off="2"'))}
-            ${exec('e3', 3, 'Sweep', key('Flash', 'class="xk2" data-flash="3"', 'led-f3') + key('Off', 'class="xk1" data-off="3"'))}
-            ${exec('e4', 4, 'Fill', key('Flash', 'class="xk2" data-flash="4"', 'led-f4') + key('Off', 'class="xk1" data-off="4"'))}
-            <div class="gm-col">
-              ${gmFader}
-              ${key('B.O.', 'class="key key-bo" data-act="bo" aria-label="Blackout"', 'led-bo')}
-            </div>
+            ${exec('e1', 1, 'Shows', key('Go+', 'class="xk2" data-act="go"', 'go') + key('Go-', 'class="xk1" data-act="goback"'), true)}
+            ${exec('e2', 2, 'Hazer', key('Flash', 'class="xk2" data-flash="2"', 'f2') + key('Off', 'class="xk1" data-off="2"'))}
+            ${exec('e3', 3, 'Sweep', key('Flash', 'class="xk2" data-flash="3"', 'f3') + key('Off', 'class="xk1" data-off="3"'))}
+            ${exec('e4', 4, 'Fill', key('Flash', 'class="xk2" data-flash="4"', 'f4') + key('Off', 'class="xk1" data-off="4"'))}
           </div>
           <div class="keys">
-            <div class="prog-keys">${PROG_KEYS.map((k, i) => key(k.label, `${k.only ? `class="only-${k.only}" ` : ''}data-pk="${i}"`, k.led)).join('')}</div>
+            <div class="prog-keys">${PROG_KEYS.map((k, i) => key(k.label, `data-pk="${i}"`, k.lit)).join('')}</div>
             <div class="keypad">${KEYPAD.map((k) => key(k, `data-kp="${k}"`)).join('')}${key('Please', 'class="key key-please" data-act="please"')}</div>
           </div>
           <div class="master">
-            ${key('Pause', 'class="key key-pause" data-act="pause"', 'led-pause')}
+            ${key('Pause', 'class="key key-pause" data-act="pause"', 'pause')}
             ${key('Go-', 'class="key key-goback" data-act="goback"')}
-            ${key(goLabel, 'class="key key-go key-big" data-act="go"', 'led-go')}
+            ${key('Go+', 'class="key key-go key-big" data-act="go"', 'go')}
           </div>
         </div>
       </div>`;
@@ -405,8 +385,7 @@ export class DeskUI {
       input.addEventListener('input', () => {
         const v = Number(input.value) / 100;
         f.shown = v;
-        if (id === 'gm') this.setGM(v);
-        else this.desk.setExec(Number(id.slice(1)), v);
+        this.desk.setExec(Number(id.slice(1)), v);
       });
       this.faders.push(f);
     });
@@ -421,11 +400,9 @@ export class DeskUI {
       const b = t.closest<HTMLButtonElement>('button');
       if (!b || !this.root.contains(b)) return;
       const d = b.dataset;
-      if (d.skin) this.setSkin(d.skin as Skin);
-      else if (d.act === 'go') this.say({ ok: true, msg: this.desk.go() }, 'Go+');
+      if (d.act === 'go') this.say({ ok: true, msg: this.desk.go() }, 'Go+');
       else if (d.act === 'goback') this.say({ ok: true, msg: this.desk.goBack() }, 'Go-');
       else if (d.act === 'pause') this.say({ ok: true, msg: this.desk.pause() }, 'Pause');
-      else if (d.act === 'bo') this.say({ ok: true, msg: this.desk.toggleBlackout() }, 'Black');
       else if (d.act === 'please') this.run(this.cmd.value);
       else if (d.off) this.say({ ok: true, msg: this.desk.off(Number(d.off)) }, `Off Executor ${d.off}`);
       else if (d.kp) this.type(d.kp === '+' || d.kp === '-' ? ` ${d.kp} ` : d.kp);
@@ -673,27 +650,6 @@ export class DeskUI {
     else this.say({ ok: true, msg: d.select(next) }, `Fixture ${listName(next)}`);
   }
 
-  /* ------------------------------------------------------------- skins */
-
-  setSkin(s: Skin, persist = true) {
-    this.skin = s;
-    this.root.dataset.skin = s;
-    document.documentElement.dataset.deskSkin = s;
-    this.root.querySelectorAll<HTMLButtonElement>('.skin-switch button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.skin === s)));
-
-    if (persist) {
-      try {
-        localStorage.setItem(SKIN_KEY, s);
-      } catch {
-        /* private mode: the switch still works for this visit */
-      }
-    }
-    this.lastHtml.clear();
-    this.render();
-    // The desk changes height with the skin; the page re-measures it.
-    requestAnimationFrame(() => this.onOpenChange(this.isOpen));
-  }
-
   /** grandMA3 numbers the fader executors from 201; messages and echoes use those numbers. */
   private execNames(msg: string) {
     return msg.replace(/\bExecutor ([1-4])\b/g, 'Executor 20$1');
@@ -824,7 +780,7 @@ export class DeskUI {
 
   private faderTarget(id: Fader['id']) {
     const d = this.desk;
-    return id === 'gm' ? d.gm : id === 'e1' ? d.exec[1].level : id === 'e2' ? d.exec[2].level : id === 'e3' ? d.exec[3].level : d.exec[4].level;
+    return id === 'e1' ? d.exec[1].level : id === 'e2' ? d.exec[2].level : id === 'e3' ? d.exec[3].level : d.exec[4].level;
   }
 
   /** What an encoder shows for an attribute: the first selected fixture that has it. */
@@ -917,21 +873,16 @@ export class DeskUI {
     });
     this.paintEncoders();
 
-    // LEDs and lit keys.
-    const led = (cls: string, on: boolean) =>
-      r.querySelectorAll(`.${cls}`).forEach((el) => {
-        el.classList.toggle('on', on);
-        el.parentElement?.classList.toggle('is-lit', on);
-      });
-    led('led-hi', d.highlight);
-    led('led-blind', d.blind);
-    led('led-clear', d.hasValues());
-    led('led-bo', d.blackout);
-    led('led-go', d.exec[1].cue != null && !d.exec[1].paused);
-    led('led-pause', d.exec[1].paused);
-    led('led-f2', d.exec[2].flash);
-    led('led-f3', d.exec[3].flash);
-    led('led-f4', d.exec[4].flash);
+    // Keys whose legends light when they're on.
+    const lit = (name: string, on: boolean) => r.querySelectorAll(`[data-lit="${name}"]`).forEach((el) => el.classList.toggle('is-lit', on));
+    lit('hi', d.highlight);
+    lit('blind', d.blind);
+    lit('clear', d.hasValues());
+    lit('go', d.exec[1].cue != null && !d.exec[1].paused);
+    lit('pause', d.exec[1].paused);
+    lit('f2', d.exec[2].flash);
+    lit('f3', d.exec[3].flash);
+    lit('f4', d.exec[4].flash);
     document.documentElement.classList.toggle('is-blind', d.blind);
 
     this.renderPool();
@@ -1122,7 +1073,7 @@ export class DeskUI {
     }
 
     // The executor label's cue list: the active cue on blue, the next under it.
-    if (this.skin === 'b' && this.xlCues) {
+    if (this.xlCues) {
       const cur = d.currentCue();
       const next = cur ? d.nextCue() : d.cues[0];
       setText(this.xlCues[0], cur ? `${cur.n} ${cur.name}` : '');
@@ -1151,16 +1102,4 @@ export class DeskUI {
       if (this.isOpen) this.paintSheet();
     }
   }
-}
-
-function initialSkin(): Skin {
-  const q = new URLSearchParams(location.search).get('desk');
-  if (q === 'a' || q === 'b') return q;
-  try {
-    const s = localStorage.getItem(SKIN_KEY);
-    if (s === 'a' || s === 'b') return s;
-  } catch {
-    /* storage blocked */
-  }
-  return 'a';
 }

@@ -1,12 +1,10 @@
 /*
-  The desk, in two skins (see ui.ts):
-    A  grandMA3 screens on our own hardware: anodised panel, rubber keys with
-       LEDs, knurled encoders, motor faders in slotted tracks.
-    B  grandMA3 everywhere: the same screens on a grandMA3 style console,
-       backlit keys, dual encoders with their lights, letterbox executor
-       labels, the large Pause, Go- and Go+.
-  The screen follows the grandMA3 manual in both: fixture sheet, Dynamic
-  preset pool, sequence sheet, encoder bar, command line at the bottom.
+  The desk: a grandMA3, screens and console. The screen follows the
+  grandMA3 manual: fixture sheet, Dynamic preset pool, sequence sheet,
+  encoder bar, command line at the bottom. The console has backlit black
+  keys whose legends light when they're on, dual encoders with their lights,
+  letterbox executor labels over the faders and the large Pause, Go- and Go+.
+  The header keys are the same keys.
 */
 
 :root {
@@ -14,8 +12,6 @@
   --engrave: #8e887f;
   --engrave-hi: #cfc8bb;
   --lcd-bg: #060808;
-  --lcd-ink: #e8e2d4;
-  --bo: #ff3b30;
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 
   /* grandMA3 screen colours (manual, Colors). */
@@ -51,17 +47,17 @@ body {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
   height: 26px;
-  padding: 0 10px 0 9px;
+  padding: 0 11px;
   font-size: 12.5px;
+  font-weight: 600;
   font-stretch: 85%;
   letter-spacing: 0.02em;
-  color: var(--engrave-hi);
-  background: linear-gradient(#1a1a1c, #111113);
-  border: 1px solid #050505;
-  border-radius: 3px;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 2px 0 #000;
+  color: #b9b9b9;
+  background: linear-gradient(#1f1f21, #141415);
+  border: 1px solid #000;
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), inset 0 -2px 0 rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.6);
 }
 .nav {
   gap: 8px;
@@ -70,34 +66,8 @@ body {
 .nav a:active {
   transform: translateY(1px);
 }
-.nav .led,
-.key .led {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #262626;
-  box-shadow: inset 0 0 1px #000;
-  flex: none;
-}
-.nav a.on .led {
-  background: rgb(var(--light));
-  box-shadow: 0 0 6px rgb(var(--light) / 0.8);
-}
-
-/* B: the header keys are backlit grandMA3 keys; the lit one is the page you're on. */
-[data-desk-skin='b'] .nav a {
-  padding: 0 11px;
-  font-weight: 600;
-  color: #b9b9b9;
-  background: linear-gradient(#1f1f21, #141415);
-  border: 1px solid #000;
-  border-radius: 4px;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), inset 0 -2px 0 rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.6);
-}
-[data-desk-skin='b'] .nav .led {
-  display: none;
-}
-[data-desk-skin='b'] .nav a.on {
+/* The lit key is the page you're on. */
+.nav a.on {
   color: #fff;
   text-shadow: 0 0 6px rgb(255 255 255 / 0.7);
 }
@@ -134,7 +104,7 @@ body {
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
 }
-.desk[data-skin='b'] {
+.desk.ma3 {
   background: var(--grain), linear-gradient(#131314, #0c0c0d 40%);
   box-shadow: 0 -1px 0 #202022, 0 -18px 40px rgb(0 0 0 / 0.65);
 }
@@ -224,7 +194,7 @@ body {
   padding: 0 12px 0 var(--pad);
   background: var(--grain), linear-gradient(#111113, #0d0d0e);
 }
-.desk[data-skin='b'] .desk-bar {
+.desk.ma3 .desk-bar {
   background: var(--grain), linear-gradient(#131314, #0f0f10);
 }
 /* Open, the command line reads as the bottom strip of the screen above it. */
@@ -295,7 +265,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.desk[data-skin='b'] .cmd-fb {
+.desk.ma3 .cmd-fb {
   color: #8f8f8f;
 }
 .cmd-fb.is-echo {
@@ -363,38 +333,6 @@ body {
   color: #fff;
 }
 
-/* The A/B switch, while Miller compares the two looks. */
-.skin-switch {
-  display: none;
-  gap: 2px;
-  padding: 2px;
-  background: #000;
-  border: 1px solid #2a2a2c;
-  border-radius: 3px;
-}
-.desk:not(.is-shut) .skin-switch {
-  display: flex;
-}
-.desk .skin-switch button {
-  width: 26px;
-  height: 22px;
-  padding: 0;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--g-dim);
-  background: transparent;
-  border: 0;
-  border-radius: 2px;
-  cursor: pointer;
-}
-.desk .skin-switch button[aria-pressed='true'] {
-  color: #fff;
-  background: var(--g-btn-on);
-}
-.desk .skin-switch button:focus-visible {
-  outline: 1px solid #fff;
-}
-
 .desk-handle {
   display: grid;
   justify-items: center;
@@ -417,17 +355,17 @@ body {
   font-size: 11px;
   color: var(--engrave-hi);
 }
-.desk[data-skin='b'] .desk-handle {
+.desk.ma3 .desk-handle {
   background: linear-gradient(#1f1f21, #141415);
   border-color: #000;
   border-radius: 4px;
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), inset 0 -2px 0 rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.6);
 }
-.desk[data-skin='b'] .handle-label {
+.desk.ma3 .handle-label {
   font-weight: 600;
   color: #c9c9c9;
 }
-.desk[data-skin='b'] .grip {
+.desk.ma3 .grip {
   background: repeating-linear-gradient(#4a4a4c 0 1px, transparent 1px 3px);
 }
 
@@ -1255,56 +1193,18 @@ body {
   outline: 1px solid rgb(var(--light));
   outline-offset: 2px;
 }
-.key .led {
-  position: absolute;
-  top: 4px;
-  right: 5px;
-}
-.key .led.on {
-  background: rgb(var(--light));
-  box-shadow: 0 0 6px rgb(var(--light) / 0.85);
-}
-.key .led-bo.on {
-  background: var(--bo);
-  box-shadow: 0 0 7px var(--bo);
-  animation: bo-blink 0.9s steps(1) infinite;
-}
-@keyframes bo-blink {
-  50% {
-    opacity: 0.25;
-  }
-}
-.key .led-clear.on {
-  background: var(--g-red-text);
-  box-shadow: 0 0 6px var(--g-red-text);
-}
 .desk .key-go {
   min-width: 58px;
   font-weight: 650;
-}
-.desk .key-go.is-lit {
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07), inset 0 0 14px rgb(var(--light) / 0.22), 0 2px 0 #000;
 }
 .desk .key-big {
   width: 100%;
   height: 58px;
   font-size: 15px;
 }
-.only-b {
-  display: none !important;
-}
-.desk[data-skin='b'] .only-a {
-  display: none !important;
-}
-.desk[data-skin='b'] .only-b {
-  display: revert !important;
-}
-.desk[data-skin='b'] .key.only-b {
-  display: inline-grid !important;
-}
 
 /* B: grandMA3 keys. Black caps, legends lit from behind, brighter when the key is on. */
-.desk[data-skin='b'] .key {
+.desk.ma3 .key {
   font-weight: 600;
   letter-spacing: 0.02em;
   color: #c4c4c4;
@@ -1313,23 +1213,17 @@ body {
   border-radius: 4px;
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), inset 0 -2px 0 rgb(0 0 0 / 0.5), 0 1px 0 #000, 0 2px 5px rgb(0 0 0 / 0.5);
 }
-.desk[data-skin='b'] .key:active {
+.desk.ma3 .key:active {
   transform: translateY(1px);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03), inset 0 -1px 0 rgb(0 0 0 / 0.5), 0 0 0 #000;
 }
-.desk[data-skin='b'] .key:focus-visible {
+.desk.ma3 .key:focus-visible {
   outline: 1px solid #fff;
 }
-.desk[data-skin='b'] .key .led {
-  display: none;
-}
-.desk[data-skin='b'] .key.is-lit {
+.desk.ma3 .key.is-lit {
   color: #fff;
   text-shadow: 0 0 6px rgb(255 255 255 / 0.75), 0 0 1px #fff;
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), inset 0 0 12px rgb(255 255 255 / 0.07), inset 0 -2px 0 rgb(0 0 0 / 0.5), 0 1px 0 #000, 0 2px 5px rgb(0 0 0 / 0.5);
-}
-.desk[data-skin='b'] [data-act='bo'].is-lit {
-  color: #fff;
 }
 
 /* ------------------------------------------------------------ hardware */
@@ -1387,16 +1281,6 @@ body {
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 1px 2px rgb(0 0 0 / 0.8);
   transform: rotate(var(--rot));
 }
-.knob-cap::after {
-  content: '';
-  position: absolute;
-  left: calc(50% - 1px);
-  top: 4px;
-  width: 2px;
-  height: 11px;
-  border-radius: 1px;
-  background: #d8d1c5;
-}
 .knob:focus-visible {
   outline: 1px solid rgb(var(--light));
   outline-offset: 4px;
@@ -1410,13 +1294,13 @@ body {
 }
 
 /* B: dual encoders, an outer ring around an inner knob, with a light under each. */
-.desk[data-skin='b'] .knob {
+.desk.ma3 .knob {
   width: 62px;
   height: 62px;
   background: repeating-conic-gradient(from 0deg, #242426 0deg 2deg, #0d0d0e 2deg 4deg);
   box-shadow: 0 0 0 1px #000, 0 7px 12px rgb(0 0 0 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.08);
 }
-.desk[data-skin='b'] .knob-ring {
+.desk.ma3 .knob-ring {
   display: block;
   position: absolute;
   inset: 8px;
@@ -1424,27 +1308,24 @@ body {
   background: #08080a;
   box-shadow: inset 0 1px 3px #000, 0 1px 0 rgb(255 255 255 / 0.05);
 }
-.desk[data-skin='b'] .knob-cap {
+.desk.ma3 .knob-cap {
   inset: 12px;
   background:
     radial-gradient(circle at 40% 32%, rgb(255 255 255 / 0.14), transparent 55%),
     repeating-conic-gradient(from 0deg, #2b2b2e 0deg 10deg, #161618 10deg 20deg);
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.6), 0 2px 3px rgb(0 0 0 / 0.8);
 }
-.desk[data-skin='b'] .knob-cap::after {
-  display: none;
-}
-.desk[data-skin='b'] .knob:focus-visible {
+.desk.ma3 .knob:focus-visible {
   outline: 1px solid #fff;
 }
-.desk[data-skin='b'] .enc-led {
+.desk.ma3 .enc-led {
   display: block;
   width: 28px;
   height: 3px;
   border-radius: 2px;
   background: #3a3a3d;
 }
-.desk[data-skin='b'] .enc-led.on {
+.desk.ma3 .enc-led.on {
   background: var(--g-red);
   box-shadow: 0 0 6px rgb(207 42 31 / 0.9);
 }
@@ -1476,12 +1357,6 @@ body {
   padding: 0;
   font-size: 10px;
 }
-.exec-keys .key .led {
-  top: 3px;
-  right: 3px;
-  width: 4px;
-  height: 4px;
-}
 .lcd {
   display: grid;
   grid-template-rows: auto auto;
@@ -1511,28 +1386,12 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.gm-col .lcd .lcd-val {
-  color: var(--lcd-ink);
-}
 .xl-top,
 .xl-num,
 .xl-idx,
 .xl-cues,
 .xl-bar {
   display: none;
-}
-.exec-num {
-  font-size: 10px;
-  color: var(--engrave);
-}
-.gm-col {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-}
-.desk .key-bo {
-  width: 62px;
-  height: 24px;
 }
 
 .fader {
@@ -1639,7 +1498,7 @@ body {
   the one below it with one. There is no B.O. key or Grand Master fader: the
   Grand Master lives on screen, at the right edge of the encoder bar.
 */
-.desk[data-skin='b'] .execs {
+.desk.ma3 .execs {
   position: relative;
   justify-self: start;
   width: max-content;
@@ -1648,7 +1507,7 @@ body {
   padding: 4px;
   --xl-h: 58px;
 }
-.desk[data-skin='b'] .execs::before {
+.desk.ma3 .execs::before {
   content: '';
   position: absolute;
   left: 0;
@@ -1659,15 +1518,12 @@ body {
   border-radius: 3px;
   box-shadow: inset 0 0 0 1px #1c1c1e, 0 1px 0 rgb(255 255 255 / 0.03);
 }
-.desk[data-skin='b'] .gm-col {
-  display: none;
-}
-.desk[data-skin='b'] .exec {
+.desk.ma3 .exec {
   position: relative;
   width: 72px;
   gap: 8px;
 }
-.desk[data-skin='b'] .exec-lcd {
+.desk.ma3 .exec-lcd {
   order: 0;
   position: relative;
   display: block;
@@ -1678,25 +1534,22 @@ body {
   border-radius: 0;
   box-shadow: none;
 }
-.desk[data-skin='b'] .fader {
+.desk.ma3 .fader {
   order: 1;
 }
-.desk[data-skin='b'] .exec-keys {
+.desk.ma3 .exec-keys {
   order: 2;
   grid-auto-flow: row;
   grid-template-columns: 1fr;
   gap: 5px;
 }
-.desk[data-skin='b'] .exec-keys .xk2 {
+.desk.ma3 .exec-keys .xk2 {
   order: 0;
 }
-.desk[data-skin='b'] .exec-keys .xk1 {
+.desk.ma3 .exec-keys .xk1 {
   order: 1;
 }
-.desk[data-skin='b'] .exec-num {
-  display: none;
-}
-.desk[data-skin='b'] .xl-top {
+.desk.ma3 .xl-top {
   display: block;
   position: absolute;
   left: 0;
@@ -1705,8 +1558,8 @@ body {
   height: 3px;
   background: #7d7d80;
 }
-.desk[data-skin='b'] .xl-num,
-.desk[data-skin='b'] .xl-idx {
+.desk.ma3 .xl-num,
+.desk.ma3 .xl-idx {
   display: block;
   position: absolute;
   top: 6px;
@@ -1714,15 +1567,15 @@ body {
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-.desk[data-skin='b'] .xl-num {
+.desk.ma3 .xl-num {
   left: 4px;
   color: #e6e6e6;
 }
-.desk[data-skin='b'] .xl-idx {
+.desk.ma3 .xl-idx {
   right: 4px;
   color: var(--g-dim);
 }
-.desk[data-skin='b'] .exec-lcd .lcd-name {
+.desk.ma3 .exec-lcd .lcd-name {
   position: absolute;
   left: 4px;
   right: 4px;
@@ -1731,7 +1584,7 @@ body {
   font-weight: 600;
   color: #fff;
 }
-.desk[data-skin='b'] .xl-cues {
+.desk.ma3 .xl-cues {
   display: grid;
   position: absolute;
   left: 2px;
@@ -1740,18 +1593,18 @@ body {
   font-size: 9px;
   line-height: 10px;
 }
-.desk[data-skin='b'] .xl-cues span {
+.desk.ma3 .xl-cues span {
   padding: 0 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   color: #bdbdbd;
 }
-.desk[data-skin='b'] .xl-c1:not(:empty) {
+.desk.ma3 .xl-c1:not(:empty) {
   color: #fff;
   background: #2453a3;
 }
-.desk[data-skin='b'] .exec-lcd .lcd-val {
+.desk.ma3 .exec-lcd .lcd-val {
   position: absolute;
   left: 4px;
   right: 4px;
@@ -1760,14 +1613,14 @@ body {
   text-align: right;
   color: var(--g-dim);
 }
-.desk[data-skin='b'] [data-exec='e1'] .exec-lcd .lcd-val {
+.desk.ma3 [data-exec='e1'] .exec-lcd .lcd-val {
   display: none;
 }
 /* Sequence 1 is the selected sequence: its label shows it in yellow. */
-.desk[data-skin='b'] [data-exec='e1'] .exec-lcd .lcd-name {
+.desk.ma3 [data-exec='e1'] .exec-lcd .lcd-name {
   color: var(--g-yellow);
 }
-.desk[data-skin='b'] .xl-bar {
+.desk.ma3 .xl-bar {
   display: block;
   position: absolute;
   left: 3px;
@@ -1776,13 +1629,13 @@ body {
   height: 3px;
   background: #222224;
 }
-.desk[data-skin='b'] .xl-bar i {
+.desk.ma3 .xl-bar i {
   display: block;
   width: calc(var(--v, 0) * 100%);
   height: 100%;
   background: #d6d6d6;
 }
-.desk[data-skin='b'] .exec + .exec::after {
+.desk.ma3 .exec + .exec::after {
   content: '';
   position: absolute;
   left: -2px;
@@ -1791,13 +1644,13 @@ body {
   height: var(--xl-h);
   background: #1e1e20;
 }
-.desk[data-skin='b'] .exec-keys .key {
+.desk.ma3 .exec-keys .key {
   height: 26px;
   padding-top: 6px;
   font-size: 9.5px;
 }
-.desk[data-skin='b'] .xk1::before,
-.desk[data-skin='b'] .xk2::before {
+.desk.ma3 .xk1::before,
+.desk.ma3 .xk2::before {
   content: '';
   position: absolute;
   left: calc(50% - 7px);
@@ -1806,26 +1659,26 @@ body {
   height: 1px;
   background: #8c8c8c;
 }
-.desk[data-skin='b'] .xk2::before {
+.desk.ma3 .xk2::before {
   height: 4px;
   background: linear-gradient(#8c8c8c 0 1px, transparent 1px 3px, #8c8c8c 3px 4px);
 }
-.desk[data-skin='b'] .fader {
+.desk.ma3 .fader {
   --fh: 120px;
   width: 56px;
 }
-.desk[data-skin='b'] .fader-scale {
+.desk.ma3 .fader-scale {
   left: -4px;
 }
-.desk[data-skin='b'] .fader-scale i {
+.desk.ma3 .fader-scale i {
   background: #333335;
 }
-.desk[data-skin='b'] .fader-scale i:first-child,
-.desk[data-skin='b'] .fader-scale i:nth-child(5),
-.desk[data-skin='b'] .fader-scale i:last-child {
+.desk.ma3 .fader-scale i:first-child,
+.desk.ma3 .fader-scale i:nth-child(5),
+.desk.ma3 .fader-scale i:last-child {
   background: #4c4c4f;
 }
-.desk[data-skin='b'] .fader input[type='range']::-webkit-slider-thumb {
+.desk.ma3 .fader input[type='range']::-webkit-slider-thumb {
   width: 40px;
   height: 26px;
   border-radius: 3px;
@@ -1834,7 +1687,7 @@ body {
     linear-gradient(#2a2a2d, #0f0f10);
   box-shadow: 0 0 0 1px #000, 0 4px 8px rgb(0 0 0 / 0.8), inset 0 1px 0 rgb(255 255 255 / 0.1);
 }
-.desk[data-skin='b'] .fader input[type='range']::-moz-range-thumb {
+.desk.ma3 .fader input[type='range']::-moz-range-thumb {
   width: 40px;
   height: 26px;
   border-radius: 3px;
@@ -1843,7 +1696,7 @@ body {
     linear-gradient(#2a2a2d, #0f0f10);
   box-shadow: 0 0 0 1px #000, 0 4px 8px rgb(0 0 0 / 0.8);
 }
-.range-rotate .desk[data-skin='b'] .fader input[type='range']::-webkit-slider-thumb {
+.range-rotate .desk.ma3 .fader input[type='range']::-webkit-slider-thumb {
   width: 26px;
   height: 40px;
   background:
@@ -1901,13 +1754,13 @@ body {
   height: 58px;
 }
 /* B: the three large playback keys of a grandMA3, side by side. */
-.desk[data-skin='b'] .master {
+.desk.ma3 .master {
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   width: 186px;
 }
-.desk[data-skin='b'] .master .key,
-.desk[data-skin='b'] .master .key-big {
+.desk.ma3 .master .key,
+.desk.ma3 .master .key-big {
   grid-column: auto;
   height: 56px;
   font-size: 12.5px;
@@ -1936,16 +1789,15 @@ body {
   .knob-cap { inset: 9px; }
   .execs { gap: 6px; padding: 0 2px; }
   .exec { width: 52px; }
-  .desk .key-bo { width: 52px; }
   .keys { gap: 8px; }
   .prog-keys { grid-template-columns: repeat(5, 45px); }
   .keypad { grid-template-columns: repeat(4, 34px); }
   .master { width: 104px; }
   .lcd { padding: 3px 4px; }
   .lcd .lcd-val { font-size: 10.5px; }
-  .desk[data-skin='b'] .exec { width: 60px; }
-  .desk[data-skin='b'] .knob { width: 56px; height: 56px; }
-  .desk[data-skin='b'] .master { width: 170px; }
+  .desk.ma3 .exec { width: 60px; }
+  .desk.ma3 .knob { width: 56px; height: 56px; }
+  .desk.ma3 .master { width: 170px; }
 }
 
 /* Smaller windows: the hardware in two rows, encoders and keys over executors and master. */
@@ -1963,8 +1815,8 @@ body {
   .keys { grid-area: keys; }
   .master { grid-area: master; width: 220px; grid-template-columns: 1fr 1fr 1.6fr; }
   .desk .master .key-big { grid-column: auto; height: 32px; }
-  .desk[data-skin='b'] .master { width: 200px; grid-template-columns: repeat(3, 1fr); }
-  .desk[data-skin='b'] .master .key { height: 52px; }
+  .desk.ma3 .master { width: 200px; grid-template-columns: repeat(3, 1fr); }
+  .desk.ma3 .master .key { height: 52px; }
   .desk {
     --ef-w: 74px;
     --ep-w: 60px;
@@ -1990,8 +1842,8 @@ body {
     padding-bottom: 12px;
   }
   .enc { gap: 6px; }
-  .desk[data-skin='b'] .exec { gap: 6px; }
-  .desk[data-skin='b'] .exec-keys .key { height: 24px; }
+  .desk.ma3 .exec { gap: 6px; }
+  .desk.ma3 .exec-keys .key { height: 24px; }
   .execs { align-self: start; }
   .knob { width: 52px; height: 52px; }
   .knob-cap { inset: 9px; }
@@ -2000,11 +1852,11 @@ body {
   .keys { gap: 8px; }
   .master { width: 116px; grid-template-columns: 1fr 1fr; }
   .desk .master .key-big { grid-column: 1 / -1; height: 58px; }
-  .desk[data-skin='b'] .master { width: 162px; grid-template-columns: repeat(3, 1fr); }
-  .desk[data-skin='b'] .master .key,
-  .desk[data-skin='b'] .master .key-big { grid-column: auto; height: 54px; }
-  .desk[data-skin='b'] .knob { width: 56px; height: 56px; }
-  .desk[data-skin='b'] .fader { --fh: 104px; }
+  .desk.ma3 .master { width: 162px; grid-template-columns: repeat(3, 1fr); }
+  .desk.ma3 .master .key,
+  .desk.ma3 .master .key-big { grid-column: auto; height: 54px; }
+  .desk.ma3 .knob { width: 56px; height: 56px; }
+  .desk.ma3 .fader { --fh: 104px; }
 }
 
 /* Tablet portrait: the sheet across the top, the pool and sequence under it; hardware in three rows. */
@@ -2039,11 +1891,8 @@ body {
   }
   .nav a {
     height: 24px;
-    padding: 0 8px 0 7px;
-    font-size: 11.5px;
-  }
-  [data-desk-skin='b'] .nav a {
     padding: 0 9px;
+    font-size: 11.5px;
   }
   .nav {
     gap: 6px;
@@ -2065,7 +1914,7 @@ body {
     background: var(--grain), linear-gradient(#111113, #0d0d0e);
     box-shadow: 0 1px 0 #000, 0 -1px 0 #000;
   }
-  .desk:not(.is-shut)[data-skin='b'] .desk-bar {
+  .desk.ma3:not(.is-shut) .desk-bar {
     background: var(--grain), linear-gradient(#131314, #0f0f10);
   }
   .cmd-field {
@@ -2159,13 +2008,8 @@ body {
     margin-left: -2px;
     padding: 0 2px;
   }
-  /* On our hardware the Grand Master is the fader beside the executors; on B it's only on screen. */
   .sgm {
-    display: none;
     width: 48px;
-  }
-  .desk[data-skin='b'] .sgm {
-    display: grid;
   }
 
   .encoders {
@@ -2179,14 +2023,14 @@ body {
     width: auto;
     min-width: 0;
   }
-  .desk[data-skin='b'] .enc-spacer {
+  .desk.ma3 .enc-spacer {
     display: block;
     flex: none;
     width: 48px;
   }
   /* Knobs shrink on the narrowest phones so five (and B's Grand Master) still fit under their fields. */
   .knob,
-  .desk[data-skin='b'] .knob {
+  .desk.ma3 .knob {
     width: min(54px, 100%);
     height: auto;
     aspect-ratio: 1 / 1;
@@ -2201,32 +2045,21 @@ body {
     min-width: 0;
     max-width: 72px;
   }
-  .gm-col {
-    flex: 1 1 0;
-    min-width: 0;
-    max-width: 72px;
-  }
-  .gm-col .exec {
-    width: 100%;
-  }
-  .desk .gm-col .key-bo {
-    width: 100%;
-  }
   .fader {
     --fh: 120px;
   }
-  .desk[data-skin='b'] .execs {
+  .desk.ma3 .execs {
     width: auto;
     padding: 4px;
   }
-  .desk[data-skin='b'] .exec {
+  .desk.ma3 .exec {
     flex: 1 1 0;
     width: auto;
   }
-  .desk[data-skin='b'] .exec-keys .key {
+  .desk.ma3 .exec-keys .key {
     height: 34px;
   }
-  .desk[data-skin='b'] .fader {
+  .desk.ma3 .fader {
     --fh: 128px;
   }
   .master {
@@ -2238,7 +2071,7 @@ body {
     grid-column: auto;
     height: 52px;
   }
-  .desk[data-skin='b'] .master {
+  .desk.ma3 .master {
     width: auto;
     grid-template-columns: repeat(3, 1fr);
   }
@@ -2264,16 +2097,13 @@ body {
 
 @supports not (aspect-ratio: 1 / 1) {
   .knob,
-  .desk[data-skin='b'] .knob {
+  .desk.ma3 .knob {
     width: 54px !important;
     height: 54px !important;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .key .led-bo.on {
-    animation: none;
-  }
   .desk-scroll {
     transition: none;
   }
