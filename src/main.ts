@@ -293,6 +293,8 @@ litEls.forEach((el) => litSeen.observe(el));
 /* ----------------------------------------------------------------- desk */
 
 const desk = new Desk();
+// On a phone the spots start at 35%: subtle accents over the panels' flood.
+if (touchMode) desk.spotDim = 35;
 const goboIcons = spotSprites[0].sprites.pool.map((c) => {
   const t = document.createElement('canvas');
   t.width = t.height = 44;
