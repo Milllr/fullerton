@@ -129,6 +129,11 @@ The credits list in `src/data/shows.ts` combines:
 - NewscastStudio set galleries credited "Lighting Design: James Downey / Fullerton Productions" (Sportsnet Studios 2021, Breakfast Television 2017, Hockey Central 2014, Sportsnet 360 and Sportsnet 2013)
 - His 2018 NewscastStudio interview and 2022 TV Technology article (Super Bowl XLIV, TED, Hockey Night in Canada, Gemini and Genie Awards, the 2011 Royal Wedding, two dozen plus Rogers studios)
 - The family photo archive, with years from the photo metadata (MMVAs 2012, ET Canada 2008 to 2014, TIFF 2007, events 2005 to 2009)
+- His own 2016 site, kept by the Wayback Machine (web.archive.org/web/2016*/fullertonproductions.ca*): its portfolio pages and their full size photos gave The Score, Sportsnet Studios 1 and 3, the Hockey Central studio photos, Gemini Awards 2008 (the year is on the set's screens), ET Canada New Year's Eve 2011 (its countdown rings in 2012), Global Ottawa, The Ron James Show and the Lord of the Rings exhibit, plus more MMVA, ET Canada and Sportsnet 360 photos. The originals are in `raw/archive-2016/`. The site stripped the photo metadata, so shows without a sourced year are undated.
+- His IMDb credits (user edited; approved by Miller as a source on 2026-10-22) for series with no photos: Fire Masters, Juno Opening Night Awards, Still Standing, The Whole Truths, A Russell Peters Christmas Special, History Bites, Design to Win, Style by Jury. The Ron James Show's years (2009 to 2010) come from there too.
+- The 2013 Canadian Screen Award nomination (photography in a variety or sketch comedy program, with Dave Fairfield, for the 2012 MMVAs), shown as a note on that credit and confirmed on Wikipedia's 1st Canadian Screen Awards page.
+
+New photos can be built without every original on hand: `python tools/build_assets.py --missing` builds only photos that aren't in `public/shows/` yet.
 
 Breakfast Television and Sportsnet Studios photos are by Arash Moallemi (credited in the footer and on each photo).
 

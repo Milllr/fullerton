@@ -80,6 +80,34 @@ RULES = {
             [0.04, 0.26, 1.0, 1.0, 0.03],     # the panel guests: outlines only, no faces or folds
         ],
     },
+    # Added 2026-10-22 with the photos from James's 2016 site.
+    'hockey-night-in-canada/arch': {
+        'rects': [
+            [0.24, 0.40, 0.84, 0.72, 0.05],   # players on the video wall under the arch
+        ],
+    },
+    'the-score/desk': {
+        'rects': [
+            [0.36, 0.36, 0.64, 0.56, 0.03],   # monitor content behind the desk
+            [0.0, 0.18, 0.32, 0.55, 0.02],    # LED pixel wall, left
+        ],
+    },
+    'gemini-awards/stage': {
+        'rects': [
+            [0.34, 0.0, 0.64, 0.42, 0.04],    # screen content
+            [0.66, 0.40, 1.0, 0.80, 0.03],    # Gemini graphic on the floor screen
+        ],
+    },
+    'et-canada-new-years-eve/countdown': {
+        'min_chain': 0.022,
+        'rects': [
+            [0.0, 0.70, 1.0, 1.0, 0.06],      # crowd
+            [0.30, 0.25, 0.75, 0.55, 0.025],  # countdown digits and snowflakes
+        ],
+    },
+    'lord-of-the-rings-exhibit/hall': {
+        'min_chain': 0.02,
+    },
     'events/gala-beams': {
         'min_chain': 0.026,
         'rects': [

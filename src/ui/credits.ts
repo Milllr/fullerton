@@ -28,10 +28,13 @@ export function renderCredits(root: HTMLElement, credits: Credit[]) {
     const rows = sorted()
       .map((c) => {
         const title = c.show ? `<a href="#/work/${c.show}">${esc(c.production)}</a>` : esc(c.production);
+        const note = c.note
+          ? `<span class="c-note">${c.note.source ? `<a href="${c.note.source.url}" target="_blank" rel="noopener">${esc(c.note.text)}</a>` : esc(c.note.text)}</span>`
+          : '';
         const src = c.source ? `<a class="src" href="${c.source.url}" target="_blank" rel="noopener">${esc(c.source.label)}</a>` : '';
         return `<tr>
           <td class="c-year">${esc(c.year)}</td>
-          <td class="c-prod">${title}</td>
+          <td class="c-prod">${title}${note}</td>
           <td class="c-net">${esc(c.network)}</td>
           <td class="c-src">${src}</td>
         </tr>`;
