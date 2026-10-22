@@ -328,6 +328,8 @@ export class Plate {
   release() {
     if (this.released) return;
     this.released = true;
+    // Never sized yet: nothing to give back.
+    if (!this.sized) return;
     for (const c of [this.sketchC, this.lightC, this.notesC]) {
       c.width = 0;
       c.height = 0;

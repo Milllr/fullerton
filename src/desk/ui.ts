@@ -170,7 +170,8 @@ export class DeskUI {
   private history: string[] = [];
   private hIdx = -1;
   private live: Live = { 1: { pan: 0, tilt: 30 }, 2: { pan: 0, tilt: 30 } };
-  private goboIcons: string[];
+  /** Gobo pictures for the Gobo pool, made the first time that pool is shown. */
+  private goboIcons: () => string[];
   private poolSlots = 0;
   private poolColCount = 0;
   private xlCues: [HTMLElement, HTMLElement] | null = null;
@@ -180,7 +181,7 @@ export class DeskUI {
   isOpen = false;
   onOpenChange: (open: boolean) => void = () => {};
 
-  constructor(root: HTMLElement, desk: Desk, goboIcons: string[], reduced: boolean) {
+  constructor(root: HTMLElement, desk: Desk, goboIcons: () => string[], reduced: boolean) {
     this.root = root;
     this.desk = desk;
     this.goboIcons = goboIcons;
@@ -1018,7 +1019,7 @@ export class DeskUI {
 
   private tileArt(p: Preset) {
     if (p.type === 4) return `<i class="tile-swatch" style="background:${rgbCss(kelvinToRgb(p.values!.cct!))}"></i>`;
-    if (p.type === 3) return `<img class="tile-gobo" src="${this.goboIcons[p.values!.gobo!]}" alt="" />`;
+    if (p.type === 3) return `<img class="tile-gobo" src="${this.goboIcons()[p.values!.gobo!]}" alt="" />`;
     if (p.type === 1) return `<i class="tile-level"><b style="width:${p.values!.dim}%"></b></i>`;
     return '';
   }

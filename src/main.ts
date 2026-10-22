@@ -303,17 +303,24 @@ litEls.forEach((el) => litSeen.observe(el));
 /* ----------------------------------------------------------------- desk */
 
 const desk = new Desk();
-const goboIcons = spotSprites[0].sprites.pool.map((c) => {
-  const t = document.createElement('canvas');
-  t.width = t.height = 44;
-  const x = t.getContext('2d')!;
-  x.fillStyle = '#000';
-  x.beginPath();
-  x.arc(22, 22, 22, 0, TAU);
-  x.fill();
-  x.drawImage(c, 0, 0, 44, 44);
-  return t.toDataURL();
-});
+/*
+  The Gobo pool's pictures. Reading the gobo masks back into small PNGs stalls
+  the GPU (most of a second on a phone), so it waits until someone opens the
+  Gobo pool rather than holding up the page's first frames.
+*/
+let goboIconUrls: string[] | null = null;
+const goboIcons = () =>
+  (goboIconUrls ??= spotSprites[0].sprites.pool.map((c) => {
+    const t = document.createElement('canvas');
+    t.width = t.height = 44;
+    const x = t.getContext('2d')!;
+    x.fillStyle = '#000';
+    x.beginPath();
+    x.arc(22, 22, 22, 0, TAU);
+    x.fill();
+    x.drawImage(c, 0, 0, 44, 44);
+    return t.toDataURL();
+  }));
 const deskUI = new DeskUI($('#desk'), desk, goboIcons, reduced);
 deskUI.onOpenChange = () => requestAnimationFrame(() => measureDesk());
 
