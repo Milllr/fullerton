@@ -260,12 +260,25 @@ const near = observer(
       const p = plates.find((pl) => pl.el === e.target);
       if (!p) continue;
       p.near = e.isIntersecting;
-      // Plates far off screen give their canvases back; they're redrawn on the way in.
       if (p.near) p.load();
-      else p.release();
     }
   },
   { rootMargin: '900px 0px' },
+);
+/*
+  Plates well out of reach give their canvases back, and are redrawn on the
+  way in (above). The gap between the two margins keeps a plate from being
+  freed and redrawn as someone scrolls back and forth. The hero keeps its
+  canvases: it's where people come back to, and it's the most work to redraw.
+*/
+const far = observer(
+  (entries) => {
+    for (const e of entries) {
+      const p = plates.find((pl) => pl.el === e.target);
+      if (p && p !== heroPlate && !e.isIntersecting) p.release();
+    }
+  },
+  { rootMargin: '2400px 0px' },
 );
 const seen = observer(
   (entries) => {
@@ -280,6 +293,7 @@ const seen = observer(
 );
 plates.forEach((p) => {
   near.observe(p.el);
+  far.observe(p.el);
   seen.observe(p.el);
 });
 // Plates resize their canvases when their own size changes (fonts, layout), not on every window resize.
