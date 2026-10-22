@@ -29,11 +29,17 @@ const TAU = Math.PI * 2;
 
 const meta = (s: Show) => [s.network, s.year].filter(Boolean).join(', ');
 
-function plateMarkup(s: Show, cls: string, eager = false) {
+/**
+ * A show's plate. The browser picks the photo's size from srcset (each photo
+ * comes at 1000 and 2000 pixels wide), so it's fetched once at the right size.
+ */
+function plateMarkup(s: Show, cls: string, eager = false, sizes = '(max-width: 720px) 92vw, 62vw') {
   const im = s.images.find((i) => i.id === s.key)!;
-  return `<a class="plate ${cls}" href="#/work/${s.slug}" data-slug="${s.slug}" aria-label="${esc(s.title)}, ${esc(meta(s))}. Open the photos.">
+  const m = imageUrl(s.slug, s.key, 'm');
+  const srcset = im.w > 1000 ? `${m} 1000w, ${imageUrl(s.slug, s.key)} ${Math.min(2000, im.w)}w` : `${m} ${im.w}w`;
+  return `<a class="plate ${cls}" href="#/work/${s.slug}" data-slug="${s.slug}" aria-label="${esc(s.title)}, ${esc(meta(s))}. View ${s.images.length} photos.">
     <div class="plate-stage" style="--ar:${im.w} / ${im.h}">
-      <img alt="${esc(s.title)}" ${eager ? '' : 'loading="lazy"'} decoding="async" width="${im.w}" height="${im.h}" src="${imageUrl(s.slug, s.key, 'm')}" />
+      <img alt="${esc(s.title)}" ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async" width="${im.w}" height="${im.h}" sizes="${sizes}" srcset="${srcset}" src="${m}" />
     </div>
   </a>`;
 }
@@ -41,7 +47,7 @@ function plateMarkup(s: Show, cls: string, eager = false) {
 // The hero's title block, a strip along the bottom of its sheet with the
 // same fields as every plate's (and still a link to the show).
 const heroDate = hero.year.match(/\d{4}(?!.*\d{4})/)?.[0] ?? '';
-$('#hero-plate').innerHTML = `${plateMarkup(hero, 'plate-hero', true)}
+$('#hero-plate').innerHTML = `${plateMarkup(hero, 'plate-hero', true, '100vw')}
   <div class="hero-cap tblock">
     <div class="tb-main">
       <p class="tb-org">Fullerton Productions</p>
@@ -62,8 +68,11 @@ $('#plates').innerHTML = shows
     (s, i) => `<article class="show show-${i + 1}" data-slug="${s.slug}">
       ${plateMarkup(s, '')}
       <div class="show-cap">
-        <h3 class="show-title"><a href="#/work/${s.slug}" tabindex="-1">${esc(s.title)}</a></h3>
-        <p class="show-meta">${esc(meta(s))}</p>
+        <div>
+          <h3 class="show-title"><a href="#/work/${s.slug}" tabindex="-1">${esc(s.title)}</a></h3>
+          <p class="show-meta">${esc(meta(s))}</p>
+        </div>
+        <a class="show-open" href="#/work/${s.slug}" tabindex="-1" aria-hidden="true">View ${s.images.length} photos<span class="arrow">→</span></a>
       </div>
     </article>`,
   )
@@ -249,10 +258,11 @@ const near = observer(
   (entries) => {
     for (const e of entries) {
       const p = plates.find((pl) => pl.el === e.target);
-      if (p && e.isIntersecting) {
-        p.near = true;
-        p.load();
-      }
+      if (!p) continue;
+      p.near = e.isIntersecting;
+      // Plates far off screen give their canvases back; they're redrawn on the way in.
+      if (p.near) p.load();
+      else p.release();
     }
   },
   { rootMargin: '900px 0px' },
@@ -293,8 +303,6 @@ litEls.forEach((el) => litSeen.observe(el));
 /* ----------------------------------------------------------------- desk */
 
 const desk = new Desk();
-// On a phone the spots start at 35%: subtle accents over the panels' flood.
-if (touchMode) desk.spotDim = 35;
 const goboIcons = spotSprites[0].sprites.pool.map((c) => {
   const t = document.createElement('canvas');
   t.width = t.height = 44;
@@ -390,8 +398,6 @@ function layout() {
 /* ---------------------------------------------------------------- input */
 
 let pointer: { x: number; y: number } | null = null;
-let lastInput = performance.now();
-const IDLE_AFTER = 6000;
 /** A plate the beams are briefly committed to: keyboard focus, or a click that opens it. */
 let momentary: { plate: Plate; fraction: number } | null = null;
 /** On a touch screen a finger on the page pulls both spots onto it, until a moment after it lifts. */
@@ -400,19 +406,9 @@ let fingerDown = false;
 let fingerUp = -1e9;
 const FINGER_HOLD = 1200;
 
-function dropAutoSweep() {
-  if (desk.exec[3].auto) {
-    desk.exec[3].level = 0;
-    desk.exec[3].auto = false;
-    desk.emit();
-  }
-}
-
 function onInput(x: number, y: number) {
   pointer = { x, y };
-  lastInput = performance.now();
   if (momentary && momentary.fraction < 0.9) momentary = null;
-  dropAutoSweep();
 }
 
 const overControls = (t: EventTarget | null) => !!(t as Element)?.closest?.('#desk, .sheet');
@@ -420,17 +416,13 @@ const overControls = (t: EventTarget | null) => !!(t as Element)?.closest?.('#de
 addEventListener('pointermove', (e) => {
   if (e.pointerType === 'touch') return;
   finishOpening();
-  if (overControls(e.target)) {
-    // Working the desk shouldn't drag the beams over to it.
-    lastInput = performance.now();
-    return;
-  }
+  // Working the desk shouldn't drag the beams over to it.
+  if (overControls(e.target)) return;
   onInput(e.clientX, e.clientY);
 }, { passive: true });
 
 function onTouch(e: TouchEvent) {
   const t = e.touches[0];
-  lastInput = performance.now();
   if (!t || overControls(e.target)) return;
   if (!touchMode) return onInput(t.clientX, t.clientY);
   finger = { x: t.clientX, y: t.clientY };
@@ -451,12 +443,7 @@ const onLift = (e: TouchEvent) => {
 addEventListener('touchend', onLift, { passive: true });
 addEventListener('touchcancel', onLift, { passive: true });
 
-addEventListener('keydown', () => {
-  finishOpening();
-  // Typing at the desk counts as being here; the idle sweep waits.
-  lastInput = performance.now();
-});
-addEventListener('pointerdown', () => (lastInput = performance.now()), { passive: true });
+addEventListener('keydown', () => finishOpening());
 
 // Keyboard focus on a plate swings the beams onto it.
 document.addEventListener('focusin', (e) => {
@@ -464,7 +451,6 @@ document.addEventListener('focusin', (e) => {
   const p = el && plates.find((pl) => pl.el === el);
   if (p) {
     momentary = { plate: p, fraction: 0.3 };
-    lastInput = performance.now();
   }
 });
 document.addEventListener('focusout', (e) => {
@@ -514,7 +500,7 @@ document.addEventListener('click', (e) => {
   };
   if (p && !reduced) {
     momentary = { plate: p, fraction: 0.95 };
-    setTimeout(openIt, 520);
+    setTimeout(openIt, 340);
   } else openIt();
 });
 
@@ -548,19 +534,6 @@ desk.onReset = (id) => {
   if (l) l.resetUntil = performance.now() + 1500;
 };
 
-let fillRaised = false;
-/** On a touch screen the panels come up by themselves once the rig is lit. */
-function autoFill() {
-  if (!touchMode || fillRaised) return;
-  fillRaised = true;
-  const e = desk.exec[4];
-  if (e.level === 0 && !e.flash) {
-    e.level = 0.72;
-    e.auto = true;
-    desk.emit();
-  }
-}
-
 function finishOpening() {
   if (!opening) return;
   opening = false;
@@ -568,7 +541,6 @@ function finishOpening() {
   [...spotFx, ...panelFx].forEach((f) => (f.progress = 1));
   heroPlate.renderSketch(1);
   lamps.forEach((l) => (l.strikeAt = -1e9));
-  autoFill();
 }
 
 function runOpening(now: number) {
@@ -710,7 +682,8 @@ function step(now: number) {
   // The panels are LED: no lamp to strike, but they fade rather than pop.
   panels.forEach((pr, j) => {
     const id = PANELS[j];
-    const want = sheet.isOpen || opening ? 0 : desk.intensity(id);
+    // Fill is up from the start: in the opening cue the panels come up as their fixtures draw in.
+    const want = sheet.isOpen ? 0 : desk.intensity(id) * (opening ? panelFx[j].progress : 1);
     const rate = want > pr.intensity ? 2.2 : 9;
     pr.intensity += (want - pr.intensity) * Math.min(1, dt * rate);
     if (Math.abs(want - pr.intensity) < 0.001) pr.intensity = want;
@@ -719,15 +692,11 @@ function step(now: number) {
 
   // Where the heads should point.
   const pos = SPOTS.map((id) => desk.position(id));
-  const allFollow = pos.every((p) => p.kind === 'follow');
 
   // Executor 3: a pan and tilt sweep phaser, mirrored so the beams cross. It
-  // comes up by itself on a desktop when nobody's touching anything.
-  if (!touchMode && !opening && allFollow && !momentary && now - lastInput > IDLE_AFTER && !sheet.isOpen && !reduced && desk.exec[3].level === 0 && !desk.exec[3].flash) {
-    desk.exec[3].level = 0.55;
-    desk.exec[3].auto = true;
-    desk.emit();
-  }
+  // only runs when someone raises it at the desk; it no longer comes up by
+  // itself when the page is idle, since it swept the beams across text people
+  // were reading.
   sweepShown += (desk.sweepSize() - sweepShown) * Math.min(1, dt * 1.5);
   if (sweepShown > 0.005 && !reduced) phaserClock += dt;
   if (!reduced) roamClock += dt;
@@ -963,7 +932,6 @@ function start() {
   spots.forEach((r) => r.aimNow(wm.x, wm.y));
   if (reduced) {
     root.classList.add('cue-done');
-    autoFill();
   } else {
     opening = true;
     root.classList.add('cue-run');

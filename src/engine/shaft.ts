@@ -268,7 +268,9 @@ export class Shaft {
   maxScale = 1;
 
   resize(vw: number, vh: number, lowPower: boolean) {
-    this.scale = Math.min(this.maxScale, (devicePixelRatio || 1) * (lowPower ? 0.35 : 0.5));
+    // Haze is soft: it never needs more than three quarters of a CSS pixel per
+    // pixel, and that 5 octave noise runs for every one of them every frame.
+    this.scale = Math.min(this.maxScale, 0.75, (devicePixelRatio || 1) * (lowPower ? 0.35 : 0.5));
     this.canvas.width = Math.max(1, Math.round(vw * this.scale));
     this.canvas.height = Math.max(1, Math.round(vh * this.scale));
     if (!this.lost) this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);

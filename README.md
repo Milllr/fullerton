@@ -34,7 +34,7 @@ Node 20 or newer.
 
 ## Contact details
 
-`src/data/site.ts` holds James's email and phone, confirmed by Miller. They show in the Contact section as outlined type that lights up under the beams; the phone shows spaced (no dashes) and dials as `+14168821379`. If a field is ever emptied it's hidden on the built site (and `npm run dev` shows a reminder).
+`src/data/site.ts` holds James's email and phone, confirmed by Miller. They show in the Contact section as large type that brightens under the beams; the phone shows spaced (no dashes) and dials as `+14168821379`. If a field is ever emptied it's hidden on the built site (and `npm run dev` shows a reminder).
 
 ## Adding or changing photos
 
@@ -80,13 +80,13 @@ The MA logo that sits in grandMA3 title fields is replaced by a neutral glyph; n
 - **Fixtures**: 1 Spot L and 2 Spot R are the moving heads, 3 Panel L and 4 Panel R the soft panels (Dimmer and Color Temp only), 5 the hazer. The spots are selected to begin with, so the encoders drive both.
 - **Encoders**: drag, scroll or arrow keys; press to toggle Fine. Each sits under its field on screen.
 - **Programmer**: values hold until Clear. Clear works in three stages like the desk (deselect, deactivate, release); hold it for a full clear. Oops undoes, Highlight brings the head to open white, Blind hides the programmer from the output (the page gets a red frame), Store saves the programmer as a new cue.
-- **Executors**: 201 runs Sequence 1, where each cue is a show and both spots cross on it (Go+, Go-, Pause, fade times). 202 is the hazer master, 203 a pan and tilt sweep phaser that mirrors the two spots so they cross, 204 the Fill master for the panels. On a desktop Sweep comes up by itself after six idle seconds and drops when you move; on a touch screen Fill comes up by itself to 72% once the rig is lit. The Grand Master sits over everything. Faders are motorised: commands move them.
+- **Executors**: 201 runs Sequence 1, where each cue is a show and both spots cross on it (Go+, Go-, Pause, fade times). 202 is the hazer master, 203 a pan and tilt sweep phaser that mirrors the two spots so they cross, 204 the Fill master for the panels. Fill starts at 72% on every screen, so the shows read as lit sets from the first frame (it comes up with the panels as they draw in during the opening). Sweep only runs when someone raises it. The Grand Master sits over everything. Faders are motorised: commands move them.
 - **Preset pools**: 1 Dimmer, 2 Position (one per show; with both spots selected they cross on it), 3 Gobo, 4 Color, 5 Beam, 6 Focus.
 - **Command line**: real grandMA syntax, keywords can be shortened. `Fixture 1 Thru 2 At 75`, `Fixture 3 + 4 At 60`, `Fi 5 At 80`, `Attribute "Zoom" At 30`, `Preset 4.2`, `Go`, `Go-`, `Goto Cue 3`, `Pause`, `Off`, `Executor 203 At 60` (or `Executor 3 At 60`), `Fixture 1 Thru 4 - 3`, `Store Cue 12 "My look"`, `Clear`, `ClearAll`, `Oops`, `Highlight`, `Blind`, `Black`, `Help`. The keys type into it and Please runs it.
 
 On a phone the desk is one column that scrolls: fixture sheet, encoder bar, command line, encoders, executors, playback keys, pool, sequence sheet, keypad. The command line stays in view while the rest scrolls.
 
-With nothing running and nothing programmed, both spots converge on the cursor and the panels stay off until Fill is raised. On a touch screen the panels come up as a fill, so whichever show is in the middle of the screen is lit as you scroll; the spots cross on that show and roam slowly over it. A finger on the page pulls both spots onto it, and they go back to roaming a moment after it lifts. Keyboard focus on a show swings the beams onto it; clicking a show opens them wide on it and then opens every photo. `prefers-reduced-motion` turns off the opening cue, sweep, roam, haze drift, strobe and transitions.
+With nothing running and nothing programmed, the panels flood the page at 72% and both spots sit at 15% as soft accents: on a desktop they converge on the cursor. On a touch screen whichever show is in the middle of the screen is lit as you scroll; the spots cross on that show and roam slowly over it. A finger on the page pulls both spots onto it, and they go back to roaming a moment after it lifts. Keyboard focus on a show swings the beams onto it; clicking a show opens them wide on it and then opens every photo. `prefers-reduced-motion` turns off the opening cue, sweep, roam, haze drift, strobe and transitions.
 
 ## How the light behaves
 

@@ -180,7 +180,8 @@ export class Desk {
     1: { level: 1, cue: null as number | null, paused: false },
     2: { level: 0.5, flash: false },
     3: { level: 0, flash: false, auto: false },
-    4: { level: 0, flash: false, auto: false },
+    // The panels' Fill is up from the start, on every screen, so the shows read as lit sets.
+    4: { level: 0.72, flash: false, auto: false },
   };
   cues: Cue[] = allShows.map((s, i) => ({ n: i + 1, name: s.title, fade: 3, slug: s.slug }));
   private history: Snapshot[] = [];
@@ -189,9 +190,10 @@ export class Desk {
   live: Record<number, { pan: number; tilt: number }> = { 1: { pan: 0, tilt: 30 }, 2: { pan: 0, tilt: 30 } };
   /**
    * The spots' resting dimmer level. A show file's default, not a programmer
-   * value: phones start the spots low so the panels' flood carries the page.
+   * value: the panels' flood carries the page and the spots are soft accents
+   * at 15% on every screen (Miller, 2026-10-22).
    */
-  spotDim = ATTRS.dim.def;
+  spotDim = 15;
   /** Called when the sequence moves to a cue, so the page can follow it. */
   onCue: (cue: Cue | null) => void = () => {};
   onReset: (id: number) => void = () => {};

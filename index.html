@@ -15,6 +15,15 @@
     <meta property="og:image" content="https://fullertonproductions.ca/og.jpg" />
     <meta property="og:url" content="https://fullertonproductions.ca/" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <!-- The hero photo is the first thing anyone sees; start fetching it before the script runs. Keep in step with `hero` in src/data/shows.ts. -->
+    <link
+      rel="preload"
+      as="image"
+      href="/shows/sportsnet-studios/studio-31-m.webp"
+      imagesrcset="/shows/sportsnet-studios/studio-31-m.webp 1000w, /shows/sportsnet-studios/studio-31.webp 1600w"
+      imagesizes="100vw"
+      fetchpriority="high"
+    />
     <script>
       (function (d) {
         d.classList.replace('no-js', 'js');
