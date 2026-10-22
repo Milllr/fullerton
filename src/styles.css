@@ -1036,8 +1036,9 @@ a {
 .cue-run:not(.cue-done) .desk {
   animation: rise 0.8s var(--ease) 2.4s both;
 }
+/* The name comes up with the truss rather than after it: it's the first thing a visitor should see. */
 .cue-run:not(.cue-done) .wordmark {
-  animation: rise 1.2s var(--ease) 0.9s both;
+  animation: rise 1s var(--ease) 0.15s both;
 }
 
 @keyframes truss-in {
