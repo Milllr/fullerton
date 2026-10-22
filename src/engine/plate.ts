@@ -2,7 +2,8 @@ import type { Pool } from './rig';
 import { SPRITE } from './gobos';
 import { setVar } from './css';
 import { CAD, drawSheet, sheetInset, type SheetInfo } from './drafting';
-import { imageUrl, sketchUrl, type ShowImage } from '../data/shows';
+import { sketchUrl, type ShowImage } from '../data/shows';
+import { canvasDpr } from './dpr';
 
 export interface SketchData {
   w: number;
@@ -278,13 +279,18 @@ export class Plate {
   }
 
   async load() {
-    if (this.loading) return;
+    if (this.loading) {
+      this.wake();
+      return;
+    }
     this.loading = true;
-    const want = this.stage.clientWidth * Math.min(2, devicePixelRatio || 1) > 1150 ? 'full' : 'm';
-    const src = imageUrl(this.slug, this.image.id, want);
-    // The page decides when to load, not the browser's lazy loading: Firefox
-    // won't fetch a lazy image just because decode() was called on it.
+    // The page decides when to load, not the browser's lazy loading. The
+    // browser picks the size from the image's srcset, so the photo is only
+    // ever fetched once. Setting srcset again makes every browser start the
+    // fetch now (Firefox won't fetch a lazy image just because decode() was
+    // called on it).
     this.img.loading = 'eager';
+    if (!this.img.complete && this.img.srcset) this.img.srcset = this.img.srcset;
     const ready = () => {
       if (this.photoReady || !this.img.naturalWidth) return;
       this.photoReady = true;
@@ -292,7 +298,6 @@ export class Plate {
       this.buildThumb();
     };
     this.img.addEventListener('load', ready);
-    if (!this.img.src.endsWith(src)) this.img.src = src;
     if (this.img.complete) ready();
     this.img.decode().then(ready, () => {});
     // The sketch doesn't wait for the photo.
@@ -303,6 +308,7 @@ export class Plate {
         .map((s, i) => [Math.hypot(s[2] - s[0], s[3] - s[1]), i])
         .sort((a, b) => b[0] - a[0])
         .map((a) => a[1]);
+      this.released = false;
       this.resize(true);
     } catch {
       // Try again the next time the plate comes near.
@@ -310,13 +316,45 @@ export class Plate {
     }
   }
 
+  /** True while the canvases have been given back (the plate is far off screen). */
+  private released = false;
+
+  /**
+   * Give back the canvases' memory while the plate is far off screen. Each
+   * plate holds three or four page-sized canvases; keeping all of them for
+   * every show is what made phones and laptops struggle. They're redrawn
+   * from the sketch data when the plate comes near again.
+   */
+  release() {
+    if (this.released) return;
+    this.released = true;
+    // Never sized yet: nothing to give back.
+    if (!this.sized) return;
+    for (const c of [this.sketchC, this.lightC, this.notesC]) {
+      c.width = 0;
+      c.height = 0;
+    }
+    this.brightC = null;
+    this.prevBox = null;
+    this.lastSig = '';
+    this.sized = '';
+  }
+
+  /** Redraw the canvases after release(), once the plate is near again. */
+  wake() {
+    if (!this.released || !this.data) return;
+    this.released = false;
+    this.resize(true);
+  }
+
   private sized = '';
 
   /** Size the canvases to the plate. Does nothing if the plate's size hasn't changed, unless forced. */
   resize(force = false) {
+    if (this.released) return;
     const W = this.stage.clientWidth, H = this.stage.clientHeight;
     if (!W || !H) return;
-    const dpr = Math.min(2, devicePixelRatio || 1);
+    const dpr = canvasDpr();
     const key = `${W}x${H}@${dpr}`;
     if (key === this.sized && !force) return;
     this.sized = key;

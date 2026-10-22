@@ -12,6 +12,12 @@ export interface Source {
   url: string;
 }
 
+/** A line under a credit, like an award nomination, with where it's confirmed. */
+export interface Note {
+  text: string;
+  source?: Source;
+}
+
 export interface Show {
   slug: string;
   title: string;
@@ -25,6 +31,7 @@ export interface Show {
   key: string;
   images: ShowImage[];
   source?: Source;
+  note?: Note;
 }
 
 export type Kind = 'Studio' | 'Live broadcast' | 'Awards' | 'Festival' | 'Event' | 'Series';
@@ -37,6 +44,7 @@ export interface Credit {
   kind: Kind;
   show?: string;
   source?: Source;
+  note?: Note;
 }
 
 const A = assets as Record<string, ShowImage[]>;
@@ -45,6 +53,21 @@ const ncs = (path: string): Source => ({
   label: 'NewscastStudio',
   url: `https://www.newscaststudio.com/setstudio/${path}/`,
 });
+
+/** A page of James's own site as it was in 2016, kept by the Wayback Machine. */
+const archived = (page: string): Source => ({
+  // Lower case so the sheet reads "See it on his 2016 site"; the credits list capitalises it.
+  label: 'his 2016 site',
+  url: `https://web.archive.org/web/2016/http://fullertonproductions.ca/${page}`,
+});
+
+/** His IMDb credits (user edited; approved as a source by Miller, 2026-10-22). */
+const imdb: Source = { label: 'IMDb', url: 'https://www.imdb.com/name/nm2333234/' };
+
+const tvTech: Source = {
+  label: 'TV Technology',
+  url: 'https://www.tvtechnology.com/equipment/designing-tomorrows-tv-studio-from-the-ground-up-with-arri-lighting',
+};
 
 /** The hero plate. Also the first cue. */
 export const hero: Show = {
@@ -70,6 +93,7 @@ export const shows: Show[] = [
     kind: 'Live broadcast',
     key: 'nfl-on-cbs',
     images: A['super-bowl-xliv'],
+    source: archived('cbs-superbowl-xliv'),
   },
   {
     slug: 'mmvas',
@@ -80,17 +104,56 @@ export const shows: Show[] = [
     kind: 'Awards',
     key: 'queen-street',
     images: A['mmvas'],
+    source: archived('much-music-video-awards'),
+    note: {
+      text: 'Canadian Screen Award nominee, 2013',
+      source: { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/1st_Canadian_Screen_Awards' },
+    },
+  },
+  {
+    slug: 'hockey-night-in-canada',
+    title: 'Hockey Central and Hockey Night in Canada studio',
+    network: 'Sportsnet',
+    year: '2014',
+    sortYear: 2014,
+    kind: 'Studio',
+    key: 'arch',
+    images: A['hockey-night-in-canada'],
+    source: ncs('hockey-central'),
   },
   {
     slug: 'breakfast-television',
     title: 'Breakfast Television',
     network: 'City',
-    year: '2017',
+    year: '2017 to 2025',
     sortYear: 2017,
     kind: 'Studio',
     key: 'platform',
     images: A['breakfast-television'],
     source: ncs('breakfast-television'),
+  },
+  {
+    slug: 'the-score',
+    title: 'The Score',
+    network: 'The Score Television Network',
+    year: '',
+    sortYear: 0,
+    kind: 'Studio',
+    key: 'desk',
+    images: A['the-score'],
+    source: archived('the-score'),
+  },
+  {
+    slug: 'gemini-awards',
+    title: 'Gemini Awards',
+    network: 'Academy of Canadian Cinema and Television',
+    // The year is on the set's own screens: "The Gemini Awards 08".
+    year: '2008',
+    sortYear: 2008,
+    kind: 'Awards',
+    key: 'stage',
+    images: A['gemini-awards'],
+    source: archived('gemini-awards'),
   },
   {
     slug: 'the-agenda',
@@ -111,6 +174,18 @@ export const shows: Show[] = [
     kind: 'Series',
     key: 'casa-loma',
     images: A['et-canada'],
+    source: archived('entertainment-tonight-canada'),
+  },
+  {
+    slug: 'the-ron-james-show',
+    title: 'The Ron James Show',
+    network: 'CBC',
+    year: '2009 to 2010',
+    sortYear: 2009,
+    kind: 'Series',
+    key: 'set',
+    images: A['the-ron-james-show'],
+    source: archived('the-ron-james-show'),
   },
   {
     slug: 'sportsnet-360',
@@ -124,6 +199,52 @@ export const shows: Show[] = [
     source: ncs('sportsnet-360'),
   },
   {
+    slug: 'sportsnet-studio-1',
+    title: 'Sportsnet Studio 1',
+    network: 'Sportsnet',
+    year: '2013',
+    sortYear: 2013,
+    kind: 'Studio',
+    key: 'desk',
+    images: A['sportsnet-studio-1'],
+    // The set NewscastStudio lists as Sportsnet, 2013.
+    source: ncs('sportsnet'),
+  },
+  {
+    slug: 'sportsnet-studio-3',
+    title: 'Sportsnet Studio 3',
+    network: 'Sportsnet',
+    year: '',
+    sortYear: 0,
+    kind: 'Studio',
+    key: 'desk',
+    images: A['sportsnet-studio-3'],
+    source: archived('sportsnet-studio-3'),
+  },
+  {
+    slug: 'et-canada-new-years-eve',
+    title: "ET Canada New Year's Eve",
+    network: 'Global',
+    // The countdown on the set rings in 2012: the show went out December 31, 2011.
+    year: '2011',
+    sortYear: 2011,
+    kind: 'Live broadcast',
+    key: 'countdown',
+    images: A['et-canada-new-years-eve'],
+    source: archived('et-canada-new-years-eve'),
+  },
+  {
+    slug: 'global-ottawa-studio',
+    title: 'Global Ottawa studio',
+    network: 'Global',
+    year: '',
+    sortYear: 0,
+    kind: 'Studio',
+    key: 'chroma',
+    images: A['global-ottawa-studio'],
+    source: archived('global-ottawa-studio'),
+  },
+  {
     slug: 'tiff',
     title: 'TIFF press conferences',
     network: 'Toronto International Film Festival',
@@ -132,6 +253,17 @@ export const shows: Show[] = [
     kind: 'Festival',
     key: 'panel',
     images: A['tiff'],
+  },
+  {
+    slug: 'lord-of-the-rings-exhibit',
+    title: 'Lord of the Rings exhibit',
+    network: '',
+    year: '',
+    sortYear: 0,
+    kind: 'Event',
+    key: 'hall',
+    images: A['lord-of-the-rings-exhibit'],
+    source: archived('lord-of-the-rings-exhibit'),
   },
   {
     slug: 'events',
@@ -155,41 +287,23 @@ const fromShow = (s: Show, production = s.title): Credit => ({
   kind: s.kind,
   show: s.slug,
   source: s.source,
+  note: s.note,
 });
 
 /**
  * Every credit. Shows with photos link to their plate; the rest come from
- * published sources (NewscastStudio set credits, his 2018 NewscastStudio
- * interview, and his 2022 TV Technology article).
+ * published sources (his 2018 NewscastStudio interview, his 2022 TV
+ * Technology article) and his IMDb credits.
  */
 export const credits: Credit[] = [
   ...allShows.map((s) => fromShow(s)),
-  {
-    year: '2014',
-    sortYear: 2014,
-    production: 'Hockey Central and Hockey Night in Canada studio',
-    network: 'Sportsnet',
-    kind: 'Studio',
-    source: ncs('hockey-central'),
-  },
-  {
-    year: '2013',
-    sortYear: 2013,
-    production: 'Sportsnet studio',
-    network: 'Sportsnet',
-    kind: 'Studio',
-    source: ncs('sportsnet'),
-  },
   {
     year: '2011',
     sortYear: 2011,
     production: 'The Royal Wedding',
     network: 'Broadcast coverage',
     kind: 'Live broadcast',
-    source: {
-      label: 'TV Technology',
-      url: 'https://www.tvtechnology.com/equipment/designing-tomorrows-tv-studio-from-the-ground-up-with-arri-lighting',
-    },
+    source: tvTech,
   },
   {
     year: '',
@@ -205,24 +319,10 @@ export const credits: Credit[] = [
   {
     year: '',
     sortYear: 0,
-    production: 'Gemini Awards',
-    network: 'Academy of Canadian Cinema and Television',
-    kind: 'Awards',
-    source: {
-      label: 'TV Technology',
-      url: 'https://www.tvtechnology.com/equipment/designing-tomorrows-tv-studio-from-the-ground-up-with-arri-lighting',
-    },
-  },
-  {
-    year: '',
-    sortYear: 0,
     production: 'Genie Awards',
     network: 'Academy of Canadian Cinema and Television',
     kind: 'Awards',
-    source: {
-      label: 'TV Technology',
-      url: 'https://www.tvtechnology.com/equipment/designing-tomorrows-tv-studio-from-the-ground-up-with-arri-lighting',
-    },
+    source: tvTech,
   },
   {
     year: '',
@@ -246,6 +346,15 @@ export const credits: Credit[] = [
       url: 'https://www.newscaststudio.com/2022/04/04/sportsnet-arri-lighting-case-study/',
     },
   },
+  // From IMDb (approved as a source by Miller, 2026-10-22).
+  { year: '2019 to 2021', sortYear: 2019, production: 'Fire Masters', network: 'Food Network Canada', kind: 'Series', source: imdb },
+  { year: '2021', sortYear: 2021, production: 'Juno Opening Night Awards', network: 'CARAS', kind: 'Awards', source: imdb },
+  { year: '2017', sortYear: 2017, production: 'Still Standing', network: 'CBC', kind: 'Series', source: imdb },
+  { year: '2016', sortYear: 2016, production: 'The Whole Truths', network: '', kind: 'Series', source: imdb },
+  { year: '2011', sortYear: 2011, production: 'A Russell Peters Christmas Special', network: 'CTV', kind: 'Series', source: imdb },
+  { year: '2007 to 2008', sortYear: 2007, production: 'History Bites', network: 'History Television', kind: 'Series', source: imdb },
+  { year: '2005', sortYear: 2005, production: 'Design to Win', network: '', kind: 'Series', source: imdb },
+  { year: '2004', sortYear: 2004, production: 'Style by Jury', network: 'W Network', kind: 'Series', source: imdb },
 ];
 
 export const imageUrl = (slug: string, id: string, size: 'full' | 'm' = 'full') =>

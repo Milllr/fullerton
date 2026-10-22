@@ -6,7 +6,7 @@
     <title>Fullerton Productions, James Downey, Lighting Designer</title>
     <meta
       name="description"
-      content="Fullerton Productions is the Toronto lighting design company of James Downey: Sportsnet Studios, Breakfast Television, Super Bowl XLIV, the MuchMusic Video Awards and more."
+      content="Fullerton Productions is the Toronto lighting design company of James Downey: Sportsnet Studios, Hockey Night in Canada, Breakfast Television, Super Bowl XLIV, the MuchMusic Video Awards, the Gemini Awards, ET Canada and more."
     />
     <meta name="theme-color" content="#030303" />
     <meta property="og:title" content="Fullerton Productions" />
@@ -15,6 +15,15 @@
     <meta property="og:image" content="https://fullertonproductions.ca/og.jpg" />
     <meta property="og:url" content="https://fullertonproductions.ca/" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <!-- The hero photo is the first thing anyone sees; start fetching it before the script runs. Keep in step with `hero` in src/data/shows.ts. -->
+    <link
+      rel="preload"
+      as="image"
+      href="/shows/sportsnet-studios/studio-31-m.webp"
+      imagesrcset="/shows/sportsnet-studios/studio-31-m.webp 1000w, /shows/sportsnet-studios/studio-31.webp 1600w"
+      imagesizes="100vw"
+      fetchpriority="high"
+    />
     <script>
       (function (d) {
         d.classList.replace('no-js', 'js');

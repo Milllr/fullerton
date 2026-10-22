@@ -68,6 +68,11 @@ export class Sheet {
           <div>
             <h2 id="sheet-title">${esc(show.title)}</h2>
             <p class="sheet-meta">${esc(meta)}</p>
+            ${
+              show.note
+                ? `<p class="sheet-note">${show.note.source ? `<a href="${show.note.source.url}" target="_blank" rel="noopener">${esc(show.note.text)}</a>` : esc(show.note.text)}</p>`
+                : ''
+            }
           </div>
           <button class="sheet-close" type="button">Close</button>
         </header>

@@ -34,7 +34,7 @@ Node 20 or newer.
 
 ## Contact details
 
-`src/data/site.ts` holds James's email and phone, confirmed by Miller. They show in the Contact section as outlined type that lights up under the beams; the phone shows spaced (no dashes) and dials as `+14168821379`. If a field is ever emptied it's hidden on the built site (and `npm run dev` shows a reminder).
+`src/data/site.ts` holds James's email and phone, confirmed by Miller. They show in the Contact section as large type that brightens under the beams; the phone shows spaced (no dashes) and dials as `+14168821379`. If a field is ever emptied it's hidden on the built site (and `npm run dev` shows a reminder).
 
 ## Adding or changing photos
 
@@ -80,13 +80,13 @@ The MA logo that sits in grandMA3 title fields is replaced by a neutral glyph; n
 - **Fixtures**: 1 Spot L and 2 Spot R are the moving heads, 3 Panel L and 4 Panel R the soft panels (Dimmer and Color Temp only), 5 the hazer. The spots are selected to begin with, so the encoders drive both.
 - **Encoders**: drag, scroll or arrow keys; press to toggle Fine. Each sits under its field on screen.
 - **Programmer**: values hold until Clear. Clear works in three stages like the desk (deselect, deactivate, release); hold it for a full clear. Oops undoes, Highlight brings the head to open white, Blind hides the programmer from the output (the page gets a red frame), Store saves the programmer as a new cue.
-- **Executors**: 201 runs Sequence 1, where each cue is a show and both spots cross on it (Go+, Go-, Pause, fade times). 202 is the hazer master, 203 a pan and tilt sweep phaser that mirrors the two spots so they cross, 204 the Fill master for the panels. On a desktop Sweep comes up by itself after six idle seconds and drops when you move; on a touch screen Fill comes up by itself to 72% once the rig is lit. The Grand Master sits over everything. Faders are motorised: commands move them.
+- **Executors**: 201 runs Sequence 1, where each cue is a show and both spots cross on it (Go+, Go-, Pause, fade times). 202 is the hazer master, 203 a pan and tilt sweep phaser that mirrors the two spots so they cross, 204 the Fill master for the panels. Fill starts at 72% on every screen, so the shows read as lit sets from the first frame (it comes up with the panels as they draw in during the opening). Sweep only runs when someone raises it. The Grand Master sits over everything. Faders are motorised: commands move them.
 - **Preset pools**: 1 Dimmer, 2 Position (one per show; with both spots selected they cross on it), 3 Gobo, 4 Color, 5 Beam, 6 Focus.
 - **Command line**: real grandMA syntax, keywords can be shortened. `Fixture 1 Thru 2 At 75`, `Fixture 3 + 4 At 60`, `Fi 5 At 80`, `Attribute "Zoom" At 30`, `Preset 4.2`, `Go`, `Go-`, `Goto Cue 3`, `Pause`, `Off`, `Executor 203 At 60` (or `Executor 3 At 60`), `Fixture 1 Thru 4 - 3`, `Store Cue 12 "My look"`, `Clear`, `ClearAll`, `Oops`, `Highlight`, `Blind`, `Black`, `Help`. The keys type into it and Please runs it.
 
 On a phone the desk is one column that scrolls: fixture sheet, encoder bar, command line, encoders, executors, playback keys, pool, sequence sheet, keypad. The command line stays in view while the rest scrolls.
 
-With nothing running and nothing programmed, both spots converge on the cursor and the panels stay off until Fill is raised. On a touch screen the panels come up as a fill, so whichever show is in the middle of the screen is lit as you scroll; the spots cross on that show and roam slowly over it. A finger on the page pulls both spots onto it, and they go back to roaming a moment after it lifts. Keyboard focus on a show swings the beams onto it; clicking a show opens them wide on it and then opens every photo. `prefers-reduced-motion` turns off the opening cue, sweep, roam, haze drift, strobe and transitions.
+With nothing running and nothing programmed, the panels flood the page at 72% and both spots sit at 15% as soft accents: on a desktop they converge on the cursor. On a touch screen whichever show is in the middle of the screen is lit as you scroll; the spots cross on that show and roam slowly over it. A finger on the page pulls both spots onto it, and they go back to roaming a moment after it lifts. Keyboard focus on a show swings the beams onto it; clicking a show opens them wide on it and then opens every photo. `prefers-reduced-motion` turns off the opening cue, sweep, roam, haze drift, strobe and transitions.
 
 ## How the light behaves
 
@@ -129,6 +129,11 @@ The credits list in `src/data/shows.ts` combines:
 - NewscastStudio set galleries credited "Lighting Design: James Downey / Fullerton Productions" (Sportsnet Studios 2021, Breakfast Television 2017, Hockey Central 2014, Sportsnet 360 and Sportsnet 2013)
 - His 2018 NewscastStudio interview and 2022 TV Technology article (Super Bowl XLIV, TED, Hockey Night in Canada, Gemini and Genie Awards, the 2011 Royal Wedding, two dozen plus Rogers studios)
 - The family photo archive, with years from the photo metadata (MMVAs 2012, ET Canada 2008 to 2014, TIFF 2007, events 2005 to 2009)
+- His own 2016 site, kept by the Wayback Machine (web.archive.org/web/2016*/fullertonproductions.ca*): its portfolio pages and their full size photos gave The Score, Sportsnet Studios 1 and 3, the Hockey Central studio photos, Gemini Awards 2008 (the year is on the set's screens), ET Canada New Year's Eve 2011 (its countdown rings in 2012), Global Ottawa, The Ron James Show and the Lord of the Rings exhibit, plus more MMVA, ET Canada and Sportsnet 360 photos. The originals are in `raw/archive-2016/`. The site stripped the photo metadata, so shows without a sourced year are undated.
+- His IMDb credits (user edited; approved by Miller as a source on 2026-10-22) for series with no photos: Fire Masters, Juno Opening Night Awards, Still Standing, The Whole Truths, A Russell Peters Christmas Special, History Bites, Design to Win, Style by Jury. The Ron James Show's years (2009 to 2010) come from there too.
+- The 2013 Canadian Screen Award nomination (photography in a variety or sketch comedy program, with Dave Fairfield, for the 2012 MMVAs), shown as a note on that credit and confirmed on Wikipedia's 1st Canadian Screen Awards page.
+
+New photos can be built without every original on hand: `python tools/build_assets.py --missing` builds only photos that aren't in `public/shows/` yet.
 
 Breakfast Television and Sportsnet Studios photos are by Arash Moallemi (credited in the footer and on each photo).
 

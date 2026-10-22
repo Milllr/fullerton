@@ -1,5 +1,6 @@
 import { CAD, drawFocusPoint } from './drafting';
 import type { Pool } from './rig';
+import { canvasDpr } from './dpr';
 
 /*
   Spotlight's "Draw Beam": each spot's beam drawn as a wireframe cone, the
@@ -26,7 +27,7 @@ export class BeamCad {
   }
 
   resize(vw: number, vh: number) {
-    this.dpr = Math.min(2, devicePixelRatio || 1);
+    this.dpr = canvasDpr();
     this.canvas.width = Math.round(vw * this.dpr);
     this.canvas.height = Math.round(vh * this.dpr);
     this.dirty = null;
