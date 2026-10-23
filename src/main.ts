@@ -6,10 +6,11 @@ import word from './brand/logo-word.svg?raw';
 import { credits, shows } from './data/shows';
 import { site } from './data/site';
 import { esc, setVar, Spring } from './lib/dom';
-import { Field } from './light/field';
+import { Field, type Gobo } from './light/field';
 import { Warmth } from './light/warmth';
 import { Cable } from './cable/cable';
-import { WorkList } from './work/list';
+import { renderList } from './work/list';
+import { Preview } from './work/preview';
 import { Sheet } from './work/sheet';
 import { Showcase } from './work/showcase';
 
@@ -23,11 +24,6 @@ const pad = (n: number) => String(n).padStart(2, '0');
 $('#brand-mark').innerHTML = mark;
 $('#contact-logo').innerHTML = `<span class="cl-mark">${mark}</span><span class="cl-word">${word}</span>`;
 $('#cover-count').textContent = `${pad(shows.length)} shows`;
-{
-  const nets = [...new Set(shows.map((s) => s.short || s.network).filter((n) => n && n !== 'Private clients'))];
-  $('#cover-nets').innerHTML = nets.map((n) => `<li>${esc(n)}</li>`).join('');
-}
-$('#work-count').textContent = `${pad(shows.length)} shows with photos`;
 $('#all-count').textContent = `${credits.length} productions`;
 
 {
@@ -37,8 +33,7 @@ $('#all-count').textContent = `${credits.length} productions`;
   rows.push(`<p class="ct-city">${esc(site.person)}, ${esc(site.role)}<br />${esc(site.name)}, ${esc(site.city)}</p>`);
   $('#contact-body').innerHTML = rows.join('');
   if (import.meta.env.DEV && (!site.email || !site.phone)) console.warn('Contact details missing in src/data/site.ts');
-  const photo = site.photoCredits.map((c) => `Photos of ${esc(c.for)} by ${esc(c.name)}`).join('. ');
-  $('#foot').innerHTML = `<span>${photo}</span><span>${esc(site.name)}, ${new Date().getFullYear()}</span>`;
+  $('#foot').innerHTML = `<span>${esc(site.name)}, ${new Date().getFullYear()}</span>`;
 }
 
 // Film grain for the frosted glass: one small tile of noise, made here rather than downloaded.
@@ -68,7 +63,56 @@ const cable = new Cable($<HTMLCanvasElement>('#cable'), reduced);
 /* ------------------------------------------------------------ the work */
 
 const showcase = new Showcase($('#showcase'), shows, reduced);
-const list = new WorkList($('#all-list'), credits, shows, reduced);
+const preview = new Preview(reduced);
+renderList($('#all-list'), credits, shows, preview);
+
+/*
+  A glide: the page moves somewhere on an ease in and out, its length
+  growing with the distance. Any hand on the page (wheel, touch, keys)
+  takes over at once.
+*/
+let gliding = 0;
+function glide(to: number) {
+  cancelAnimationFrame(gliding);
+  const max = root.scrollHeight - innerHeight;
+  const end = Math.max(0, Math.min(max, to));
+  if (reduced) return scrollTo(0, end);
+  const from = scrollY;
+  const d = end - from;
+  const ms = Math.min(2400, Math.max(700, 600 + Math.abs(d) * 0.16));
+  const t0 = performance.now();
+  const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+  const step = (now: number) => {
+    const t = Math.min(1, (now - t0) / ms);
+    scrollTo(0, from + d * ease(t));
+    if (t < 1) gliding = requestAnimationFrame(step);
+  };
+  gliding = requestAnimationFrame(step);
+}
+for (const ev of ['wheel', 'touchstart', 'keydown'] as const) addEventListener(ev, () => cancelAnimationFrame(gliding), { passive: true });
+showcase.glide = glide;
+showcase.onSkip = () => glide($('#all-work').getBoundingClientRect().top + scrollY);
+
+/* Who he's lit for, on the cover: each name goes to its first show, and shows it on the way. */
+{
+  const nets = new Map<string, number>();
+  shows.forEach((s, i) => {
+    const n = s.short || s.network;
+    if (n && n !== 'Private clients' && !nets.has(n)) nets.set(n, i);
+  });
+  const ul = $('#cover-nets');
+  ul.innerHTML = [...nets].map(([n, i]) => `<li><a href="#work" data-i="${i}">${esc(n)}</a></li>`).join('');
+  ul.querySelectorAll<HTMLAnchorElement>('a').forEach((a) => {
+    const i = Number(a.dataset.i);
+    preview.attach(a, shows[i]);
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      preview.show(null);
+      showcase.goTo(i);
+    });
+  });
+}
 let workVisible = false;
 // The last entry is the current state when one batch holds both coming and going.
 new IntersectionObserver((es) => (workVisible = es[es.length - 1].isIntersecting), { rootMargin: '30% 0px' }).observe($('#showcase'));
@@ -96,7 +140,7 @@ document.addEventListener('click', (e) => {
   const target = document.getElementById(a.getAttribute('href')!.slice(1));
   if (!target) return;
   e.preventDefault();
-  target.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+  glide(target.getBoundingClientRect().top + scrollY);
   if (a.classList.contains('skip')) $<HTMLAnchorElement>('.sc-open').focus({ preventScroll: true });
 });
 
@@ -185,6 +229,35 @@ function warmName(y: number) {
   setVar(nameEl, '--hr', String(Math.round(Math.max(innerWidth, innerHeight) * 0.22)));
 }
 
+/*
+  The window gobo on the cover: where its light falls (a skewed window,
+  drifting very slowly like the sun moving), fading out as the cover
+  scrolls away, and the soft shadow of the pointer in it.
+*/
+const handOn = new Spring(0, 1.6, 1);
+const gobo: Gobo = { q: [0, 0, 0, 0, 0, 0, 0, 0], strength: 0, hand: [0, 0, 0] };
+function placeGobo(t: number, y: number, dt: number) {
+  const w = innerWidth;
+  const h = innerHeight;
+  const tall = h > w * 1.05;
+  const top = -y;
+  const sway = reduced ? 0 : Math.sin(t * 0.031) * 0.012;
+  const lift = reduced ? 0 : Math.sin(t * 0.023 + 1.3) * 0.01;
+  // Top left, top right, bottom right, bottom left, as fractions of the window, cast down and across from the upper right.
+  const c = tall
+    ? [0.1, 0.07, 0.86, -0.01, 1.06, 0.5, 0.2, 0.6]
+    : [0.46, 0.05, 0.84, -0.03, 1.0, 0.66, 0.56, 0.86];
+  for (let i = 0; i < 8; i += 2) {
+    gobo.q[i] = (c[i] + sway * (i === 2 || i === 4 ? 1.6 : 1)) * w;
+    gobo.q[i + 1] = top + (c[i + 1] + lift * (i >= 4 ? 1.8 : 1)) * h;
+  }
+  gobo.strength = Math.max(0, 1 - y / (h * 0.9));
+  const p = warmth.pointer;
+  gobo.hand[0] = p.x;
+  gobo.hand[1] = p.y;
+  gobo.hand[2] = reduced ? (p.here ? 1 : 0) : handOn.step(p.here ? 1 : 0, dt);
+}
+
 let docH = root.scrollHeight;
 new ResizeObserver(() => (docH = root.scrollHeight)).observe(document.body);
 
@@ -199,7 +272,9 @@ function frame(now: number) {
   const y = scrollY;
   warmth.update(dt, y);
   const seed = reduced ? 1 : Math.floor(now / (1000 / 24));
-  if (field.ok) field.draw(reduced ? 0 : (now - start) / 1000, y, seed, warmth);
+  const t = reduced ? 0 : (now - start) / 1000;
+  placeGobo(t, y, dt);
+  if (field.ok) field.draw(t, y, seed, warmth, gobo);
   else {
     const h = warmth.hot;
     setVar(root, '--wx', `${fx.step(h.x, dt).toFixed(0)}px`);
@@ -208,7 +283,7 @@ function frame(now: number) {
   }
   warmName(y);
   showcase.update(dt, workVisible && !sheet.isOpen, y);
-  list.update(dt);
+  preview.update(dt);
   sheet.update(dt);
   cable.update(dt, y, docH);
 }

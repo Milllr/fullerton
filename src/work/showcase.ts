@@ -79,6 +79,7 @@ export class Showcase {
         <nav class="sc-ticks" aria-label="Shows">${shows
           .map((s, i) => `<button type="button" data-i="${i}" aria-label="${esc(s.title)}"><span>${pad(i + 1)}</span></button>`)
           .join('')}<i class="sc-bar"></i></nav>
+        <button class="sc-skip" type="button" aria-label="Skip to all work"><svg viewBox="0 0 14 40" aria-hidden="true"><path d="M7 0v37M1.5 31.5L7 37l5.5-5.5" /></svg></button>
       </div>
       <p class="sc-label" aria-hidden="true"></p>`;
     this.stage = root.querySelector('.deck-stage')!;
@@ -126,6 +127,7 @@ export class Showcase {
       const front = this.plates[this.active];
       if (front && this.hover === this.active) this.aimAt(front.el, e.clientX, e.clientY);
     });
+    root.querySelector('.sc-skip')!.addEventListener('click', () => this.onSkip());
     this.ticks.forEach((b, i) => {
       b.addEventListener('click', () => this.goTo(i));
       // One tab stop for the whole row of rules; the arrow keys move along it.
@@ -156,8 +158,12 @@ export class Showcase {
     return this.top + (i / Math.max(1, n - 1)) * Math.max(0, this.height - innerHeight) + 2;
   }
 
+  /** How the page moves when something asks to go somewhere; main sets a gentler glide. */
+  glide: (y: number) => void = (y) => scrollTo({ top: y, behavior: this.reduced ? 'auto' : 'smooth' });
+  onSkip: () => void = () => {};
+
   goTo(i: number) {
-    scrollTo({ top: this.scrollFor(i), behavior: this.reduced ? 'auto' : 'smooth' });
+    this.glide(this.scrollFor(i));
   }
 
   /** The stage's size, measured with the rest, so the frame never has to ask for layout. */
@@ -180,7 +186,7 @@ export class Showcase {
     this.hover = i;
     const s = i >= 0 ? this.shows[i] : null;
     this.root.classList.toggle('is-pointing', !!s);
-    if (s) setText(this.label, i === this.active ? `View ${s.images.length} photos` : s.title);
+    if (s) setText(this.label, i === this.active ? 'View the show' : s.title);
   }
 
   /** Put show `i`'s details beside the stack, fading across from the last. */
@@ -198,7 +204,7 @@ export class Showcase {
       this.text.innerHTML = `
         <h3 class="sc-title">${esc(s.title)}</h3>
         <p class="sc-meta">${meta}</p>
-        <a class="sc-open" href="#/work/${s.slug}"><span>View the show</span><span class="sc-count">${s.images.length} photos</span><i aria-hidden="true">→</i></a>`;
+        <a class="sc-open" href="#/work/${s.slug}"><span>View the show</span><i aria-hidden="true">→</i></a>`;
       this.text.classList.remove('is-out');
     };
     clearTimeout(this.swap);

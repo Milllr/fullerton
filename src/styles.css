@@ -360,6 +360,20 @@ main {
   color: var(--ink-2);
 }
 
+.cover-nets a {
+  text-decoration: none;
+  background: linear-gradient(rgb(var(--lamp)), rgb(var(--lamp))) 0 100% / 0 1px no-repeat;
+  transition:
+    background-size 0.45s,
+    color 0.3s;
+}
+
+.cover-nets a:hover,
+.cover-nets a:focus-visible {
+  color: var(--ink);
+  background-size: 100% 1px;
+}
+
 /* --------------------------------------------------------------- sections */
 
 .sec-head {
@@ -399,6 +413,7 @@ main {
 
 .sc-pin {
   position: sticky;
+  isolation: isolate;
   top: 0;
   height: 100vh;
   height: 100svh;
@@ -459,42 +474,74 @@ main {
   vertical-align: -1px;
 }
 
+/* Open the show: just words and an arrow on a hairline that lights up. */
 .sc-open {
   display: inline-flex;
   align-items: baseline;
-  gap: 14px;
-  margin-top: 30px;
-  padding: 12px 16px 11px;
-  border: 1px solid var(--ink);
+  gap: 12px;
+  margin-top: 28px;
+  padding: 4px 0 6px;
   text-decoration: none;
   font-size: var(--text);
-  transition:
-    background-color 0.35s,
-    color 0.35s;
+  letter-spacing: 0.01em;
+  background: linear-gradient(var(--ink), var(--ink)) 0 100% / 100% 1px no-repeat;
+  transition: background-size 0.5s cubic-bezier(0.3, 0.7, 0.2, 1);
 }
 
 .sc-open:hover,
 .sc-open:focus-visible {
-  background: var(--ink);
-  color: rgb(var(--frost));
-}
-
-.sc-count {
-  color: var(--ink-3);
-  transition: color 0.35s;
-}
-
-.sc-open:hover .sc-count {
-  color: rgb(var(--frost) / 0.7);
+  background-image: linear-gradient(rgb(var(--lamp)), rgb(var(--lamp)));
 }
 
 .sc-open i {
   font-style: normal;
-  transition: transform 0.35s;
+  transition: transform 0.5s cubic-bezier(0.3, 0.7, 0.2, 1);
 }
 
-.sc-open:hover i {
-  transform: translateX(4px);
+.sc-open:hover i,
+.sc-open:focus-visible i {
+  transform: translateX(5px);
+}
+
+/* Past all the shows in one go: a hairline arrow, breathing a little. */
+.sc-skip {
+  position: absolute;
+  right: calc(var(--gut) + 20px);
+  bottom: 62px;
+  width: 34px;
+  height: 52px;
+  padding: 6px 10px;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: color 0.4s;
+}
+
+.sc-skip svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  animation: breathe 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.sc-skip:hover,
+.sc-skip:focus-visible {
+  color: var(--ink);
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: translateY(-2px);
+  }
+  50% {
+    transform: translateY(3px);
+  }
 }
 
 .deck {
@@ -667,8 +714,9 @@ main {
 }
 
 .aw-row {
+  position: relative;
   display: grid;
-  grid-template-columns: 13ch minmax(0, 1.3fr) minmax(0, 1fr) 15ch 29ch;
+  grid-template-columns: 13ch minmax(0, 1.4fr) minmax(0, 1fr) 15ch;
   gap: 0 20px;
   align-items: baseline;
   padding: 9px 0 8px;
@@ -688,17 +736,37 @@ main {
   text-decoration: none;
 }
 
-span.aw-title {
+span.aw-title,
+a.aw-title[target] {
   color: var(--ink-2);
+}
+
+/* The whole row is the link. */
+a.aw-title::after {
+  content: '';
+  position: absolute;
+  inset: 0;
 }
 
 a.aw-title {
   background: linear-gradient(rgb(var(--lamp)), rgb(var(--lamp))) 0 100% / 0 1px no-repeat;
-  transition: background-size 0.45s;
+  transition:
+    background-size 0.45s,
+    color 0.3s;
 }
 
 .aw-row:hover a.aw-title {
   background-size: 100% 1px;
+  color: var(--ink);
+}
+
+.aw-out {
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.aw-row:hover .aw-out {
+  opacity: 1;
 }
 
 .aw-note {
@@ -706,6 +774,17 @@ a.aw-title {
   margin-top: 4px;
   font-size: calc(var(--small) - 0.5px);
   color: var(--ink-2);
+}
+
+.aw-note-src {
+  position: relative;
+  z-index: 1;
+  color: var(--ink-3);
+  text-decoration: none;
+}
+
+.aw-note-src:hover {
+  color: var(--ink);
 }
 
 .aw-sub {
@@ -716,26 +795,13 @@ a.aw-title {
   color: var(--ink-3);
 }
 
-.aw-links {
-  display: flex;
-  justify-content: flex-end;
-  gap: 16px;
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
   white-space: nowrap;
-}
-
-.aw-photos {
-  color: var(--ink);
-  text-decoration: none;
-}
-
-.aw-src {
-  color: var(--ink-3);
-  text-decoration: none;
-}
-
-.aw-photos:hover,
-.aw-src:hover {
-  color: var(--ink);
 }
 
 .aw-preview {
@@ -822,7 +888,7 @@ a.aw-title {
   position: relative;
   z-index: 1;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 24px;
   padding: 0 calc(var(--gut) + 30px) 30px var(--gut);
   font-size: var(--tiny);
@@ -846,12 +912,43 @@ a.aw-title {
   opacity: 1;
 }
 
+.sheet {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.sheet img {
+  -webkit-user-drag: none;
+}
+
 .sh-slides {
   position: absolute;
   inset: 0;
   overflow: hidden;
   touch-action: none;
-  cursor: col-resize;
+  cursor: pointer;
+}
+
+/* Which way a click goes, at the pointer. */
+.sh-cue {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  translate: 18px 14px;
+  padding: 7px 10px 6px;
+  font-size: var(--small);
+  white-space: nowrap;
+  background: rgb(var(--frost) / 0.86);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.sh-cue.is-on {
+  opacity: 1;
 }
 
 .sh-slide {
@@ -1175,11 +1272,10 @@ a.aw-title {
 
   /* A year that wraps to two lines sits beside the whole entry, not above a gap. */
   .aw-year {
-    grid-row: 1 / span 3;
+    grid-row: 1 / span 2;
   }
 
-  .aw-sub,
-  .aw-links {
+  .aw-sub {
     grid-column: 2;
     font-size: 11px;
   }
@@ -1196,10 +1292,6 @@ a.aw-title {
     margin: 0 9px 0 10px;
     background: var(--ink-3);
     vertical-align: -1px;
-  }
-
-  .aw-links {
-    justify-content: flex-start;
   }
 
   .aw-preview {
@@ -1257,10 +1349,6 @@ a.aw-title {
     margin-top: 18px;
   }
 
-  .sh-slides {
-    cursor: row-resize;
-  }
-
   .sh-clear {
     clip-path: inset(var(--cut) 0 0 0);
   }
@@ -1297,18 +1385,6 @@ a.aw-title {
 
   .cl-word svg {
     width: 440px;
-  }
-}
-
-/* ------------------------------------ middling widths: the list drops Kind for room */
-
-@media (min-width: 700px) and (max-width: 1150px) and (orientation: landscape) {
-  .aw-row {
-    grid-template-columns: 12ch minmax(0, 1.4fr) minmax(0, 1fr) 27ch;
-  }
-
-  .aw-kind {
-    display: none;
   }
 }
 
@@ -1374,6 +1450,7 @@ a.aw-title {
   *::before,
   *::after {
     transition-duration: 0.01ms !important;
+    animation: none !important;
     scroll-behavior: auto !important;
   }
 }

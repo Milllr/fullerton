@@ -97,6 +97,11 @@ export class Warmth {
     addEventListener('touchcancel', lift, { passive: true });
   }
 
+  /** Where the pointer (or a finger) is, and whether it's on the page. */
+  get pointer() {
+    return { x: this.p.x, y: this.p.y, here: this.p.here || this.p.down };
+  }
+
   /** A burst of warmth: a tap, a click. `size` scales the radius. */
   bloom(x: number, y: number, size: number, amount: number) {
     this.blooms.push([x, y, size, amount]);

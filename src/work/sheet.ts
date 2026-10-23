@@ -5,9 +5,11 @@ import { CELL, type Warmth } from '../light/warmth';
 
 /*
   A show, opened. Its photo fills the window behind a sheet of frost that
-  covers part of it (the type sits on the frost). The frost's edge leans a
-  little towards the pointer, and you can drag it across the photo to clear
-  more of it or frost it over. On a phone, swipe sideways between photos. Each photo
+  covers part of it (the type sits on the frost), its edge leaning a little
+  towards the pointer. Click the left of the window to go back, anywhere
+  else to go on; a small label at the pointer says which. On a phone, swipe
+  sideways between photos, tap to go on, and drag up or down to move the
+  frost edge. Each photo
   comes up like a lamp: dim and amber, then clear, while the one before it
   stays until the new one is up, so there's no dip between them. The
   numbers along the bottom step through the photos. And the warmth that
@@ -88,6 +90,7 @@ export class Sheet {
       meta.push(['Source', `<a href="${show.source.url}" target="_blank" rel="noopener">${esc(show.source.label)}<span aria-hidden="true"> ↗</span></a>`]);
     this.root.innerHTML = `
       <div class="sh-slides"></div>
+      <p class="sh-cue" aria-hidden="true"></p>
       <div class="sh-type">
         <p class="sh-top"><span class="sh-no">${pad(number)}</span><button class="sh-close" type="button">Close</button></p>
         <h2 class="sh-title" id="sheet-title">${esc(show.title)}</h2>
@@ -166,23 +169,46 @@ export class Sheet {
     const signal = this.unbind!.signal;
     const along = (e: PointerEvent) => (this.portrait ? e.clientY / innerHeight : e.clientX / innerWidth);
     const slides = r.querySelector<HTMLElement>('.sh-slides')!;
+    const cue = r.querySelector<HTMLElement>('.sh-cue')!;
+    const many = () => (this.show?.images.length ?? 0) > 1;
+    /** Which way a click here goes: the left part of the window back, the rest on. */
+    const way = (e: PointerEvent) => (e.clientX < innerWidth * 0.33 ? -1 : 1);
     let down: { x: number; y: number; t: number; at: number } | null = null;
     // On a phone a sideways swipe moves between photos; up and down moves the frost edge.
     let swipe = false;
-    r.addEventListener('pointermove', (e) => {
-      if (down) {
-        const dx = e.clientX - down.x;
-        const dy = e.clientY - down.y;
-        if (!this.dragging && !swipe && Math.hypot(dx, dy) > 8) {
-          if (this.portrait && Math.abs(dx) > Math.abs(dy) * 1.2) swipe = true;
-          else this.dragging = true;
+    r.addEventListener(
+      'pointermove',
+      (e) => {
+        if (down && e.pointerType !== 'mouse') {
+          const dx = e.clientX - down.x;
+          const dy = e.clientY - down.y;
+          if (!this.dragging && !swipe && Math.hypot(dx, dy) > 8) {
+            if (this.portrait && Math.abs(dx) > Math.abs(dy) * 1.2) swipe = true;
+            else if (this.portrait) this.dragging = true;
+          }
+          if (this.dragging) this.rest = along(e) + down.at;
+        } else if (e.pointerType === 'mouse') {
+          this.lean = along(e) - 0.5;
+          // A small label at the pointer says which way a click goes, except over the type's own links.
+          const onPhoto = !(e.target as HTMLElement).closest('a, button') && many();
+          cue.classList.toggle('is-on', onPhoto);
+          if (onPhoto) {
+            setText(cue, way(e) < 0 ? '← Previous' : 'Next →');
+            cue.style.transform = `translate3d(${e.clientX}px,${e.clientY}px,0)`;
+          }
         }
-        if (this.dragging) this.rest = along(e) + down.at;
-      } else if (e.pointerType === 'mouse') this.lean = along(e) - 0.5;
-    }, { signal });
-    r.addEventListener('pointerleave', (e) => {
-      if (e.pointerType === 'mouse') this.lean = 0;
-    }, { signal });
+      },
+      { signal },
+    );
+    r.addEventListener(
+      'pointerleave',
+      (e) => {
+        if (e.pointerType !== 'mouse') return;
+        this.lean = 0;
+        cue.classList.remove('is-on');
+      },
+      { signal },
+    );
     slides.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       down = { x: e.clientX, y: e.clientY, t: performance.now(), at: this.edge.x - along(e) };
@@ -201,8 +227,10 @@ export class Sheet {
         this.dragging = false;
         return;
       }
-      // A tap on the clear side of the photo moves on to the next one.
-      if (was && e.type === 'pointerup' && performance.now() - was.t < 450 && along(e) > this.edge.x) this.step(1);
+      if (!was || e.type !== 'pointerup' || performance.now() - was.t > 450) return;
+      // A click goes back on the left and on everywhere else; a tap on a phone goes on.
+      if (e.pointerType === 'mouse') this.step(way(e));
+      else this.step(1);
     };
     slides.addEventListener('pointerup', up);
     slides.addEventListener('pointercancel', up);

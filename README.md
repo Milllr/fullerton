@@ -39,19 +39,23 @@ The paper is a slow 2000s gradient: warm cream with soft fields of amber, a grey
 
 The heat cools the way a tungsten filament does, quickly at first and then a long amber tail: hot reads as a pale warm white, cooling deepens to amber. It belongs to the paper, so it scrolls away with the page. It lives in a coarse grid (`src/light/warmth.ts`) that the shader reads as a texture.
 
+**The window gobo.** On the cover, late light falls through a window across the paper, the way an LD throws a window gobo onto a set: a skewed patch of warm light in six panes, the glazing bars going softer further from the window, the edges running a little warmer, and leaves drifting slowly through it. The pointer (or a finger on a phone) casts a soft shadow where it passes through the light. It drifts very slowly, like the sun moving, and scrolls away with the cover.
+
+The networks along the foot of the cover are links: hover one and a print of its first show comes up above the pointer; click it and the page glides to that show in the showcase.
+
 Without WebGL the warmth still follows, as a plain CSS gradient.
 
 ## The work
 
-**Showcase.** Every show is a plate of frosted glass in a stack receding in depth, pinned while the page scrolls through it. Scrolling draws the stack forward one plate at a time, and when the page stops it settles on the nearest. The plate in front comes up out of the frost on the tungsten curve (dim and amber first, then clear) and, while it's held there, steps through that show's photos. Beside it: the number, title, network, year and kind, and a View the show button with the photo count. Hover a plate behind and it warms and lifts, with its name at the pointer; click it to bring it forward. Click the front plate (the pointer says View N photos) or the button to open the show. The numbered rules along the foot jump to any show.
+**Showcase.** Every show is a plate of frosted glass in a stack receding in depth, pinned while the page scrolls through it. Scrolling draws the stack forward one plate at a time, and when the page stops it settles on the nearest. The plate in front comes up out of the frost on the tungsten curve (dim and amber first, then clear) and, while it's held there, steps through that show's photos. Beside it: the number, title, network, year and kind, and View the show, a link on a hairline. Hover a plate behind and it warms and lifts, with its name at the pointer; click it to bring it forward. Click the front plate (the pointer says View the show) or the link to open the show. The numbered rules along the foot jump to any show, and a hairline arrow at the bottom right glides past them all to All work.
 
-**All work.** Under the showcase, every production in one list, newest first, the year once per year: production, network, kind, a link to the photos for shows that have them, and the source. On a pointer, a frosted print of the show follows the row and comes up like a lamp.
+**All work.** Under the showcase, every production in one list, newest first, the year once per year: production, network and kind. The whole row is the link: shows with photos open their sheet, and the rest open their source. On a pointer, a print of the show comes up above the pointer, so the row stays readable.
 
-**A show.** Its photo fills the window with a sheet of frost over part of it and the type on the frost: title, network, kind, source, any note, the years set large, and the photos numbered along the bottom. The frost edge leans a little towards the pointer and can be dragged; the warmth melts the frost wherever it's been (never all the way, so the type stays readable). Tap the clear side for the next photo, or use the arrow keys. Smaller photos and ones far from the window's shape sit whole in the clear part. Each new photo comes up like a lamp while the last one stays under it, so there's no dip.
+**A show.** Its photo fills the window with a sheet of frost over part of it and the type on the frost: title, network, kind, source, any note, the years set large, and the photos numbered along the bottom. The frost edge leans a little towards the pointer, and the warmth melts the frost wherever it's been (never all the way, so the type stays readable). Click the left of the window for the previous photo and anywhere else for the next; a small label at the pointer says which. The arrow keys work too. On a phone, swipe sideways between photos, tap to go on, and drag up or down to move the frost edge. Nothing in the sheet can be selected or dragged. Smaller photos and ones far from the window's shape sit whole in the clear part. Each new photo comes up like a lamp while the last one stays under it, so there's no dip.
 
 ## The cable
 
-The scrollbar is a DMX cable down the right edge. Its male five pin XLR is where you are on the page; the cable hangs from it to the floor, and the slack is coiled there over/under, every other loop turned so it would lay flat with no twist. At the top of the page the cable is out at full length; scroll down and the connector comes down with you while the cable is laid into the coil loop by loop, the newest loop sweeping round, lifting over the pile into the hang. A quick move sets the hang swinging a little. Drag the connector to scroll. The native scrollbar is hidden; wheel, keys and touch scroll as normal.
+The scrollbar is a DMX cable down the right edge. Its male five pin XLR is where you are on the page; the cable hangs from it to the floor, and the slack is coiled there over/under: the over loops lie in the outer row, every other loop is turned and lies in the inner row with its sheen rolling once across the cable, and the crossing into each loop goes over the bundle for an over loop and under it for an under loop, so the crossings along the front alternate like a braid. The far end lies out on the floor with its female connector. At the top of the page the cable is out at full length; scroll down and the connector comes down with you while the cable is laid into the coil loop by loop, the newest loop sweeping round, lifting over the pile into the hang. A quick move sets the hang swinging a little. Drag the connector to scroll. The native scrollbar is hidden; wheel, keys and touch scroll as normal.
 
 ## Browsers and devices
 
@@ -85,7 +89,7 @@ Accepted sources (Miller, 2026-10-22): NewscastStudio, TV Technology, James's ow
 - His site as it was in 2026 (`raw/site-2026`): TED, Fire Masters, The Big Bake, and more Hockey Central, Super Bowl and Sportsnet Studio 1 photos.
 - His IMDb credits (nm2333234).
 
-Breakfast Television and Sportsnet Studios photos are by Arash Moallemi (credited in the footer and on each photo).
+Breakfast Television and Sportsnet Studios photos are by Arash Moallemi (credited on each photo).
 
 ## The logo
 
