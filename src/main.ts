@@ -1,28 +1,30 @@
 import '@fontsource/michroma/400.css';
 import '@fontsource/fragment-mono/400.css';
 import './styles.css';
+import mark from './brand/logo-mark.svg?raw';
+import word from './brand/logo-word.svg?raw';
 import { credits, shows } from './data/shows';
 import { site } from './data/site';
-import { esc, setVar, smooth } from './lib/dom';
-import { Field } from './lamp/field';
-import { Lamp } from './lamp/lamp';
-import { renderCredits } from './work/credits';
-import { Deck } from './work/deck';
+import { esc, setVar, Spring } from './lib/dom';
+import { Field } from './light/field';
+import { Warmth } from './light/warmth';
+import { Cable } from './cable/cable';
+import { WorkList } from './work/list';
 import { Sheet } from './work/sheet';
+import { Showcase } from './work/showcase';
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector<T>(s)!;
 const root = document.documentElement;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const touch = matchMedia('(hover: none)').matches;
-/** The phone layout, the same query as the stylesheet's. */
-const phone = matchMedia('(max-width: 699px), (orientation: portrait) and (max-width: 1000px)');
-const portrait = () => phone.matches;
 const pad = (n: number) => String(n).padStart(2, '0');
 
 /* ---------------------------------------------------------------- content */
 
-$('#cover-count').textContent = `01 to ${pad(shows.length)}`;
-renderCredits($('#credits-table'), credits);
+$('#brand-mark').innerHTML = mark;
+$('#contact-logo').innerHTML = `<span class="cl-mark">${mark}</span><span class="cl-word">${word}</span>`;
+$('#cover-count').textContent = `${pad(shows.length)} shows`;
+$('#work-count').textContent = `${pad(shows.length)} shows with photos`;
+$('#all-count').textContent = `${credits.length} productions`;
 
 {
   const rows: string[] = [];
@@ -52,21 +54,19 @@ renderCredits($('#credits-table'), credits);
   }
 }
 
-/* ------------------------------------------------------------ the lamp */
+/* ------------------------------------------------------- warmth, paper */
 
-const field = new Field($<HTMLCanvasElement>('#field'), reduced ? 0.028 : 0.034);
+const warmth = new Warmth();
+const field = new Field($<HTMLCanvasElement>('#field'), reduced ? 0.026 : 0.032);
 if (!field.ok) root.classList.add('no-gl');
-const lamp = new Lamp($('#lamp'), { reduced, portrait });
-
-// The opening cue: the lamp comes up from cold once the type is ready.
-const begin = () => lamp.open(reduced ? 0 : 2.6);
-Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 900))]).then(() => setTimeout(begin, reduced ? 0 : 350));
+const cable = new Cable($<HTMLCanvasElement>('#cable'), reduced);
 
 /* ------------------------------------------------------------ the work */
 
-const deck = new Deck($('#index'), $('#deck'), shows, reduced);
+const showcase = new Showcase($('#showcase'), shows, reduced);
+const list = new WorkList($('#all-list'), credits, shows, reduced);
 let workVisible = false;
-new IntersectionObserver(([e]) => (workVisible = e.isIntersecting), { rootMargin: '20% 0px' }).observe($('#work'));
+new IntersectionObserver(([e]) => (workVisible = e.isIntersecting), { rootMargin: '30% 0px' }).observe($('#showcase'));
 
 /* Nav links light for the section you're in. */
 {
@@ -77,13 +77,13 @@ new IntersectionObserver(([e]) => (workVisible = e.isIntersecting), { rootMargin
     },
     { rootMargin: '-45% 0px -45% 0px' },
   );
-  ['work', 'credits', 'contact'].forEach((id) => io.observe(document.getElementById(id)!));
+  ['work', 'contact'].forEach((id) => io.observe(document.getElementById(id)!));
 }
 
 /*
   In-page links (the nav, the skip link, the brand) scroll without touching
   the address. The address only ever holds an open show, so closing a show
-  with Back never lands on an old #credits and jumps the page there.
+  with Back never lands on an old section and jumps the page there.
 */
 document.addEventListener('click', (e) => {
   const a = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="#"]');
@@ -92,7 +92,7 @@ document.addEventListener('click', (e) => {
   if (!target) return;
   e.preventDefault();
   target.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
-  if (a.classList.contains('skip')) $<HTMLAnchorElement>('#index .row').focus({ preventScroll: true });
+  if (a.classList.contains('skip')) $<HTMLAnchorElement>('.sc-open').focus({ preventScroll: true });
 });
 
 /* ---------------------------------------------------------------- sheet */
@@ -114,16 +114,10 @@ function route() {
   const m = location.hash.match(/^#\/work\/([\w-]+)$/);
   const i = m ? shows.findIndex((x) => x.slug === m[1]) : -1;
   if (i >= 0) {
-    deck.select(i);
-    if (!sheet.isOpen) {
-      sheet.open(shows[i], i + 1, opener ?? document.querySelector<HTMLElement>(`.row[data-i="${i}"]`));
-      // House to out while the show is up; it comes back when the show closes.
-      lamp.cue(0, 0.9);
-    }
+    if (!sheet.isOpen) sheet.open(shows[i], i + 1, opener ?? document.querySelector<HTMLElement>('.sc-open'));
     opener = null;
   } else if (sheet.isOpen) {
     sheet.close();
-    lamp.restore(2.2);
     openedFromPage = false;
   }
 }
@@ -144,41 +138,42 @@ document.addEventListener('click', (e) => {
   e.preventDefault();
   openShow(a.getAttribute('href')!.slice(7), a);
 });
-deck.onOpen = (show, from) => openShow(show.slug, from);
+showcase.onOpen = (show, from) => openShow(show.slug, from);
 
 /* ----------------------------------------------------------------- frame */
 
-/**
- * Where the lamp hangs: low over the cover, flown out to the top while
- * there's reading to do, and partway back down over the contact details.
- */
-function flyFor(y: number, vh: number, docH: number) {
-  const out = smooth(vh * 0.04, vh * 0.62, y);
-  const end = smooth(docH - vh * 1.7, docH - vh, y);
-  return out * (1 - 0.55 * end);
+// Without WebGL the warmth still follows, as a plain gradient.
+const fx = new Spring(innerWidth * 0.7, 0.8, 1);
+const fy = new Spring(innerHeight * 0.3, 0.8, 1);
+
+function resize() {
+  field.resize();
+  warmth.resize(innerWidth, innerHeight);
+  cable.resize();
+  showcase.measure();
 }
+resize();
+addEventListener('resize', resize);
+new ResizeObserver(() => showcase.measure()).observe($('#showcase'));
 
 let last = performance.now();
-let docH = root.scrollHeight;
-new ResizeObserver(() => (docH = root.scrollHeight)).observe(document.body);
-addEventListener('resize', () => field.resize());
-
+const start = last;
 function frame(now: number) {
   const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
   last = now;
-  const vw = innerWidth;
-  const vh = innerHeight;
-  // Reads first: the reading line on a touch screen picks the show that's lit.
-  if (touch && workVisible && !sheet.isOpen) deck.follow(vh * 0.6);
+  warmth.update(dt);
   const seed = reduced ? 1 : Math.floor(now / (1000 / 24));
-  const st = lamp.update(dt, flyFor(scrollY, vh, docH), vw, vh, seed);
-  if (field.ok) field.draw(st);
+  if (field.ok) field.draw(reduced ? 0 : (now - start) / 1000, scrollY, seed, warmth);
   else {
-    setVar(root, '--lx', `${st.x.toFixed(0)}px`);
-    setVar(root, '--ly', `${st.y.toFixed(0)}px`);
+    const h = warmth.hot;
+    setVar(root, '--wx', `${fx.step(h.x, dt).toFixed(0)}px`);
+    setVar(root, '--wy', `${fy.step(h.y, dt).toFixed(0)}px`);
+    setVar(root, '--wh', h.h.toFixed(2));
   }
-  deck.update(dt, workVisible && !sheet.isOpen);
+  showcase.update(dt, workVisible && !sheet.isOpen);
+  list.update(dt);
   sheet.update(dt);
+  cable.update(dt);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
@@ -187,8 +182,8 @@ route();
 declare global {
   interface Window {
     __fullerton?: boolean;
-    __tungsten?: { lamp: Lamp; deck: Deck; sheet: Sheet };
+    __tungsten?: { warmth: Warmth; showcase: Showcase; sheet: Sheet; cable: Cable };
   }
 }
 window.__fullerton = true;
-if (import.meta.env.DEV) window.__tungsten = { lamp, deck, sheet };
+if (import.meta.env.DEV) window.__tungsten = { warmth, showcase, sheet, cable };

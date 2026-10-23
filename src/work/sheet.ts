@@ -1,6 +1,6 @@
 import { imageUrl, type Show, type ShowImage } from '../data/shows';
 import { clamp, esc, setText, setVar, smooth, Spring } from '../lib/dom';
-import { Filament, kelvinRgb, rgbTriplet } from '../lamp/tungsten';
+import { Filament, kelvinRgb, rgbTriplet } from '../light/tungsten';
 
 /*
   A show, opened. Its photo fills the window behind a sheet of frost that
@@ -85,6 +85,7 @@ export class Sheet {
         <p class="sh-top"><span class="sh-no">${pad(number)}</span><button class="sh-close" type="button">Close</button></p>
         <h2 class="sh-title" id="sheet-title">${esc(show.title)}</h2>
         <dl class="sh-meta">${meta.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
+        ${show.note ? `<p class="sh-note">${esc(show.note.text)}${show.note.source ? ` <a href="${show.note.source.url}" target="_blank" rel="noopener">${esc(show.note.source.label)}<span aria-hidden="true"> ↗</span></a>` : ''}</p>` : ''}
         ${years.length ? `<p class="sh-year">${years.map((y) => `<span>${esc(y)}</span>`).join('')}</p>` : ''}
         <div class="sh-foot">
           ${
@@ -249,7 +250,9 @@ export class Sheet {
     const ar = s.im.w / s.im.h;
     const var_ = ar / (vw / vh);
     let bw: number, bh: number, left: number, top: number;
-    if (var_ > 0.74 && var_ < 1.35) {
+    // Smaller originals (the ones from his site) aren't blown up past about 1.3 times.
+    const sharp = s.im.w * 1.3 >= vw * 0.85;
+    if (sharp && var_ > 0.74 && var_ < 1.35) {
       // Near the window's shape: full bleed.
       if (ar > vw / vh) (bh = vh), (bw = vh * ar);
       else (bw = vw), (bh = vw / ar);
@@ -258,13 +261,13 @@ export class Sheet {
     } else if (portrait) {
       // Whole, in the clear part under the type.
       bw = vw * 0.92;
-      bh = Math.min(bw / ar, vh * 0.9);
+      bh = Math.min(bw / ar, vh * 0.9, (s.im.w * 1.3) / ar);
       bw = bh * ar;
       left = (vw - bw) / 2;
       top = clamp(restPx + (vh - restPx - bh) / 2, 0, vh - bh);
     } else {
       // Whole, in the clear part beside the type.
-      bh = Math.min(vh * 0.84, ((vw - restPx) * 0.9) / ar);
+      bh = Math.min(vh * 0.84, ((vw - restPx) * 0.9) / ar, (s.im.w * 1.3) / ar);
       bw = bh * ar;
       left = clamp(restPx + (vw - restPx - bw) / 2, 0, vw - bw);
       top = (vh - bh) / 2;

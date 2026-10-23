@@ -85,6 +85,18 @@
    "w": 2832,
    "h": 4256,
    "credit": null
+  },
+  {
+   "id": "trophy-beams",
+   "w": 1920,
+   "h": 1200,
+   "credit": null
+  },
+  {
+   "id": "cheer",
+   "w": 1920,
+   "h": 1278,
+   "credit": null
   }
  ],
  "mmvas": [
@@ -437,6 +449,36 @@
    "w": 4256,
    "h": 2832,
    "credit": null
+  },
+  {
+   "id": "coaches-corner",
+   "w": 945,
+   "h": 645,
+   "credit": null
+  },
+  {
+   "id": "hockey-central",
+   "w": 952,
+   "h": 639,
+   "credit": null
+  },
+  {
+   "id": "central-desk",
+   "w": 990,
+   "h": 434,
+   "credit": null
+  },
+  {
+   "id": "red-chairs",
+   "w": 957,
+   "h": 618,
+   "credit": null
+  },
+  {
+   "id": "pucks",
+   "w": 1255,
+   "h": 834,
+   "credit": null
   }
  ],
  "lord-of-the-rings": [
@@ -494,6 +536,12 @@
    "id": "desk",
    "w": 4256,
    "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "sportsnet-wall",
+   "w": 996,
+   "h": 435,
    "credit": null
   }
  ],
@@ -578,6 +626,84 @@
    "id": "drafted",
    "w": 3264,
    "h": 2448,
+   "credit": null
+  }
+ ],
+ "ted": [
+  {
+   "id": "stage-beams",
+   "w": 1920,
+   "h": 1280,
+   "credit": null
+  },
+  {
+   "id": "talk",
+   "w": 1920,
+   "h": 1280,
+   "credit": null
+  },
+  {
+   "id": "stage",
+   "w": 1920,
+   "h": 1280,
+   "credit": null
+  },
+  {
+   "id": "conversation",
+   "w": 1920,
+   "h": 1280,
+   "credit": null
+  },
+  {
+   "id": "interview",
+   "w": 1920,
+   "h": 1280,
+   "credit": null
+  },
+  {
+   "id": "amazement",
+   "w": 1920,
+   "h": 1280,
+   "credit": null
+  },
+  {
+   "id": "singer",
+   "w": 1920,
+   "h": 1280,
+   "credit": null
+  },
+  {
+   "id": "violin",
+   "w": 1920,
+   "h": 1280,
+   "credit": null
+  }
+ ],
+ "fire-masters": [
+  {
+   "id": "chefs",
+   "w": 775,
+   "h": 366,
+   "credit": null
+  },
+  {
+   "id": "host",
+   "w": 733,
+   "h": 710,
+   "credit": null
+  }
+ ],
+ "the-big-bake": [
+  {
+   "id": "host",
+   "w": 784,
+   "h": 388,
+   "credit": null
+  },
+  {
+   "id": "bakers",
+   "w": 703,
+   "h": 408,
    "credit": null
   }
  ]

@@ -25,16 +25,14 @@
     <canvas class="field" id="field" aria-hidden="true"></canvas>
 
     <header class="chrome">
-      <a class="brand" href="#top" aria-label="Fullerton Productions, back to top">Fullerton Productions</a>
+      <a class="brand" href="#top" aria-label="Fullerton Productions, back to top"><span class="brand-mark" id="brand-mark"></span><span class="brand-name">Fullerton Productions</span></a>
       <nav class="nav" aria-label="Sections">
         <a href="#work">Work</a>
-        <a href="#credits">Credits</a>
         <a href="#contact">Contact</a>
       </nav>
     </header>
     <div class="marks" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-
-    <div class="lamp" id="lamp"></div>
+    <canvas class="cable" id="cable" aria-hidden="true"></canvas>
 
     <main id="main">
       <section class="cover" id="top" aria-labelledby="name">
@@ -49,27 +47,23 @@
       <section class="work" id="work" aria-labelledby="work-title">
         <header class="sec-head">
           <h2 class="sec-title" id="work-title">Work</h2>
+          <p class="sec-count" id="work-count"></p>
         </header>
-        <div class="work-grid">
-          <div class="index-wrap">
-            <p class="index-head" aria-hidden="true"><span>No</span><span>Show</span><span>Network</span><span>Year</span></p>
-            <ol class="index" id="index"></ol>
-          </div>
-          <div class="deck" id="deck" aria-hidden="true"></div>
+        <div class="showcase" id="showcase"></div>
+        <div class="all-work" id="all-work">
+          <header class="sec-head">
+            <h3 class="sec-title">All work</h3>
+            <p class="sec-count" id="all-count"></p>
+          </header>
+          <div id="all-list"></div>
         </div>
-      </section>
-
-      <section class="credits" id="credits" aria-labelledby="credits-title">
-        <header class="sec-head">
-          <h2 class="sec-title" id="credits-title">Credits</h2>
-        </header>
-        <div id="credits-table"></div>
       </section>
 
       <section class="contact" id="contact" aria-labelledby="contact-title">
         <header class="sec-head">
           <h2 class="sec-title" id="contact-title">Contact</h2>
         </header>
+        <div class="contact-logo" id="contact-logo" aria-hidden="true"></div>
         <div class="contact-body" id="contact-body"></div>
       </section>
     </main>

@@ -15,7 +15,9 @@
     {"id": "set", "src": "Super Bowl/DSC_4575.JPG"},
     {"id": "crane", "src": "Super Bowl/DSC_4509.JPG"},
     {"id": "trophy", "src": "Super Bowl/DSC_4417.JPG"},
-    {"id": "wall", "src": "Super Bowl/DSC_4602.JPG"}
+    {"id": "wall", "src": "Super Bowl/DSC_4602.JPG"},
+    {"id": "trophy-beams", "src": "site-2026/DSC_4421.webp"},
+    {"id": "cheer", "src": "site-2026/DSC_4599.webp"}
   ],
   "mmvas": [
     {"id": "queen-street", "src": "MMVA Bell/Screenshot 2026-10-07 at 11.12.45 PM.png"},
@@ -92,7 +94,12 @@
   ],
   "hockey-night-in-canada": [
     {"id": "studio", "src": "archive-2016/hockey-night-in-canada/DSC_3446.JPG"},
-    {"id": "desk", "src": "archive-2016/hockey-night-in-canada/DSC_3468_1441924398127.JPG"}
+    {"id": "desk", "src": "archive-2016/hockey-night-in-canada/DSC_3468_1441924398127.JPG"},
+    {"id": "coaches-corner", "src": "site-2026/6AF9C51DA668E194.webp"},
+    {"id": "hockey-central", "src": "site-2026/FDE91823436A7789.webp"},
+    {"id": "central-desk", "src": "site-2026/C226BF03365B39DA.webp"},
+    {"id": "red-chairs", "src": "site-2026/B88F016002A25439.webp"},
+    {"id": "pucks", "src": "site-2026/89416228D9745614.webp"}
   ],
   "lord-of-the-rings": [
     {"id": "tree", "src": "archive-2016/lord-of-the-rings-exhibit/F1020008.JPG"},
@@ -105,7 +112,8 @@
     {"id": "wall", "src": "archive-2016/sportsnet-studio-1/DSC_3140.JPG"},
     {"id": "glass", "src": "archive-2016/sportsnet-studio-1/DSC_3142.JPG"},
     {"id": "set", "src": "archive-2016/sportsnet-studio-1/DSC_3146.JPG"},
-    {"id": "desk", "src": "archive-2016/sportsnet-studio-1/DSC_3153.JPG"}
+    {"id": "desk", "src": "archive-2016/sportsnet-studio-1/DSC_3153.JPG"},
+    {"id": "sportsnet-wall", "src": "site-2026/CA5E937F3EF598FC.webp"}
   ],
   "sportsnet-studio-3": [
     {"id": "anchors", "src": "archive-2016/sportsnet-studio-3/DSC_3118.JPG"},
@@ -125,5 +133,23 @@
     {"id": "host", "src": "archive-2016/the-score/DSC_0860-2.jpg"},
     {"id": "screens", "src": "archive-2016/the-score/DSC_0863.jpg"},
     {"id": "drafted", "src": "archive-2016/the-score/IMG_1858.JPG"}
+  ],
+  "ted": [
+    {"id": "stage-beams", "src": "site-2026/026DACEA3055166B.webp"},
+    {"id": "talk", "src": "site-2026/34B2A6DC6963861F.webp"},
+    {"id": "stage", "src": "site-2026/CE67CD1E416CDD38.webp"},
+    {"id": "conversation", "src": "site-2026/D93F6BBCBC5522FF.webp"},
+    {"id": "interview", "src": "site-2026/DC15C6637BD4EC40.webp"},
+    {"id": "amazement", "src": "site-2026/5184A35B27DCC026.webp"},
+    {"id": "singer", "src": "site-2026/CADFE6A2D6B020E4.webp"},
+    {"id": "violin", "src": "site-2026/FB2CD4238CC17760.webp"}
+  ],
+  "fire-masters": [
+    {"id": "chefs", "src": "site-2026/930148C9F7DD358E.webp"},
+    {"id": "host", "src": "site-2026/1D5C5CDF027466C5.webp"}
+  ],
+  "the-big-bake": [
+    {"id": "host", "src": "site-2026/3F999ED24EA4FADE.webp"},
+    {"id": "bakers", "src": "site-2026/907E99D1B52814AA.webp"}
   ]
 }
