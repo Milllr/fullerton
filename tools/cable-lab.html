@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  html, body { margin: 0; height: 100%; background: radial-gradient(120% 90% at 70% 100%, #f1c89a, #f3e6d3 60%, #efe6da); overflow: hidden; }
+  .cable { position: fixed; right: 0; top: 0; }
+  .cable-grip { position: fixed; right: 0; top: 0; width: 30px; }
+</style>
+</head>
+<body>
+<canvas id="cable" class="cable"></canvas>
+<script type="module">
+  import { Cable } from '/src/cable/cable.ts';
+  const reduced = new URLSearchParams(location.search).has('reduced');
+  const cable = new Cable(document.getElementById('cable'), reduced);
+  const span = 10000;
+  let p = 0;
+  // Drive the cable by hand: no requestAnimationFrame, so frames are exact.
+  window.lab = {
+    cable,
+    run(target, seconds, fps = 60) {
+      const n = Math.round(seconds * fps);
+      for (let i = 0; i < n; i++) cable.update(1 / fps, target * span, innerHeight + span);
+      p = target;
+    },
+    // Move the target smoothly from where it is to `to` over `seconds`, as a steady scroll would.
+    scroll(to, seconds, fps = 60) {
+      const from = p;
+      const n = Math.max(1, Math.round(seconds * fps));
+      for (let i = 1; i <= n; i++) cable.update(1 / fps, (from + ((to - from) * i) / n) * span, innerHeight + span);
+      p = to;
+    },
+  };
+  window.lab.run(0, 2);
+</script>
+</body>
+</html>

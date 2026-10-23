@@ -1,35 +1,57 @@
-import { clamp, Spring } from '../lib/dom';
+import { clamp, smooth, Spring } from '../lib/dom';
 
 /*
   The scrollbar: a DMX cable. Its male five pin XLR is where you are on the
-  page; the cable hangs from it down the right edge to the floor, and the
-  slack is coiled there, the way a cable is coiled on a gig: over/under.
-  Every other loop is turned (its sheen rolls across the cable once) and
-  its crossing goes under the bundle, while the loops between cross over
-  it, so the crossings along the front read over, under, over like a braid. At the top
-  of the page the cable is out at full length; scroll down and the
-  connector comes down with you and the cable is laid into the coil the
-  way a fed rope coils on a floor: where it touches down travels round and
-  round, laying loop after loop, and the hanging cable (simulated, under
-  gravity, with a little stiffness) swings round with it. Drag the
-  connector to scroll.
+  page; the cable hangs from it straight down the right edge to the floor,
+  where the slack is coiled the way it is on a gig: over/under.
+
+  Loops go onto the pile whole, one at a time, gathered at the side the
+  cable comes down to. An over loop opens out of the foot of the cable and
+  tips back onto the pile. An under loop is made the other way round: it
+  opens flat on the floor in front and is turned over onto the pile, the way
+  your wrist turns over for it, so it lies the same way round as the rest
+  with its crossing underneath. Over and under loops lie turned a little
+  against each other, so at the gather they cross: the over loops across the
+  bundle, the under loops tucked beneath it. At the top of the page one loop
+  is down; scroll and the connector comes down with you while a loop is laid
+  for each stretch of cable, and scroll back up and they come back off. The
+  hanging cable is simulated (under gravity, with a little stiffness), so it
+  swings when it's moved and settles by itself. Drag the connector to scroll.
 */
 
 interface Geo {
   w: number;
   h: number;
-  /** Where the cable runs down. */
+  /** Where the cable hangs; the coil lies to its left, gathered under it. */
   track: number;
-  /** Top of the travel and the coil's centre on the floor. */
+  /** Screen height of the floor at the gather. */
+  floor: number;
+  /** Top of the travel. */
   top: number;
-  cx: number;
-  cy: number;
-  rx: number;
-  ry: number;
-  /** Cable thickness and connector size. */
+  /** Loop radius, cable thickness, connector scale and length. */
+  r: number;
   thick: number;
   s: number;
   conn: number;
+}
+
+type V3 = [number, number, number];
+type P2 = [number, number];
+
+interface Flight {
+  /** Which loop, how far through being laid (0 to 1) and which way it's going. */
+  k: number;
+  t: number;
+  dir: 1 | -1;
+}
+
+interface Run {
+  pts: P2[];
+  z: number;
+  /** Clear a hairline of paper around it, so what it crosses reads as underneath. */
+  carve: boolean;
+  /** How dark its shadow: lighter on the pile, where it mostly falls on more cable. */
+  shade?: number;
 }
 
 /** Small fixed irregularities, so the coil looks laid by hand. */
@@ -39,15 +61,20 @@ const jitter = (k: number, salt: number) => {
 };
 
 const TAU = Math.PI * 2;
-/** Where loops begin and end on the coil (front right, under the hang), and how much of each loop the crossing to the next row takes. */
-const PHI0 = 0.35;
-const CROSS = 0.85 / TAU;
+/** How steeply the floor is seen: the coil looks this much as deep as it is wide. */
+const SIN_E = 0.45;
+const COS_E = Math.sqrt(1 - SIN_E * SIN_E);
+/** Loops laid by the bottom of the page, on top of the one already down. */
+const LOOPS = 9;
+/** How far each loop is turned at the gather, over loops one way and under loops the other. */
+const TILT = 0.24;
+/** Points per loop, and how many of them either side of the gather cross the bundle there. */
+const SEGS = 60;
+const GATHER = 5;
 /** Points in the simulated hang. */
 const N = 40;
-const ease = (a: number, b: number, v: number) => {
-  const t = clamp((v - a) / (b - a), 0, 1);
-  return t * t * (3 - 2 * t);
-};
+/** An over loop stands leaning back a little before it tips onto the pile. */
+const LEAN = 1.36;
 
 export class Cable {
   private ctx: CanvasRenderingContext2D;
@@ -59,6 +86,12 @@ export class Cable {
   /** The hanging cable, simulated: where each point is and where it was. */
   private rope = new Float32Array(0);
   private last = new Float32Array(0);
+  /** Where the hang meets the coil, following the loop in the air quickly but not instantly. */
+  private foot = { x: new Spring(0, 9, 1), y: new Spring(0, 9, 1) };
+  /** Loops lying on the pile, and the ones in the air above it, lowest first. */
+  private rest = 1;
+  private flights: Flight[] = [];
+  private ready = false;
   private lastKey = '';
 
   constructor(
@@ -86,11 +119,8 @@ export class Cable {
     });
     this.grip.addEventListener('pointermove', (e) => {
       if (!this.dragging) return;
-      const g = this.g;
-      const travel = this.travel();
-      const p = clamp((e.clientY - offset - g.top) / travel, 0, 1);
-      const max = document.documentElement.scrollHeight - innerHeight;
-      scrollTo(0, p * max);
+      const p = clamp((e.clientY - offset - this.g.top) / this.travel(), 0, 1);
+      scrollTo(0, p * (document.documentElement.scrollHeight - innerHeight));
     });
     const end = () => {
       this.dragging = false;
@@ -109,83 +139,163 @@ export class Cable {
     this.canvas.height = Math.round(h * this.dpr);
     this.canvas.style.width = `${w}px`;
     this.canvas.style.height = `${h}px`;
+    const r = small ? 8 : 12;
     const s = small ? 0.66 : 0.86;
-    const rx = small ? 11 : 17;
     this.g = {
       w,
       h,
-      track: w - (small ? 9 : 13),
+      track: w - (small ? 8 : 11),
+      // Room below for an under loop opening on the floor in front.
+      floor: h - 3.2 * r * SIN_E - (small ? 4 : 6),
       top: small ? 8 : 12,
-      cx: w - (small ? 9 : 13) - rx * 0.96,
-      cy: h - (small ? 12 : 18),
-      rx,
-      ry: rx * 0.34,
-      thick: small ? 1.35 : 2,
+      r,
+      thick: small ? 1.4 : 2,
       s,
       conn: 31 * s,
     };
     this.rope = new Float32Array(0);
+    this.ready = false;
     this.lastKey = '';
   }
 
-  /** How far the connector can travel. */
+  /** How far the connector can travel: it stops above where the loops stand up. */
   private travel() {
     const g = this.g;
-    return g.cy - g.ry - 16 * g.s - g.conn - g.top;
+    return g.floor - 2.3 * g.r * COS_E - g.conn - g.top;
   }
 
   private connectorY(p: number) {
     return this.g.top + p * this.travel();
   }
 
-  /** Over/under: the over loops lie in the outer row, the turned under loops in the inner row, each loop a touch higher on the pile. */
-  private ring(k: number) {
+  /** On the floor at the gather: x right, y up, z towards you; to the screen. */
+  private at([x, y, z]: V3): P2 {
+    return [this.g.track + x, this.g.floor - y * COS_E + z * SIN_E];
+  }
+
+  /** Loop `k` as it lies on the pile: where it's gathered, how big, and which way it's turned. */
+  private loop(k: number) {
     const g = this.g;
     const under = k % 2 === 1;
-    const spread = g.thick * 1.45;
-    const rx = g.rx + (under ? -spread : spread) * 0.5 + jitter(k, 1) * 0.35;
-    return { cx: g.cx + jitter(k, 3) * 0.35, cy: g.cy - k * g.thick * 0.3, rx, ry: (rx / g.rx) * g.ry };
+    const r = g.r * (1 + jitter(k, 1) * 0.07);
+    const tilt = (under ? -TILT : TILT) + jitter(k, 7) * 0.04;
+    // The gathers sit a little apart along the side, like a braid.
+    const gather: V3 = [jitter(k, 5) * g.thick * 0.3, k * g.thick * 0.17, (((k * 0.618) % 1) - 0.5) * g.thick * 2.4];
+    const c: V3 = [gather[0] - r * Math.cos(tilt), gather[1], gather[2] - r * Math.sin(tilt)];
+    const pts: V3[] = [];
+    // From the gather it goes back, round the far side and the front, and back to the gather.
+    for (let i = 0; i <= SEGS; i++) {
+      const a = tilt - (i / SEGS) * TAU;
+      pts.push([c[0] + r * Math.cos(a), c[1], c[2] + r * Math.sin(a)]);
+    }
+    return { under, pts, gather, hinge: c[2] + r };
   }
 
   /**
-   * The coil as one continuous path: `phi` goes round and round from where
-   * the cable first touches the floor. Over the last stretch of each loop
-   * it crosses from that loop's row to the next one's.
+   * Loop `k` in the air, `t` of the way through being laid. It's turned up
+   * about its front edge (`theta`, 0 lying on the pile, a quarter turn
+   * standing, a half turn lying flat in front, mirrored) and opened out of
+   * the line of the cable (`open`).
    */
-  private coilPoint(phi: number): [number, number] {
-    const u = Math.max(0, (phi - PHI0) / TAU);
-    const k = Math.floor(u);
-    const w = ease(1 - CROSS, 1, u - k);
-    const a = this.ring(k);
-    const b = this.ring(k + 1);
-    const cx = a.cx + (b.cx - a.cx) * w;
-    const cy = a.cy + (b.cy - a.cy) * w;
-    const rx = a.rx + (b.rx - a.rx) * w;
-    const ry = a.ry + (b.ry - a.ry) * w;
-    return [cx + Math.cos(phi) * rx, cy + Math.sin(phi) * ry];
+  private posed(k: number, t: number): { pts: V3[]; up: number } {
+    const { under, pts, gather, hinge } = this.loop(k);
+    let open: number;
+    let theta: number;
+    if (under) {
+      // Opens flat in front, then is turned over onto the pile: quick off the floor, slow over the top, quick down.
+      open = smooth(0, 0.3, t);
+      const s = clamp((t - 0.32) / 0.68, 0, 1);
+      if (s < 0.86) {
+        const u = s / 0.86;
+        theta = Math.PI * (1 - (u + (0.62 * Math.sin(TAU * u)) / TAU));
+      } else theta = 0.1 * Math.sin((Math.PI * (s - 0.86)) / 0.14);
+    } else {
+      // Opens standing, then tips back like anything hinged at its foot: slowly, then all at once.
+      open = smooth(0, 0.34, t);
+      const s = clamp((t - 0.3) / 0.7, 0, 1);
+      theta = s < 0.82 ? LEAN * (1 - Math.pow(s / 0.82, 2.3)) : 0.09 * Math.sin((Math.PI * (s - 0.82)) / 0.18);
+    }
+    const ct = Math.cos(theta);
+    const st = Math.sin(theta);
+    return {
+      pts: pts.map(([x, y, z]) => {
+        const dz = z - hinge;
+        return [gather[0] + (x - gather[0]) * open, y - dz * st, hinge + dz * ct] as V3;
+      }),
+      up: Math.sin(Math.min(theta, Math.PI / 2)) * open,
+    };
   }
 
-  private coilPath(from: number, to: number): [number, number][] {
-    const n = Math.max(2, Math.ceil((to - from) / 0.1));
-    const pts: [number, number][] = [];
-    for (let i = 0; i <= n; i++) pts.push(this.coilPoint(from + ((to - from) * i) / n));
-    return pts;
+  /** Starts, runs and lands the loops in the air. Returns whether there are any. */
+  private lay(want: number, dt: number) {
+    const F = this.flights;
+    if (!this.ready || this.reduced) {
+      this.rest = want;
+      F.length = 0;
+      this.ready = true;
+      return false;
+    }
+    const shown = () => this.rest + F.filter((f) => f.dir > 0).length;
+    const gap = want - shown();
+    if (Math.abs(gap) > 3) {
+      // A jump down or up the page: the loops in between go straight to where they belong, the last one laid or lifted in view.
+      F.length = 0;
+      if (gap > 0) {
+        this.rest = want - 1;
+        F.push({ k: want - 1, t: 0.25, dir: 1 });
+      } else {
+        this.rest = want;
+        F.push({ k: want, t: 0.75, dir: -1 });
+      }
+    } else if (gap > 0) {
+      // One that was coming off goes back down; otherwise the next one is laid once the last is well on its way.
+      const back = F.find((f) => f.dir < 0);
+      const top = F[F.length - 1];
+      if (back) back.dir = 1;
+      else if (!top || top.t > 0.5) F.push({ k: this.rest + F.length, t: 0, dir: 1 });
+    } else if (gap < 0) {
+      const down = F.filter((f) => f.dir > 0).pop();
+      if (down) down.dir = -1;
+      else if (this.rest > 1 && (!F.length || F[0].t < 0.5)) {
+        this.rest--;
+        F.unshift({ k: this.rest, t: 1, dir: -1 });
+      }
+    }
+    // Behind by more than a loop, they go down quicker.
+    const speed = 1 + Math.min(2, Math.abs(want - shown()) * 0.7);
+    for (const f of F) f.t = clamp(f.t + (f.dir * dt * speed) / (f.k % 2 ? 0.95 : 0.75), 0, 1);
+    // They land from the bottom and come off from the top, in order.
+    while (F.length && F[0].dir > 0 && F[0].t >= 1 && F[0].k === this.rest) {
+      F.shift();
+      this.rest++;
+    }
+    while (F.length && F[F.length - 1].dir < 0 && F[F.length - 1].t <= 0) F.pop();
+    return F.length > 0;
+  }
+
+  /** Where the hang meets the coil: the gather of the loop on top, wherever that loop is. */
+  private end(): P2 {
+    const F = this.flights;
+    if (F.length) {
+      const f = F[F.length - 1];
+      return this.at(this.posed(f.k, f.t).pts[SEGS]);
+    }
+    return this.at(this.loop(this.rest).gather);
   }
 
   /**
    * The hang, as a real rope: a chain of points under gravity with a little
-   * stiffness, pinned at the connector and where it meets the floor, where
-   * it leaves the coil along the way it's being laid. Moving the connector
-   * or the laying point sets it swinging, and it settles by itself.
-   * Returns whether anything is still moving.
+   * stiffness, pinned at the connector and where it meets the coil, leaving
+   * both straight (the boot holds it straight out of the connector). Moving
+   * either end sets it swinging, and it settles by itself. Returns whether
+   * anything is still moving.
    */
-  private simulate(dt: number, ax: number, ay: number, bx: number, by: number, tx: number, ty: number) {
+  private simulate(dt: number, ax: number, ay: number, bx: number, by: number) {
     const dist = Math.hypot(bx - ax, by - ay);
-    const seg = (dist * 1.015 + 6) / N;
+    const seg = (dist * 1.004 + Math.min(1.5, dist * 0.01)) / N;
     const R = this.rope;
-    // From the floor the cable goes on the way it's being laid for a moment, then rises.
-    const gx = bx + tx * seg * 0.9;
-    const gy = by + ty * seg * 0.9 - seg * 0.55;
+    const gx = bx;
+    const gy = by - seg;
     if (R.length !== (N + 1) * 2 || this.reduced) {
       if (R.length !== (N + 1) * 2) {
         this.rope = new Float32Array((N + 1) * 2);
@@ -193,24 +303,21 @@ export class Cable {
       }
       for (let i = 0; i <= N; i++) {
         const t = i / N;
-        this.rope[i * 2] = this.last[i * 2] = ax + (gx - ax) * t;
-        this.rope[i * 2 + 1] = this.last[i * 2 + 1] = ay + (gy - ay) * t;
+        this.rope[i * 2] = this.last[i * 2] = ax + (bx - ax) * t;
+        this.rope[i * 2 + 1] = this.last[i * 2 + 1] = ay + (by - ay) * t;
       }
-      this.rope[N * 2] = bx;
-      this.rope[N * 2 + 1] = by;
       return !this.reduced;
     }
     const L = this.last;
     const G = 1500;
-    let moving = 0;
     let left = Math.min(dt, 0.05);
     while (left > 1e-4) {
       const h = Math.min(left, 1 / 120);
       left -= h;
-      for (let i = 1; i < N; i++) {
+      for (let i = 2; i < N - 1; i++) {
         const xi = i * 2;
-        const vx = (R[xi] - L[xi]) * 0.975;
-        const vy = (R[xi + 1] - L[xi + 1]) * 0.975;
+        const vx = (R[xi] - L[xi]) * 0.97;
+        const vy = (R[xi + 1] - L[xi + 1]) * 0.97;
         L[xi] = R[xi];
         L[xi + 1] = R[xi + 1];
         R[xi] += vx;
@@ -219,6 +326,8 @@ export class Cable {
       for (let it = 0; it < 12; it++) {
         R[0] = ax;
         R[1] = ay;
+        R[2] = ax;
+        R[3] = ay + seg;
         R[(N - 1) * 2] = gx;
         R[(N - 1) * 2 + 1] = gy;
         R[N * 2] = bx;
@@ -229,28 +338,27 @@ export class Cable {
           const dx = R[b] - R[a];
           const dy = R[b + 1] - R[a + 1];
           const l = Math.hypot(dx, dy) || 1e-6;
-          const k = ((l - seg) / l) * 0.5;
-          const fa = i === 0 || i >= N - 1 ? 0 : 1;
-          const fb = i + 1 >= N - 1 ? 0 : 1;
+          const k = (l - seg) / l;
+          const fa = i <= 1 || i >= N - 1 ? 0 : 1;
+          const fb = i + 1 <= 1 || i + 1 >= N - 1 ? 0 : 1;
           const s = fa + fb || 1;
-          R[a] += (dx * k * 2 * fa) / s;
-          R[a + 1] += (dy * k * 2 * fa) / s;
-          R[b] -= (dx * k * 2 * fb) / s;
-          R[b + 1] -= (dy * k * 2 * fb) / s;
+          R[a] += (dx * k * fa) / s;
+          R[a + 1] += (dy * k * fa) / s;
+          R[b] -= (dx * k * fb) / s;
+          R[b + 1] -= (dy * k * fb) / s;
         }
         // A little stiffness, so it bends like rubber cable rather than folding like string.
-        for (let i = 1; i < N - 1; i++) {
+        for (let i = 2; i < N - 1; i++) {
           const a = (i - 1) * 2;
           const m = i * 2;
           const c = (i + 1) * 2;
-          const mx = (R[a] + R[c]) / 2;
-          const my = (R[a + 1] + R[c + 1]) / 2;
-          R[m] += (mx - R[m]) * 0.08;
-          R[m + 1] += (my - R[m + 1]) * 0.08;
+          R[m] += ((R[a] + R[c]) / 2 - R[m]) * 0.08;
+          R[m + 1] += ((R[a + 1] + R[c + 1]) / 2 - R[m + 1]) * 0.08;
         }
       }
     }
-    for (let i = 1; i < N; i++) moving = Math.max(moving, Math.abs(R[i * 2] - L[i * 2]) + Math.abs(R[i * 2 + 1] - L[i * 2 + 1]));
+    let moving = 0;
+    for (let i = 2; i < N - 1; i++) moving = Math.max(moving, Math.abs(R[i * 2] - L[i * 2]) + Math.abs(R[i * 2 + 1] - L[i * 2 + 1]));
     return moving > 0.004;
   }
 
@@ -265,108 +373,120 @@ export class Cable {
     } else p = this.p.step(target, dt);
     const g = this.g;
     const yc = this.connectorY(p);
-    // The slack is however far the connector has come down; it's laid round the coil from where the cable touches the floor.
-    const perim = 2 * Math.PI * Math.sqrt((g.rx * g.rx + g.ry * g.ry) / 2);
-    const phiL = PHI0 + ((p * this.travel()) / perim) * TAU;
-    const [bx, by] = this.coilPoint(phiL);
-    const [nx, ny] = this.coilPoint(phiL + 0.05);
-    const tl = Math.hypot(nx - bx, ny - by) || 1;
-    const moving = this.simulate(dt, g.track, yc + g.conn, bx, by, (nx - bx) / tl, (ny - by) / tl);
-    const key = `${p.toFixed(4)}|${g.w}x${g.h}`;
-    if (!moving && key === this.lastKey) return;
+    // A loop goes down a little before its stretch of cable is all there, so it can go down whole.
+    const flying = this.lay(1 + Math.floor(p * LOOPS + 0.3), dt);
+    const [ex, ey] = this.end();
+    if (!this.rope.length) {
+      this.foot.x.set(ex);
+      this.foot.y.set(ey);
+    }
+    const fx = this.reduced ? ex : this.foot.x.step(ex, dt);
+    const fy = this.reduced ? ey : this.foot.y.step(ey, dt);
+    const moving = this.simulate(dt, g.track, yc + g.conn, fx, fy);
+    const key = `${p.toFixed(4)}|${this.rest}|${g.w}x${g.h}`;
+    if (!moving && !flying && key === this.lastKey && this.foot.y.settled) return;
     this.lastKey = key;
-    this.draw(yc, phiL);
-    const t = `translate3d(0,${(yc - 4).toFixed(1)}px,0)`;
-    if (this.grip.style.transform !== t) this.grip.style.transform = t;
+    this.draw(yc, [ex, ey]);
+    const tr = `translate3d(0,${(yc - 4).toFixed(1)}px,0)`;
+    if (this.grip.style.transform !== tr) this.grip.style.transform = tr;
     this.grip.style.height = `${(g.conn + 8).toFixed(0)}px`;
   }
 
-  private draw(yc: number, phiL: number) {
+  private draw(yc: number, end: P2) {
     const { ctx, dpr } = this;
     const g = this.g;
+    const runs: Run[] = [];
+    const scr = (pts: V3[]) => pts.map((q) => this.at(q));
 
-    // Everything to draw, in the order it's laid, each with whether it's a turned loop.
-    const runs: { pts: [number, number][]; turned: boolean }[] = [];
+    // The far end runs in along the front of the first loop, just inside it, from where it lies out to the left with its female connector.
+    const first = this.loop(0).pts;
+    const tail = scr([
+      [-g.r * 2.95, 0, -g.r * 0.55],
+      [-g.r * 2.45, 0, -g.r * 0.3],
+      ...first.slice(SEGS / 2, SEGS).map(([x, y, z], i, a) => {
+        const inset = 0.9 * g.thick * Math.sin((Math.PI * i) / a.length);
+        return [x + inset * 0.3, y, z - inset] as V3;
+      }),
+      first[SEGS],
+    ]);
+    runs.push({ pts: tail, z: -1e4, carve: false });
 
-    // The far end and its female connector, lying out on the floor from under the first loop.
-    const start = this.coilPoint(PHI0);
-    const tailEnd: [number, number] = [g.cx - g.rx * 1.55, g.cy + g.ry * 1.35];
-    runs.push({ pts: [tailEnd, [g.cx - g.rx * 0.6, g.cy + g.ry * 1.25], [start[0] - 3, start[1] + 1], start], turned: false });
-
-    // The coil, loop by loop. The crossing into an under loop goes under everything; into an over loop, over what's there.
-    const laid = (phiL - PHI0) / TAU;
-    const loops = Math.ceil(laid);
-    const segs: { pts: [number, number][]; z: number; turned: boolean }[] = [];
-    for (let k = 0; k < loops; k++) {
-      const a0 = PHI0 + k * TAU;
-      const mainEnd = Math.min(phiL, a0 + (1 - CROSS) * TAU);
-      segs.push({ pts: this.coilPath(a0, mainEnd), z: k, turned: k % 2 === 1 });
-      if (phiL > mainEnd) {
-        const over = (k + 1) % 2 === 0;
-        segs.push({ pts: this.coilPath(mainEnd, Math.min(phiL, a0 + TAU)), z: over ? k + 0.5 : -1, turned: !over });
-      }
+    // The pile, in the order it was laid. Where each loop passes the gather, an over loop goes across the bundle, an under loop beneath it.
+    for (let k = 0; k < this.rest; k++) {
+      const { under, pts } = this.loop(k);
+      const s = scr(pts);
+      const next = this.at(this.loop(k + 1).gather);
+      const gz = under ? -5e3 + k : 1e4 + k;
+      runs.push({ pts: s.slice(0, GATHER + 2), z: gz, carve: false, shade: 0.12 });
+      runs.push({ pts: s.slice(GATHER, SEGS - GATHER + 1), z: k, carve: false, shade: 0.12 });
+      runs.push({ pts: [...s.slice(SEGS - GATHER - 1), next], z: gz, carve: false, shade: 0.12 });
     }
-    segs.sort((a, c) => a.z - c.z);
-    for (const s of segs) runs.push(s);
 
-    // The hang, as simulated.
+    // The loops in the air, each joined to the one before it.
+    let prev = this.at(this.loop(this.rest).gather);
+    for (const f of this.flights) {
+      const { pts, up } = this.posed(f.k, f.t);
+      const s = scr(pts);
+      runs.push({ pts: [prev, ...s], z: 2e4 + f.k, carve: up > 0.3 });
+      prev = s[SEGS];
+    }
+
+    // The hang, as simulated, from where it meets the coil.
     const R = this.rope;
-    const hang: [number, number][] = [];
-    for (let i = 0; i <= N; i++) hang.push([R[i * 2], R[i * 2 + 1]]);
-    runs.push({ pts: hang, turned: false });
-    // Laid at the back of the coil, the cable goes down behind the front of the pile.
-    if (Math.sin(phiL) < -0.15) {
-      for (let k = 0; k < Math.floor(laid); k++) {
-        const a0 = PHI0 + k * TAU;
-        const base = TAU * Math.floor(a0 / TAU);
-        const to = Math.min(a0 + (1 - CROSS) * TAU, base + Math.PI - 0.15);
-        if (to > a0) runs.push({ pts: this.coilPath(a0, to), turned: k % 2 === 1 });
-      }
-    }
+    const hang: P2[] = [end];
+    for (let i = N; i >= 0; i--) hang.push([R[i * 2], R[i * 2 + 1]]);
+    runs.push({ pts: hang, z: 3e4, carve: false });
+    runs.sort((a, b) => a.z - b.z);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.lineCap = 'round';
+    ctx.lineCap = 'butt';
     ctx.lineJoin = 'round';
-
-    // Its shadow on the paper first, offset away from the light: drawn far off the canvas so only the shadow lands.
-    ctx.save();
-    ctx.translate(10000, 0);
-    ctx.shadowColor = 'rgba(60, 38, 18, 0.2)';
-    ctx.shadowBlur = 3.5 * dpr;
-    ctx.shadowOffsetX = (-10000 + 1.6) * dpr;
-    ctx.shadowOffsetY = 2.4 * dpr;
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = g.thick;
-    for (const r of runs) this.path(ctx, r.pts);
-    ctx.restore();
-
-    // Rubber: a dark edge, the body, and a sheen from the light up and to the left. A turned loop's sheen rolls across the cable once.
-    for (const { pts, turned } of runs) {
-      if (pts.length < 2) continue;
-      ctx.strokeStyle = 'rgba(12, 11, 10, 0.92)';
-      ctx.lineWidth = g.thick + 0.9;
-      this.path(ctx, pts);
-      ctx.strokeStyle = '#22201d';
-      ctx.lineWidth = g.thick;
-      this.path(ctx, pts);
-      ctx.strokeStyle = 'rgba(255, 246, 232, 0.26)';
-      ctx.lineWidth = Math.max(0.55, g.thick * 0.28);
-      const n = pts.length - 1;
-      this.path(
-        ctx,
-        pts.map(([x, y], i) => {
-          const o = turned ? 0.5 * Math.cos((Math.PI * i) / n) : -0.45;
-          return [x + o * 0.6, y + o] as [number, number];
-        }),
-      );
-    }
-    this.female(tailEnd[0], tailEnd[1]);
+    for (const run of runs) this.tube(run);
+    const tl = tail[1];
+    this.female(tail[0][0], tail[0][1], Math.atan2(tail[0][1] - tl[1], tail[0][0] - tl[0]));
     this.male(g.track, yc);
   }
 
-  private path(ctx: CanvasRenderingContext2D, pts: [number, number][]) {
+  /** One stretch of cable: a hairline of paper cleared round it if it crosses others, its shadow, then rubber. */
+  private tube({ pts, carve, shade = 0.2 }: Run) {
+    const { ctx, dpr } = this;
+    const g = this.g;
+    if (pts.length < 2) return;
+    if (carve) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = g.thick + 1;
+      this.path(pts);
+      ctx.restore();
+    }
+    // The shadow, offset away from the light: drawn far off the canvas so only the shadow lands.
+    ctx.save();
+    ctx.translate(10000, 0);
+    ctx.shadowColor = `rgba(60, 38, 18, ${shade})`;
+    ctx.shadowBlur = 3 * dpr;
+    ctx.shadowOffsetX = (-10000 + 1.4) * dpr;
+    ctx.shadowOffsetY = 2.2 * dpr;
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = g.thick;
+    this.path(pts);
+    ctx.restore();
+    // Rubber: a dark edge, the body, and a sheen from the light up and to the left.
+    ctx.strokeStyle = 'rgba(12, 11, 10, 0.92)';
+    ctx.lineWidth = g.thick + 0.9;
+    this.path(pts);
+    ctx.strokeStyle = '#22201d';
+    ctx.lineWidth = g.thick;
+    this.path(pts);
+    ctx.strokeStyle = 'rgba(255, 246, 232, 0.26)';
+    ctx.lineWidth = Math.max(0.55, g.thick * 0.28);
+    this.path(pts.map(([x, y]) => [x - 0.27, y - 0.45] as P2));
+  }
+
+  private path(pts: P2[]) {
+    const { ctx } = this;
     ctx.beginPath();
     ctx.moveTo(pts[0][0], pts[0][1]);
     for (let i = 1; i < pts.length - 1; i++) {
@@ -438,14 +558,16 @@ export class Cable {
     ctx.restore();
   }
 
-  /** The other end, lying on the floor pointing away: just the body and its latch. */
-  private female(x: number, y: number) {
+  /** The other end, lying on the floor pointing away (`ang`, from where its cable comes in): just the body and its latch. */
+  private female(x: number, y: number, ang: number) {
     const { ctx } = this;
     const s = this.g.s * 0.82;
     ctx.save();
     ctx.translate(x, y);
+    ctx.rotate(ang);
     ctx.scale(s, s);
-    ctx.rotate(Math.PI * 0.94);
+    // The boot ends where the cable does.
+    ctx.translate(8, 0);
     ctx.shadowColor = 'rgba(60, 38, 18, 0.2)';
     ctx.shadowBlur = 3;
     ctx.shadowOffsetX = 1.2;
