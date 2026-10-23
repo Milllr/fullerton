@@ -451,6 +451,18 @@
    "credit": null
   },
   {
+   "id": "cup",
+   "w": 2832,
+   "h": 4256,
+   "credit": null
+  },
+  {
+   "id": "crew",
+   "w": 1200,
+   "h": 778,
+   "credit": null
+  },
+  {
    "id": "coaches-corner",
    "w": 945,
    "h": 645,
@@ -478,6 +490,26 @@
    "id": "pucks",
    "w": 1255,
    "h": 834,
+   "credit": null
+  },
+  {
+   "id": "puck-wall",
+   "w": 2832,
+   "h": 4256,
+   "credit": null
+  }
+ ],
+ "gerry-dee-live": [
+  {
+   "id": "marquee",
+   "w": 960,
+   "h": 640,
+   "credit": null
+  },
+  {
+   "id": "mic",
+   "w": 638,
+   "h": 400,
    "credit": null
   }
  ],

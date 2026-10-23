@@ -51,7 +51,9 @@ Without WebGL the warmth still follows, as a plain CSS gradient.
 
 **All work.** Under the showcase, every production in one list, newest first, the year once per year: production, network and kind. The whole row is the link: shows with photos open their sheet, and the rest open their source. On a pointer, a print of the show comes up above the pointer, so the row stays readable.
 
-**A show.** Its photo fills the window with a sheet of frost over part of it and the type on the frost: title, network, kind, any note, the years set large, and the photos numbered along the bottom (the sources stay in the data, not on the page). The frost edge leans a little towards the pointer, and the warmth melts the frost wherever it's been (never all the way, so the type stays readable). Click the left of the window for the previous photo and anywhere else for the next; the pointer turns into a quiet hairline arrow showing which. The arrow keys work too. Photos dissolve into each other over about 1.3 seconds, the new one settling from a touch closer; every layer of it (photo, frost, background) is ready before it starts, and the photos either side are fetched ahead, so a click answers at once and nothing pops in. On a phone, swipe sideways between photos, tap to go on, and drag up or down to move the frost edge. Nothing in the sheet can be selected or dragged. Smaller photos and ones far from the window's shape sit whole in the clear part. Each new photo comes up like a lamp while the last one stays under it, so there's no dip.
+**A show.** Its photo fills the window with a sheet of frost over part of it and the type on the frost: title, network, kind, any note, the years set large, and the photos numbered along the bottom (the sources stay in the data, not on the page). The frost edge leans a little towards the pointer, and the warmth melts the frost wherever it's been (never all the way, so the type stays readable). Click the left of the window for the previous photo and anywhere else for the next; the pointer turns into a quiet hairline arrow showing which. The arrow keys work too. Photos dissolve into each other over about 1.3 seconds, the new one settling from a touch closer; every layer of it (photo, frost, background) is ready before it starts, and the photos either side are fetched ahead, so a click answers at once and nothing pops in. On a phone, swipe sideways between photos, tap to go on, and drag up or down to move the frost edge. Nothing in the sheet can be selected or dragged. Smaller photos and ones far from the window's shape sit whole in the clear part.
+
+**A film.** A show can have a film (`film` in `src/data/shows.ts`, a YouTube id). It comes after the photos, with Video at the end of the numbers and Watch beside the running time in the type. Until it's played it's one of the show's own photos at the film's shape, whole and clear of the frost, with a hairline play mark (and the pointer turns into one). Click or tap it, or Watch, and the player loads over it (youtube-nocookie, nothing from YouTube loads before that). Moving to a photo or closing the show stops it. Sportsnet Studios has Sportsnet's own tour of the studios, the one James asked for.
 
 ## The cable
 
@@ -69,7 +71,7 @@ In development `window.__tungsten` holds the warmth, showcase, sheet and cable f
 
 ## Adding or changing photos
 
-Originals live in `raw/` (ignored by git, they're large). Add the file to `raw/` and an entry to `tools/manifest.json`, then:
+Originals live in `raw/` (ignored by git, they're large). James shares his on Dropbox (Photos For Miller, one folder per show), and `raw/` keeps the same folders. Add the file to `raw/` and an entry to `tools/manifest.json`, then:
 
 ```bash
 pip install pillow
@@ -85,6 +87,7 @@ Accepted sources (Miller, 2026-10-22): NewscastStudio, TV Technology, James's ow
 - NewscastStudio set galleries credited "Lighting Design: James Downey / Fullerton Productions" (Sportsnet Studios 2021, Breakfast Television 2017, Hockey Central 2014, Sportsnet 360 and Sportsnet 2013)
 - His 2018 NewscastStudio interview and 2022 TV Technology article (Super Bowl XLIV, TED, Hockey Night in Canada, Gemini and Genie Awards, the 2011 Royal Wedding, two dozen plus Rogers studios)
 - The family photo archive, with years from the photo metadata (MMVAs 2012, ET Canada 2008 to 2014, TIFF 2007, events 2005 to 2009)
+- The show folders James shares on Dropbox, which say which show each photo is from: Gerry Dee Live (his CBC New Year's special; recorded at the Centrepointe Theatre and aired December 31, 2013, per the CBC media centre) and more Hockey Night in Canada
 - His 2016 site (`raw/archive-2016`, linked in the Wayback Machine as the source): ET Canada New Year's Eve, Gemini Awards, Global Ottawa studio, Hockey Night in Canada, the Lord of the Rings exhibit, Sportsnet Studios 1 and 3, The Ron James Show and The Score. Years from the sets themselves where they show one (Gemini Awards 08, the New Year's countdown to 2012).
 - His site as it was in 2026 (`raw/site-2026`): TED, Fire Masters, The Big Bake, and more Hockey Central, Super Bowl and Sportsnet Studio 1 photos.
 - His IMDb credits (nm2333234).

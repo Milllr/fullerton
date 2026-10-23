@@ -35,9 +35,23 @@ export interface Show {
   images: ShowImage[];
   source?: Source;
   note?: Note;
+  /** A film of it, played in the viewer after the photos. */
+  film?: Film;
 }
 
-export type Kind = 'Studio' | 'Live broadcast' | 'Awards' | 'Festival' | 'Event' | 'Series';
+/** A film of a show, played from where it's published (YouTube) and loaded only when it's asked for. */
+export interface Film {
+  youtube: string;
+  title: string;
+  /** Running time, as shown. */
+  length: string;
+  /** Who made it, shown as its credit. */
+  by: string;
+  /** The photo of the show that stands for it until it plays. */
+  poster: string;
+}
+
+export type Kind = 'Studio' | 'Live broadcast' | 'Awards' | 'Festival' | 'Event' | 'Series' | 'Special';
 
 export interface Credit {
   year: string;
@@ -80,12 +94,24 @@ const show = (e: Omit<Show, 'images'>): Show => ({ ...e, images: A[e.slug] });
 
 /**
  * Every show with photos, in showcase order. The photos come from the
- * family archive, his 2016 site (raw/archive-2016) and his site as it was
- * in 2026 (raw/site-2026) among them. Years only where a source, the photo
+ * family archive, the folders James shares on Dropbox (raw/<show>), his
+ * 2016 site (raw/archive-2016) and his site as it was in 2026
+ * (raw/site-2026) among them. Years only where a source, the photo
  * metadata or the set itself has them; otherwise left blank.
  */
 export const shows: Show[] = [
-  show({ slug: 'sportsnet-studios', title: 'Sportsnet Studios 31 and 32', network: 'Sportsnet', year: '2021', sortYear: 2021, kind: 'Studio', key: 'studio-31', source: ncs('sportsnet-2') }),
+  // The film is the one James asked for (2026-10-23): Sportsnet's tour of the studios, October 2021, on sportsnet.ca and their YouTube channel.
+  show({
+    slug: 'sportsnet-studios',
+    title: 'Sportsnet Studios 31 and 32',
+    network: 'Sportsnet',
+    year: '2021',
+    sortYear: 2021,
+    kind: 'Studio',
+    key: 'studio-31',
+    source: ncs('sportsnet-2'),
+    film: { youtube: 'O5JoL-wP4Cs', title: "Sportsnet's New NHL Studios", length: '1:22', by: 'Sportsnet', poster: 'skyline' },
+  }),
   show({ slug: 'super-bowl-xliv', title: 'Super Bowl XLIV', network: 'CBS', year: '2010', sortYear: 2010, kind: 'Live broadcast', key: 'set', source: archived('cbs-superbowl-xliv') }),
   show({ slug: 'ted', title: 'TED conferences', network: 'TED', year: '', sortYear: 0, kind: 'Event', key: 'stage-beams', source: interview2018 }),
   show({
@@ -113,6 +139,17 @@ export const shows: Show[] = [
   show({ slug: 'the-big-bake', title: 'The Big Bake', network: 'Food Network Canada', short: 'Food Network', year: '', sortYear: 0, kind: 'Series', key: 'host' }),
   // The countdown on the set rings in 2012: the show went out December 31, 2011.
   show({ slug: 'et-canada-new-years-eve', title: "ET Canada New Year's Eve", network: 'Global', year: '2011', sortYear: 2011, kind: 'Live broadcast', key: 'stage', source: archived('et-canada-new-years-eve') }),
+  // James filed these photos as his CBC Gerry Dee New Year's special (2026-10-19): recorded at the Centrepointe Theatre, Ottawa, and aired December 31, 2013.
+  show({
+    slug: 'gerry-dee-live',
+    title: 'Gerry Dee Live',
+    network: 'CBC',
+    year: '2013',
+    sortYear: 2013,
+    kind: 'Special',
+    key: 'marquee',
+    source: { label: 'CBC', url: 'https://mediacentre.cbc.ca/announcement/1279/ring-in-the-new-year-with-cbc-tv' },
+  }),
   show({ slug: 'the-agenda', title: 'The Agenda with Steve Paikin', network: 'TVO', year: '', sortYear: 0, kind: 'Studio', key: 'set' }),
   show({ slug: 'the-score', title: 'The Score', network: 'The Score Television Network', short: 'The Score', year: '', sortYear: 0, kind: 'Studio', key: 'floor', source: archived('the-score') }),
   // The set NewscastStudio lists as Sportsnet, 2013.
@@ -157,7 +194,7 @@ export const credits: Credit[] = [
   { year: '2021', sortYear: 2021, production: 'Juno Opening Night Awards', network: 'CARAS', kind: 'Awards', source: imdb },
   { year: '2017', sortYear: 2017, production: 'Still Standing', network: 'CBC', kind: 'Series', source: imdb },
   { year: '2016', sortYear: 2016, production: 'The Whole Truths', network: '', kind: 'Series', source: imdb },
-  { year: '2011', sortYear: 2011, production: 'A Russell Peters Christmas Special', network: 'CTV', kind: 'Series', source: imdb },
+  { year: '2011', sortYear: 2011, production: 'A Russell Peters Christmas Special', network: 'CTV', kind: 'Special', source: imdb },
   { year: '2007 to 2008', sortYear: 2007, production: 'History Bites', network: 'History Television', kind: 'Series', source: imdb },
   { year: '2005', sortYear: 2005, production: 'Design to Win', network: '', kind: 'Series', source: imdb },
   { year: '2004', sortYear: 2004, production: 'Style by Jury', network: 'W Network', kind: 'Series', source: imdb },

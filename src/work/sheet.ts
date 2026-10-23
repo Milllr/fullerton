@@ -1,4 +1,4 @@
-import { imageUrl, type Show, type ShowImage } from '../data/shows';
+import { imageUrl, type Film, type Show, type ShowImage } from '../data/shows';
 import { clamp, esc, setText, setVar, Spring } from '../lib/dom';
 import { CELL, type Warmth } from '../light/warmth';
 
@@ -14,6 +14,10 @@ import { CELL, type Warmth } from '../light/warmth';
   numbers along the bottom step through the photos. And the warmth that
   follows the pointer (or a finger) melts the frost: the photo shows
   through wherever it's been, and frosts over again as it cools.
+
+  A show with a film has it after the photos: a photo of the show with a
+  hairline play mark, whole and clear of the frost, and the player (from
+  YouTube) only loads when it's played. Moving on stops it.
 */
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -26,7 +30,11 @@ interface Slide {
   img: HTMLImageElement;
   melt: HTMLCanvasElement;
   box: { l: number; t: number; w: number; h: number };
+  /** The film this slide stands for, if it isn't a photo. */
+  film?: Film;
 }
+
+const PLAY = `<svg class="sh-play" viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="#f2ede4" stroke-width="1.2" stroke-linejoin="round"><circle cx="32" cy="32" r="30"/><path d="M26 21.5v21l17-10.5z"/></g></svg>`;
 
 export class Sheet {
   private show: Show | null = null;
@@ -86,6 +94,8 @@ export class Sheet {
     const meta: [string, string][] = [];
     if (show.network) meta.push(['Network', esc(show.network)]);
     meta.push(['Kind', esc(show.kind)]);
+    if (show.film)
+      meta.push(['Video', `<button class="sh-watch" type="button">Watch<span class="sh-len">${esc(show.film.length)}</span></button>`]);
     this.root.innerHTML = `
       <div class="sh-slides"></div>
       <div class="sh-type">
@@ -96,10 +106,10 @@ export class Sheet {
         ${years.length ? `<p class="sh-year">${years.map((y) => `<span>${esc(y)}</span>`).join('')}</p>` : ''}
         <div class="sh-foot">
           ${
-            show.images.length > 1
+            this.count > 1
               ? `<nav class="sh-strip" aria-label="Photos">${show.images
                   .map((_, i) => `<button type="button" data-i="${i}" aria-label="Photo ${i + 1} of ${show.images.length}">${i + 1}</button>`)
-                  .join('')}</nav>`
+                  .join('')}${show.film ? `<button type="button" data-i="${show.images.length}">Video</button>` : ''}</nav>`
               : ''
           }
           <p class="sh-count" aria-live="polite"></p>
@@ -110,6 +120,7 @@ export class Sheet {
     this.unbind = new AbortController();
     this.dragging = false;
     this.root.querySelector('.sh-close')!.addEventListener('click', () => this.onClose());
+    this.root.querySelector('.sh-watch')?.addEventListener('click', () => this.watch());
     this.root.querySelectorAll<HTMLButtonElement>('.sh-strip button').forEach((b) =>
       b.addEventListener('click', () => this.go(Number(b.dataset.i))),
     );
@@ -136,8 +147,14 @@ export class Sheet {
     return this.isOpen ? this.show?.slug ?? null : null;
   }
 
+  /** How many there are to step through: the photos, and the film if there is one. */
+  private get count() {
+    return this.show ? this.show.images.length + (this.show.film ? 1 : 0) : 0;
+  }
+
   close() {
     if (this.root.hidden || this.closing != null) return;
+    this.stopFilm();
     this.unbind?.abort();
     this.unbind = null;
     this.dragging = false;
@@ -166,7 +183,7 @@ export class Sheet {
     const signal = this.unbind!.signal;
     const along = (e: PointerEvent) => (this.portrait ? e.clientY / innerHeight : e.clientX / innerWidth);
     const slides = r.querySelector<HTMLElement>('.sh-slides')!;
-    const many = () => (this.show?.images.length ?? 0) > 1;
+    const many = () => this.count > 1;
     /** Which way a click here goes: the left part of the window back, the rest on. */
     const way = (e: PointerEvent) => (e.clientX < innerWidth * 0.33 ? -1 : 1);
     let down: { x: number; y: number; t: number; at: number } | null = null;
@@ -185,9 +202,9 @@ export class Sheet {
           if (this.dragging) this.rest = along(e) + down.at;
         } else if (e.pointerType === 'mouse') {
           this.lean = along(e) - 0.5;
-          // The pointer turns into a quiet arrow showing which way a click goes.
-          const onPhoto = !(e.target as HTMLElement).closest('a, button') && many();
-          const go = onPhoto ? (way(e) < 0 ? 'prev' : 'next') : '';
+          // The pointer turns into a quiet arrow showing which way a click goes, or a play mark over a film.
+          const free = !(e.target as HTMLElement).closest('a, button');
+          const go = free && this.onFilm(e) ? 'play' : free && many() ? (way(e) < 0 ? 'prev' : 'next') : '';
           if (slides.dataset.go !== go) slides.dataset.go = go;
         }
       },
@@ -221,8 +238,9 @@ export class Sheet {
         return;
       }
       if (!was || e.type !== 'pointerup' || performance.now() - was.t > 450) return;
-      // A click goes back on the left and on everywhere else; a tap on a phone goes on.
-      if (e.pointerType === 'mouse') this.step(way(e));
+      // A click goes back on the left and on everywhere else; a tap on a phone goes on. On a film, either plays it.
+      if (this.onFilm(e)) this.play();
+      else if (e.pointerType === 'mouse') this.step(way(e));
       else this.step(1);
     };
     slides.addEventListener('pointerup', up);
@@ -232,32 +250,75 @@ export class Sheet {
 
   private step(d: number) {
     if (!this.show) return;
-    const n = this.show.images.length;
+    const n = this.count;
     if (n > 1) this.go((this.index + d + n) % n);
   }
 
-  private async go(i: number) {
+  /** Go to the film and play it. */
+  private watch() {
+    const at = this.show?.images.length ?? 0;
+    if (this.index === at && this.slides[this.slides.length - 1]?.film) this.play();
+    else this.go(at, true);
+  }
+
+  /** Whether the pointer is on the film, waiting to be played. */
+  private onFilm(e: PointerEvent) {
+    const s = this.slides[this.slides.length - 1];
+    if (!s?.film || this.index !== this.show?.images.length || s.el.classList.contains('is-playing')) return false;
+    const b = s.box;
+    return e.clientX >= b.l && e.clientX <= b.l + b.w && e.clientY >= b.t && e.clientY <= b.t + b.h;
+  }
+
+  /** The player loads only now, over the film's photo. */
+  private play() {
+    const s = this.slides[this.slides.length - 1];
+    const film = s?.film;
+    if (!film || s.el.classList.contains('is-playing')) return;
+    const f = document.createElement('iframe');
+    f.className = 'sh-video';
+    f.title = film.title;
+    f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+    f.allowFullscreen = true;
+    f.src = `https://www.youtube-nocookie.com/embed/${film.youtube}?autoplay=1&rel=0&playsinline=1`;
+    s.el.querySelector('.sh-clear')!.append(f);
+    s.el.classList.add('is-playing');
+    this.root.querySelector<HTMLElement>('.sh-slides')!.dataset.go = '';
+    f.focus();
+  }
+
+  /** Stop the film: its player goes, and its photo is back. */
+  private stopFilm() {
+    for (const el of this.root.querySelectorAll('.is-playing')) {
+      el.querySelector('.sh-video')?.remove();
+      el.classList.remove('is-playing');
+    }
+  }
+
+  private async go(i: number, play = false) {
     const show = this.show;
     if (!show) return;
+    this.stopFilm();
     this.index = i;
     const token = ++this.token;
-    const im = show.images[i];
-    const n = show.images.length;
+    const film = i === show.images.length ? show.film : undefined;
+    const im = film ? show.images.find((m) => m.id === film.poster) ?? show.images[0] : show.images[i];
+    const n = this.count;
     setText(this.root.querySelector('.sh-count')!, n > 1 ? `${pad(i + 1)} / ${pad(n)}` : '');
-    setText(this.root.querySelector('.sh-credit')!, im.credit ? `Photo ${im.credit}` : '');
+    setText(this.root.querySelector('.sh-credit')!, film ? `Video ${film.by}` : im.credit ? `Photo ${im.credit}` : '');
     // The credit line can change the type's size; measure it again.
     this.typeKey = '';
     this.root.querySelectorAll('.sh-strip button').forEach((b, j) => b.setAttribute('aria-current', String(j === i)));
     const el = document.createElement('figure');
-    el.className = 'sh-slide';
+    el.className = film ? 'sh-slide is-film' : 'sh-slide';
     const full = imageUrl(show.slug, im.id, 'full');
     const m = imageUrl(show.slug, im.id, 'm');
+    const alt = film ? `${show.title}, video` : `${show.title}, photo ${i + 1} of ${show.images.length}`;
     el.innerHTML = `
       <img class="sh-back" src="${m}" alt="" />
       <div class="sh-box">
         <img class="sh-frost" src="${m}" alt="" />
         <canvas class="sh-melt" aria-hidden="true"></canvas>
-        <div class="sh-clear"><img class="sh-img" alt="${esc(show.title)}, photo ${i + 1} of ${n}" /><i class="sh-tint"></i></div>
+        <div class="sh-clear"><img class="sh-img" alt="${esc(alt)}" /><i class="sh-tint"></i>${film ? PLAY : ''}</div>
       </div>`;
     const img = el.querySelector<HTMLImageElement>('.sh-img')!;
     img.src = full;
@@ -266,9 +327,11 @@ export class Sheet {
     if (token !== this.token || this.show !== show) return;
     this.root.querySelector('.sh-slides')!.append(el);
     // The photos either side, fetched now so a click changes photo at once.
+    const idAt = (j: number) => (j === show.images.length ? show.film!.poster : show.images[j].id);
     for (const d of [1, -1])
-      for (const size of ['full', 'm'] as const) new Image().src = imageUrl(show.slug, show.images[(i + d + n) % n].id, size);
-    this.slides.push({ el, t: this.reduced ? 1 : 0, im, img, melt: el.querySelector('canvas')!, box: { l: 0, t: 0, w: 0, h: 0 } });
+      for (const size of ['full', 'm'] as const) new Image().src = imageUrl(show.slug, idAt((i + d + n) % n), size);
+    this.slides.push({ el, t: this.reduced ? 1 : 0, im, img, melt: el.querySelector('canvas')!, box: { l: 0, t: 0, w: 0, h: 0 }, film });
+    if (play) this.play();
   }
 
   /** The warmth the pointer leaves, which melts the frost. */
@@ -339,7 +402,7 @@ export class Sheet {
       setVar(s.el, '--in', e.toFixed(3));
       setVar(s.el, '--z', (1 + 0.025 * Math.pow(1 - s.t, 2)).toFixed(4));
     }
-    if (last && this.warmth && (this.warmth.version !== this.meltVersion || last.melt.dataset.at !== String(last.box.w))) {
+    if (last && !last.film && this.warmth && (this.warmth.version !== this.meltVersion || last.melt.dataset.at !== String(last.box.w))) {
       this.meltVersion = this.warmth.version;
       last.melt.dataset.at = String(last.box.w);
       this.melt(last);
@@ -359,11 +422,13 @@ export class Sheet {
   private place(s: Slide, portrait: boolean, edgePx: number, restPx: number) {
     const vw = innerWidth;
     const vh = innerHeight;
-    const ar = s.im.w / s.im.h;
+    // A film is always whole and clear of the frost, at its own shape.
+    const ar = s.film ? 16 / 9 : s.im.w / s.im.h;
     const var_ = ar / (vw / vh);
     let bw: number, bh: number, left: number, top: number;
     // Smaller originals (the ones from his site) aren't blown up past about 1.3 times.
-    const sharp = s.im.w * 1.3 >= vw * 0.85;
+    const cap = s.film ? 1920 : s.im.w * 1.3;
+    const sharp = !s.film && cap >= vw * 0.85;
     if (sharp && var_ > 0.74 && var_ < 1.35) {
       // Near the window's shape: full bleed.
       if (ar > vw / vh) (bh = vh), (bw = vh * ar);
@@ -373,13 +438,13 @@ export class Sheet {
     } else if (portrait) {
       // Whole, edge to edge, in the clear part under the type.
       bw = vw;
-      bh = Math.min(bw / ar, vh * 0.9, (s.im.w * 1.3) / ar);
+      bh = Math.min(bw / ar, vh * 0.9, cap / ar);
       bw = bh * ar;
       left = (vw - bw) / 2;
       top = clamp(restPx + (vh - restPx - bh) / 2, 0, vh - bh);
     } else {
       // Whole, in the clear part beside the type.
-      bh = Math.min(vh * 0.84, ((vw - restPx) * 0.9) / ar, (s.im.w * 1.3) / ar);
+      bh = Math.min(vh * 0.84, ((vw - restPx) * 0.9) / ar, cap / ar);
       bw = bh * ar;
       left = clamp(restPx + (vw - restPx - bw) / 2, 0, vw - bw);
       top = (vh - bh) / 2;
@@ -389,7 +454,7 @@ export class Sheet {
     setVar(s.el, '--bh', `${bh.toFixed(1)}px`);
     setVar(s.el, '--bl', `${left.toFixed(1)}px`);
     setVar(s.el, '--bt', `${top.toFixed(1)}px`);
-    const cut = portrait ? clamp(edgePx - top, 0, bh) : clamp(edgePx - left, 0, bw);
+    const cut = s.film ? 0 : portrait ? clamp(edgePx - top, 0, bh) : clamp(edgePx - left, 0, bw);
     setVar(s.el, '--cut', `${cut.toFixed(1)}px`);
   }
 

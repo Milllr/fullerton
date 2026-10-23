@@ -1,10 +1,10 @@
 {
   "sportsnet-studios": [
-    {"id": "studio-31", "src": "Rogers_211.jpg"},
-    {"id": "desk", "src": "Rogers_211006_SN_0044_LoRes.jpg", "credit": "Arash Moallemi"},
-    {"id": "panel", "src": "Rogers_211006_SN_0081_LoRes.jpg", "credit": "Arash Moallemi"},
-    {"id": "skyline", "src": "Screenshot 2026-10-07 at 11.21.01 PM.png"},
-    {"id": "cove", "src": "Screenshot 2026-10-07 at 11.20.45 PM.png"},
+    {"id": "studio-31", "src": "NHL Studio's Sportsnet/Rogers_211.jpg"},
+    {"id": "desk", "src": "NHL Studio's Sportsnet/Rogers_211006_SN_0044_LoRes.jpg", "credit": "Arash Moallemi"},
+    {"id": "panel", "src": "NHL Studio's Sportsnet/Rogers_211006_SN_0081_LoRes.jpg", "credit": "Arash Moallemi"},
+    {"id": "skyline", "src": "NHL Studio's Sportsnet/Screenshot 2026-10-07 at 11.21.01 PM.png"},
+    {"id": "cove", "src": "NHL Studio's Sportsnet/Screenshot 2026-10-07 at 11.20.45 PM.png"},
     {"id": "wide", "src": "NHL Studio's Sportsnet/IMG_7718-scaled.jpg"},
     {"id": "corner", "src": "NHL Studio's Sportsnet/83D7109D-C6EB-4804-B80D-CF4EA1173F45.jpg"}
   ],
@@ -37,7 +37,7 @@
     {"id": "desk", "src": "Breakfast television City TV/BT_170914_0029_LoRes-1.jpg", "credit": "Arash Moallemi"},
     {"id": "couch", "src": "Breakfast television City TV/BT_170914_0032_LoRes.jpg", "credit": "Arash Moallemi"},
     {"id": "riser", "src": "Breakfast television City TV/BT_170914_0033_LoRes.jpg", "credit": "Arash Moallemi"},
-    {"id": "lounge", "src": "BT_170914_0038_LoRes.jpg", "credit": "Arash Moallemi"}
+    {"id": "lounge", "src": "Breakfast television City TV/BT_170914_0038_LoRes.jpg", "credit": "Arash Moallemi"}
   ],
   "the-agenda": [
     {"id": "set", "src": "The Agenda TVO/agenda-02.jpg"},
@@ -69,10 +69,10 @@
     {"id": "couch", "src": "TIFF Film Festival/DSC_0945.JPG"}
   ],
   "events": [
-    {"id": "gala-beams", "src": "DSC_0603.JPG"},
-    {"id": "gala", "src": "DSC_0593-2.JPG"},
-    {"id": "garden", "src": "DSC_4027.jpg"},
-    {"id": "winter-stage", "src": "DSC_0362_1.JPG"}
+    {"id": "gala-beams", "src": "Corporate/DSC_0603.JPG"},
+    {"id": "gala", "src": "Corporate/DSC_0593-2.JPG"},
+    {"id": "garden", "src": "Corporate/DSC_4027.jpg"},
+    {"id": "winter-stage", "src": "Corporate/DSC_0362_1.JPG"}
   ],
   "et-canada-new-years-eve": [
     {"id": "stage", "src": "archive-2016/et-canada-new-years-eve/DSC_9869.jpg"},
@@ -95,11 +95,18 @@
   "hockey-night-in-canada": [
     {"id": "studio", "src": "archive-2016/hockey-night-in-canada/DSC_3446.JPG"},
     {"id": "desk", "src": "archive-2016/hockey-night-in-canada/DSC_3468_1441924398127.JPG"},
+    {"id": "cup", "src": "Hockey Night In Canada/DSC_3472.jpg"},
+    {"id": "crew", "src": "Hockey Night In Canada/mdb_20141206_12539A.JPG"},
     {"id": "coaches-corner", "src": "site-2026/6AF9C51DA668E194.webp"},
     {"id": "hockey-central", "src": "site-2026/FDE91823436A7789.webp"},
     {"id": "central-desk", "src": "site-2026/C226BF03365B39DA.webp"},
     {"id": "red-chairs", "src": "site-2026/B88F016002A25439.webp"},
-    {"id": "pucks", "src": "site-2026/89416228D9745614.webp"}
+    {"id": "pucks", "src": "site-2026/89416228D9745614.webp"},
+    {"id": "puck-wall", "src": "Hockey Night In Canada/DSC_3398.jpg"}
+  ],
+  "gerry-dee-live": [
+    {"id": "marquee", "src": "CBC Gerry Dee New Years Special/996973_639306026131979_1884831883_n.jpg"},
+    {"id": "mic", "src": "CBC Gerry Dee New Years Special/GerrywMic-GDL-gallery-thumb-638xauto-339224.jpg"}
   ],
   "lord-of-the-rings": [
     {"id": "tree", "src": "archive-2016/lord-of-the-rings-exhibit/F1020008.JPG"},
