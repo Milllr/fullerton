@@ -15,7 +15,9 @@
     {"id": "set", "src": "Super Bowl/DSC_4575.JPG"},
     {"id": "crane", "src": "Super Bowl/DSC_4509.JPG"},
     {"id": "trophy", "src": "Super Bowl/DSC_4417.JPG"},
-    {"id": "wall", "src": "Super Bowl/DSC_4602.JPG"}
+    {"id": "wall", "src": "Super Bowl/DSC_4602.JPG"},
+    {"id": "trophy-beams", "src": "site-2026/DSC_4421.webp"},
+    {"id": "cheer", "src": "site-2026/DSC_4599.webp"}
   ],
   "mmvas": [
     {"id": "queen-street", "src": "MMVA Bell/Screenshot 2026-10-07 at 11.12.45 PM.png"},
@@ -23,7 +25,12 @@
     {"id": "fire", "src": "MMVA Bell/DSC_0503.JPG"},
     {"id": "rig", "src": "MMVA Bell/IMG_0702.JPG"},
     {"id": "crowd", "src": "MMVA Bell/Screenshot 2026-10-07 at 11.13.37 PM.png"},
-    {"id": "acoustic", "src": "MMVA Bell/Screenshot 2026-10-07 at 11.13.18 PM.png"}
+    {"id": "acoustic", "src": "MMVA Bell/Screenshot 2026-10-07 at 11.13.18 PM.png"},
+    {"id": "blue-stage", "src": "archive-2016/much-music-video-awards/DSC_0340.JPG"},
+    {"id": "yellow", "src": "archive-2016/much-music-video-awards/DSC_0489.JPG"},
+    {"id": "rings", "src": "archive-2016/much-music-video-awards/DSC_0531.JPG"},
+    {"id": "guitar", "src": "archive-2016/much-music-video-awards/DSC_0554.JPG"},
+    {"id": "pyro", "src": "archive-2016/much-music-video-awards/DSC_0573.JPG"}
   ],
   "breakfast-television": [
     {"id": "platform", "src": "Breakfast television City TV/BT_170914_0026_LoRes.jpg", "credit": "Arash Moallemi"},
@@ -41,13 +48,20 @@
     {"id": "casa-loma", "src": "ET Canada/DSC_1011_2-3.jpg"},
     {"id": "lounge", "src": "ET Canada/DSC_1157-3.jpg"},
     {"id": "studio", "src": "ET Canada/Cheryl v2 Aug.19.14 (1).jpg"},
-    {"id": "interview", "src": "ET Canada/Cheryl-and-Tom.jpg"}
+    {"id": "interview", "src": "ET Canada/Cheryl-and-Tom.jpg"},
+    {"id": "set", "src": "archive-2016/entertainment-tonight-canada/DSC_1884.jpg"},
+    {"id": "wide", "src": "archive-2016/entertainment-tonight-canada/DSC_1868_1398223826268.jpg"},
+    {"id": "column", "src": "archive-2016/entertainment-tonight-canada/DSC_1878.jpg"}
   ],
   "sportsnet-360": [
     {"id": "connected", "src": "Sportsnet Studio's/sportsnet-05.jpg"},
     {"id": "sn360", "src": "Sportsnet Studio's/sportsnet-03.jpg"},
     {"id": "studio", "src": "Sportsnet Studio's/sportsnet-01.jpg"},
-    {"id": "glass", "src": "Sportsnet Studio's/sportsnet-02.jpg"}
+    {"id": "glass", "src": "Sportsnet Studio's/sportsnet-02.jpg"},
+    {"id": "drafted", "src": "archive-2016/sportsnet-360/IMG_3044.JPG"},
+    {"id": "logo", "src": "archive-2016/sportsnet-360/IMG_3050.JPG"},
+    {"id": "screen", "src": "archive-2016/sportsnet-360/IMG_3052.JPG"},
+    {"id": "corner", "src": "archive-2016/sportsnet-360/IMG_3053.JPG"}
   ],
   "tiff": [
     {"id": "panel", "src": "TIFF Film Festival/DSC_0855.JPG"},
@@ -59,5 +73,83 @@
     {"id": "gala", "src": "DSC_0593-2.JPG"},
     {"id": "garden", "src": "DSC_4027.jpg"},
     {"id": "winter-stage", "src": "DSC_0362_1.JPG"}
+  ],
+  "et-canada-new-years-eve": [
+    {"id": "stage", "src": "archive-2016/et-canada-new-years-eve/DSC_9869.jpg"},
+    {"id": "crowd", "src": "archive-2016/et-canada-new-years-eve/DSC_9853.jpg"},
+    {"id": "truss", "src": "archive-2016/et-canada-new-years-eve/DSC_9874.jpg"},
+    {"id": "countdown", "src": "archive-2016/et-canada-new-years-eve/DSC_9921.jpg"}
+  ],
+  "gemini-awards": [
+    {"id": "beams", "src": "archive-2016/gemini-awards/DSC_1796_2.jpg"},
+    {"id": "set", "src": "archive-2016/gemini-awards/DSC_1784_1398228166675.jpg"},
+    {"id": "screens", "src": "archive-2016/gemini-awards/DSC_1800_2.jpg"},
+    {"id": "winners", "src": "archive-2016/gemini-awards/awardsShow_Winners101-2.jpg"}
+  ],
+  "global-ottawa": [
+    {"id": "studio", "src": "archive-2016/global-ottawa-studio/DSC_1516.JPG"},
+    {"id": "green", "src": "archive-2016/global-ottawa-studio/DSC_1522.JPG"},
+    {"id": "desk", "src": "archive-2016/global-ottawa-studio/DSC_1510.JPG"},
+    {"id": "anchor", "src": "archive-2016/global-ottawa-studio/DSC_1527.JPG"}
+  ],
+  "hockey-night-in-canada": [
+    {"id": "studio", "src": "archive-2016/hockey-night-in-canada/DSC_3446.JPG"},
+    {"id": "desk", "src": "archive-2016/hockey-night-in-canada/DSC_3468_1441924398127.JPG"},
+    {"id": "coaches-corner", "src": "site-2026/6AF9C51DA668E194.webp"},
+    {"id": "hockey-central", "src": "site-2026/FDE91823436A7789.webp"},
+    {"id": "central-desk", "src": "site-2026/C226BF03365B39DA.webp"},
+    {"id": "red-chairs", "src": "site-2026/B88F016002A25439.webp"},
+    {"id": "pucks", "src": "site-2026/89416228D9745614.webp"}
+  ],
+  "lord-of-the-rings": [
+    {"id": "tree", "src": "archive-2016/lord-of-the-rings-exhibit/F1020008.JPG"},
+    {"id": "costumes", "src": "archive-2016/lord-of-the-rings-exhibit/F1020011.JPG"},
+    {"id": "armour", "src": "archive-2016/lord-of-the-rings-exhibit/F1020022.JPG"},
+    {"id": "path", "src": "archive-2016/lord-of-the-rings-exhibit/F1020030.JPG"}
+  ],
+  "sportsnet-studio-1": [
+    {"id": "centre", "src": "archive-2016/sportsnet-studio-1/DSC_3144.JPG"},
+    {"id": "wall", "src": "archive-2016/sportsnet-studio-1/DSC_3140.JPG"},
+    {"id": "glass", "src": "archive-2016/sportsnet-studio-1/DSC_3142.JPG"},
+    {"id": "set", "src": "archive-2016/sportsnet-studio-1/DSC_3146.JPG"},
+    {"id": "desk", "src": "archive-2016/sportsnet-studio-1/DSC_3153.JPG"},
+    {"id": "sportsnet-wall", "src": "site-2026/CA5E937F3EF598FC.webp"}
+  ],
+  "sportsnet-studio-3": [
+    {"id": "anchors", "src": "archive-2016/sportsnet-studio-3/DSC_3118.JPG"},
+    {"id": "desk", "src": "archive-2016/sportsnet-studio-3/DSC_3116.JPG"},
+    {"id": "wide", "src": "archive-2016/sportsnet-studio-3/DSC_3137.JPG"},
+    {"id": "column", "src": "archive-2016/sportsnet-studio-3/DSC_3131.jpg"}
+  ],
+  "the-ron-james-show": [
+    {"id": "set", "src": "archive-2016/the-ron-james-show/DSC_3725.jpg"},
+    {"id": "audience", "src": "archive-2016/the-ron-james-show/DSC_4232.jpg"},
+    {"id": "stage", "src": "archive-2016/the-ron-james-show/DSC_4279.jpg"},
+    {"id": "crew", "src": "archive-2016/the-ron-james-show/IMG_1489.JPG"}
+  ],
+  "the-score": [
+    {"id": "floor", "src": "archive-2016/the-score/DSC_0831.jpg"},
+    {"id": "desk", "src": "archive-2016/the-score/DSC_0841_1398261852889.jpg"},
+    {"id": "host", "src": "archive-2016/the-score/DSC_0860-2.jpg"},
+    {"id": "screens", "src": "archive-2016/the-score/DSC_0863.jpg"},
+    {"id": "drafted", "src": "archive-2016/the-score/IMG_1858.JPG"}
+  ],
+  "ted": [
+    {"id": "stage-beams", "src": "site-2026/026DACEA3055166B.webp"},
+    {"id": "talk", "src": "site-2026/34B2A6DC6963861F.webp"},
+    {"id": "stage", "src": "site-2026/CE67CD1E416CDD38.webp"},
+    {"id": "conversation", "src": "site-2026/D93F6BBCBC5522FF.webp"},
+    {"id": "interview", "src": "site-2026/DC15C6637BD4EC40.webp"},
+    {"id": "amazement", "src": "site-2026/5184A35B27DCC026.webp"},
+    {"id": "singer", "src": "site-2026/CADFE6A2D6B020E4.webp"},
+    {"id": "violin", "src": "site-2026/FB2CD4238CC17760.webp"}
+  ],
+  "fire-masters": [
+    {"id": "chefs", "src": "site-2026/930148C9F7DD358E.webp"},
+    {"id": "host", "src": "site-2026/1D5C5CDF027466C5.webp"}
+  ],
+  "the-big-bake": [
+    {"id": "host", "src": "site-2026/3F999ED24EA4FADE.webp"},
+    {"id": "bakers", "src": "site-2026/907E99D1B52814AA.webp"}
   ]
 }

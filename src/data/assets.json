@@ -85,6 +85,18 @@
    "w": 2832,
    "h": 4256,
    "credit": null
+  },
+  {
+   "id": "trophy-beams",
+   "w": 1920,
+   "h": 1200,
+   "credit": null
+  },
+  {
+   "id": "cheer",
+   "w": 1920,
+   "h": 1278,
+   "credit": null
   }
  ],
  "mmvas": [
@@ -122,6 +134,36 @@
    "id": "acoustic",
    "w": 611,
    "h": 913,
+   "credit": null
+  },
+  {
+   "id": "blue-stage",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "yellow",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "rings",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "guitar",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "pyro",
+   "w": 4256,
+   "h": 2832,
    "credit": null
   }
  ],
@@ -201,6 +243,24 @@
    "w": 1944,
    "h": 2592,
    "credit": null
+  },
+  {
+   "id": "set",
+   "w": 4272,
+   "h": 2828,
+   "credit": null
+  },
+  {
+   "id": "wide",
+   "w": 4256,
+   "h": 1314,
+   "credit": null
+  },
+  {
+   "id": "column",
+   "w": 2828,
+   "h": 4272,
+   "credit": null
   }
  ],
  "sportsnet-360": [
@@ -226,6 +286,30 @@
    "id": "glass",
    "w": 2200,
    "h": 1666,
+   "credit": null
+  },
+  {
+   "id": "drafted",
+   "w": 3264,
+   "h": 2448,
+   "credit": null
+  },
+  {
+   "id": "logo",
+   "w": 3264,
+   "h": 2448,
+   "credit": null
+  },
+  {
+   "id": "screen",
+   "w": 3264,
+   "h": 2448,
+   "credit": null
+  },
+  {
+   "id": "corner",
+   "w": 3264,
+   "h": 2448,
    "credit": null
   }
  ],
@@ -272,6 +356,354 @@
    "id": "winter-stage",
    "w": 3008,
    "h": 2000,
+   "credit": null
+  }
+ ],
+ "et-canada-new-years-eve": [
+  {
+   "id": "stage",
+   "w": 1280,
+   "h": 852,
+   "credit": null
+  },
+  {
+   "id": "crowd",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "truss",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "countdown",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  }
+ ],
+ "gemini-awards": [
+  {
+   "id": "beams",
+   "w": 4272,
+   "h": 2828,
+   "credit": null
+  },
+  {
+   "id": "set",
+   "w": 4272,
+   "h": 2828,
+   "credit": null
+  },
+  {
+   "id": "screens",
+   "w": 4272,
+   "h": 2828,
+   "credit": null
+  },
+  {
+   "id": "winners",
+   "w": 2128,
+   "h": 1416,
+   "credit": null
+  }
+ ],
+ "global-ottawa": [
+  {
+   "id": "studio",
+   "w": 3008,
+   "h": 2000,
+   "credit": null
+  },
+  {
+   "id": "green",
+   "w": 3008,
+   "h": 2000,
+   "credit": null
+  },
+  {
+   "id": "desk",
+   "w": 2000,
+   "h": 3008,
+   "credit": null
+  },
+  {
+   "id": "anchor",
+   "w": 2000,
+   "h": 3008,
+   "credit": null
+  }
+ ],
+ "hockey-night-in-canada": [
+  {
+   "id": "studio",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "desk",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "coaches-corner",
+   "w": 945,
+   "h": 645,
+   "credit": null
+  },
+  {
+   "id": "hockey-central",
+   "w": 952,
+   "h": 639,
+   "credit": null
+  },
+  {
+   "id": "central-desk",
+   "w": 990,
+   "h": 434,
+   "credit": null
+  },
+  {
+   "id": "red-chairs",
+   "w": 957,
+   "h": 618,
+   "credit": null
+  },
+  {
+   "id": "pucks",
+   "w": 1255,
+   "h": 834,
+   "credit": null
+  }
+ ],
+ "lord-of-the-rings": [
+  {
+   "id": "tree",
+   "w": 1840,
+   "h": 1232,
+   "credit": null
+  },
+  {
+   "id": "costumes",
+   "w": 1840,
+   "h": 1232,
+   "credit": null
+  },
+  {
+   "id": "armour",
+   "w": 1840,
+   "h": 1232,
+   "credit": null
+  },
+  {
+   "id": "path",
+   "w": 1840,
+   "h": 1232,
+   "credit": null
+  }
+ ],
+ "sportsnet-studio-1": [
+  {
+   "id": "centre",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "wall",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "glass",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "set",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "desk",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "sportsnet-wall",
+   "w": 996,
+   "h": 435,
+   "credit": null
+  }
+ ],
+ "sportsnet-studio-3": [
+  {
+   "id": "anchors",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "desk",
+   "w": 4034,
+   "h": 2684,
+   "credit": null
+  },
+  {
+   "id": "wide",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "column",
+   "w": 2832,
+   "h": 4256,
+   "credit": null
+  }
+ ],
+ "the-ron-james-show": [
+  {
+   "id": "set",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "audience",
+   "w": 4272,
+   "h": 2828,
+   "credit": null
+  },
+  {
+   "id": "stage",
+   "w": 4272,
+   "h": 2828,
+   "credit": null
+  },
+  {
+   "id": "crew",
+   "w": 3264,
+   "h": 2448,
+   "credit": null
+  }
+ ],
+ "the-score": [
+  {
+   "id": "floor",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "desk",
+   "w": 4272,
+   "h": 2828,
+   "credit": null
+  },
+  {
+   "id": "host",
+   "w": 4272,
+   "h": 2828,
+   "credit": null
+  },
+  {
+   "id": "screens",
+   "w": 4256,
+   "h": 2832,
+   "credit": null
+  },
+  {
+   "id": "drafted",
+   "w": 3264,
+   "h": 2448,
+   "credit": null
+  }
+ ],
+ "ted": [
+  {
+   "id": "stage-beams",
+   "w": 1920,
+   "h": 1280,
+   "credit": null
+  },
+  {
+   "id": "talk",
+   "w": 1920,
+   "h": 1280,
+   "credit": null
+  },
+  {
+   "id": "stage",
+   "w": 1920,
+   "h": 1280,
+   "credit": null
+  },
+  {
+   "id": "conversation",
+   "w": 1920,
+   "h": 1280,
+   "credit": null
+  },
+  {
+   "id": "interview",
+   "w": 1920,
+   "h": 1280,
+   "credit": null
+  },
+  {
+   "id": "amazement",
+   "w": 1920,
+   "h": 1280,
+   "credit": null
+  },
+  {
+   "id": "singer",
+   "w": 1920,
+   "h": 1280,
+   "credit": null
+  },
+  {
+   "id": "violin",
+   "w": 1920,
+   "h": 1280,
+   "credit": null
+  }
+ ],
+ "fire-masters": [
+  {
+   "id": "chefs",
+   "w": 775,
+   "h": 366,
+   "credit": null
+  },
+  {
+   "id": "host",
+   "w": 733,
+   "h": 710,
+   "credit": null
+  }
+ ],
+ "the-big-bake": [
+  {
+   "id": "host",
+   "w": 784,
+   "h": 388,
+   "credit": null
+  },
+  {
+   "id": "bakers",
+   "w": 703,
+   "h": 408,
    "credit": null
   }
  ]
