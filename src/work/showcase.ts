@@ -104,6 +104,17 @@ export class Showcase {
       p.el.addEventListener('pointerleave', (e) => {
         if (e.pointerType === 'mouse' && this.hover === i) this.setHover(-1);
       });
+      // On a phone, a finger on the front plate presses it: it leans under the finger and catches the glint.
+      p.el.addEventListener('pointerdown', (e) => {
+        if (e.pointerType !== 'touch' || i !== this.active) return;
+        this.hover = i;
+        this.aimAt(p.el, e.clientX, e.clientY);
+      });
+      const release = (e: PointerEvent) => {
+        if (e.pointerType === 'touch' && this.hover === i) this.hover = -1;
+      };
+      p.el.addEventListener('pointerup', release);
+      p.el.addEventListener('pointercancel', release);
       p.el.addEventListener('click', () => {
         if (i === this.active) this.onOpen(this.shows[i], this.root.querySelector<HTMLElement>('.sc-open') ?? p.el);
         else this.goTo(i);
@@ -113,12 +124,7 @@ export class Showcase {
       if (e.pointerType !== 'mouse') return;
       this.label.style.transform = `translate3d(${e.clientX}px,${e.clientY}px,0)`;
       const front = this.plates[this.active];
-      if (front && this.hover === this.active) {
-        const r = front.el.getBoundingClientRect();
-        this.aim = { x: ((e.clientX - r.left) / r.width) * 2 - 1, y: ((e.clientY - r.top) / r.height) * 2 - 1 };
-        setVar(front.el, '--sx', `${(((this.aim.x + 1) / 2) * 100).toFixed(1)}%`);
-        setVar(front.el, '--sy', `${(((this.aim.y + 1) / 2) * 100).toFixed(1)}%`);
-      }
+      if (front && this.hover === this.active) this.aimAt(front.el, e.clientX, e.clientY);
     });
     this.ticks.forEach((b, i) => {
       b.addEventListener('click', () => this.goTo(i));
@@ -134,6 +140,14 @@ export class Showcase {
     });
     this.measure();
     this.show(0, true);
+  }
+
+  /** Point the front plate's lean and glint at a spot on the screen. */
+  private aimAt(el: HTMLElement, x: number, y: number) {
+    const r = el.getBoundingClientRect();
+    this.aim = { x: ((x - r.left) / r.width) * 2 - 1, y: ((y - r.top) / r.height) * 2 - 1 };
+    setVar(el, '--sx', `${(((this.aim.x + 1) / 2) * 100).toFixed(1)}%`);
+    setVar(el, '--sy', `${(((this.aim.y + 1) / 2) * 100).toFixed(1)}%`);
   }
 
   /** The page position where show `i` sits in front. */
