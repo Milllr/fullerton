@@ -295,10 +295,18 @@ export class Showcase {
       if (p.next.dataset.up) {
         if (this.reduced) p.nf.settle(1);
         else p.nf.step(1, dt);
-        if (p.nf.bright > 0.985) {
+        // Once it's fully up, it becomes the plate's photo; the layer over it only goes once that's ready, so nothing flashes.
+        if (p.nf.bright > 0.985 && !p.next.dataset.swap) {
+          p.next.dataset.swap = '1';
           p.clear.src = p.next.src;
-          delete p.next.dataset.up;
-          p.nf.theta = 0;
+          p.clear
+            .decode()
+            .catch(() => {})
+            .then(() => {
+              delete p.next.dataset.swap;
+              delete p.next.dataset.up;
+              p.nf.theta = 0;
+            });
         }
       }
       const nb = p.next.dataset.up ? p.nf.bright : 0;

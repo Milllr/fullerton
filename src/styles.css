@@ -658,7 +658,7 @@ main {
 
 .aw-row {
   display: grid;
-  grid-template-columns: 13ch minmax(0, 1.3fr) minmax(0, 1fr) 15ch 21ch;
+  grid-template-columns: 13ch minmax(0, 1.3fr) minmax(0, 1fr) 15ch 29ch;
   gap: 0 20px;
   align-items: baseline;
   padding: 9px 0 8px;

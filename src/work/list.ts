@@ -103,7 +103,10 @@ export class WorkList {
     if (this.preview.style.visibility !== 'visible') this.preview.style.visibility = 'visible';
     const x = this.reduced ? this.tx : this.x.step(this.tx, dt);
     const y = this.reduced ? this.ty : this.y.step(this.ty, dt);
-    const t = `translate3d(${(x + 28).toFixed(1)}px,${(y - 60).toFixed(1)}px,0)`;
+    // Out to the right of the title being read, level with the row.
+    const w = Math.min(340, Math.max(220, innerWidth * 0.22));
+    const px = Math.min(innerWidth - w - 70, Math.max(x + 70, innerWidth * 0.42));
+    const t = `translate3d(${px.toFixed(1)}px,${(y - w / 3).toFixed(1)}px,0)`;
     if (this.preview.style.transform !== t) this.preview.style.transform = t;
     const bb = kelvinRgb(Math.max(1000, f.kelvin));
     const warm = Math.min(1, g * 1.6) * (1 - 0.75 * lit * lit);
