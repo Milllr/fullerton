@@ -929,26 +929,13 @@ a.aw-title {
   cursor: pointer;
 }
 
-/* Which way a click goes, at the pointer. */
-.sh-cue {
-  position: fixed;
-  left: 0;
-  top: 0;
-  z-index: 5;
-  translate: 18px 14px;
-  padding: 7px 10px 6px;
-  font-size: var(--small);
-  white-space: nowrap;
-  background: rgb(var(--frost) / 0.86);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.25s;
+/* Which way a click goes: the pointer itself becomes a quiet hairline arrow. */
+.sh-slides[data-go='next'] {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='34' viewBox='0 0 34 34'%3E%3Cg fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 17h20M21 11l6 6-6 6' stroke='%23f2ede4' stroke-width='3'/%3E%3Cpath d='M7 17h20M21 11l6 6-6 6' stroke='%231b1915' stroke-width='1.1'/%3E%3C/g%3E%3C/svg%3E") 17 17, e-resize;
 }
 
-.sh-cue.is-on {
-  opacity: 1;
+.sh-slides[data-go='prev'] {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='34' viewBox='0 0 34 34'%3E%3Cg fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M27 17H7M13 11l-6 6 6 6' stroke='%23f2ede4' stroke-width='3'/%3E%3Cpath d='M27 17H7M13 11l-6 6 6 6' stroke='%231b1915' stroke-width='1.1'/%3E%3C/g%3E%3C/svg%3E") 17 17, w-resize;
 }
 
 .sh-slide {
@@ -1022,7 +1009,6 @@ a.aw-title {
   z-index: 2;
   inset: 0;
   clip-path: inset(0 0 0 var(--cut));
-  opacity: var(--lit, 0);
 }
 
 /* Where it's warm, the frost melts and the photo shows through. */
@@ -1032,7 +1018,6 @@ a.aw-title {
   inset: 0;
   width: 100%;
   height: 100%;
-  opacity: var(--lit, 0);
   pointer-events: none;
 }
 

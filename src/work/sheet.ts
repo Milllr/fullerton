@@ -1,17 +1,16 @@
 import { imageUrl, type Show, type ShowImage } from '../data/shows';
 import { clamp, esc, setText, setVar, smooth, Spring } from '../lib/dom';
-import { Filament, kelvinRgb, rgbTriplet } from '../light/tungsten';
 import { CELL, type Warmth } from '../light/warmth';
 
 /*
   A show, opened. Its photo fills the window behind a sheet of frost that
   covers part of it (the type sits on the frost), its edge leaning a little
   towards the pointer. Click the left of the window to go back, anywhere
-  else to go on; a small label at the pointer says which. On a phone, swipe
-  sideways between photos, tap to go on, and drag up or down to move the
-  frost edge. Each photo
-  comes up like a lamp: dim and amber, then clear, while the one before it
-  stays until the new one is up, so there's no dip between them. The
+  else to go on; the pointer turns into a quiet arrow showing which. On a
+  phone, swipe sideways between photos, tap to go on, and drag up or down
+  to move the frost edge. Each photo
+  dissolves in over the one before, which stays until the new one is
+  fully there, so there's no dip and nothing flashes. The
   numbers along the bottom step through the photos. And the warmth that
   follows the pointer (or a finger) melts the frost: the photo shows
   through wherever it's been, and frosts over again as it cools.
@@ -21,7 +20,8 @@ const pad = (n: number) => String(n).padStart(2, '0');
 
 interface Slide {
   el: HTMLElement;
-  f: Filament;
+  /** How far it has dissolved in, 0..1. */
+  t: number;
   im: ShowImage;
   img: HTMLImageElement;
   melt: HTMLCanvasElement;
@@ -86,11 +86,8 @@ export class Sheet {
     const meta: [string, string][] = [];
     if (show.network) meta.push(['Network', esc(show.network)]);
     meta.push(['Kind', esc(show.kind)]);
-    if (show.source)
-      meta.push(['Source', `<a href="${show.source.url}" target="_blank" rel="noopener">${esc(show.source.label)}<span aria-hidden="true"> ↗</span></a>`]);
     this.root.innerHTML = `
       <div class="sh-slides"></div>
-      <p class="sh-cue" aria-hidden="true"></p>
       <div class="sh-type">
         <p class="sh-top"><span class="sh-no">${pad(number)}</span><button class="sh-close" type="button">Close</button></p>
         <h2 class="sh-title" id="sheet-title">${esc(show.title)}</h2>
@@ -169,7 +166,6 @@ export class Sheet {
     const signal = this.unbind!.signal;
     const along = (e: PointerEvent) => (this.portrait ? e.clientY / innerHeight : e.clientX / innerWidth);
     const slides = r.querySelector<HTMLElement>('.sh-slides')!;
-    const cue = r.querySelector<HTMLElement>('.sh-cue')!;
     const many = () => (this.show?.images.length ?? 0) > 1;
     /** Which way a click here goes: the left part of the window back, the rest on. */
     const way = (e: PointerEvent) => (e.clientX < innerWidth * 0.33 ? -1 : 1);
@@ -189,13 +185,10 @@ export class Sheet {
           if (this.dragging) this.rest = along(e) + down.at;
         } else if (e.pointerType === 'mouse') {
           this.lean = along(e) - 0.5;
-          // A small label at the pointer says which way a click goes, except over the type's own links.
+          // The pointer turns into a quiet arrow showing which way a click goes.
           const onPhoto = !(e.target as HTMLElement).closest('a, button') && many();
-          cue.classList.toggle('is-on', onPhoto);
-          if (onPhoto) {
-            setText(cue, way(e) < 0 ? '← Previous' : 'Next →');
-            cue.style.transform = `translate3d(${e.clientX}px,${e.clientY}px,0)`;
-          }
+          const go = onPhoto ? (way(e) < 0 ? 'prev' : 'next') : '';
+          if (slides.dataset.go !== go) slides.dataset.go = go;
         }
       },
       { signal },
@@ -205,7 +198,7 @@ export class Sheet {
       (e) => {
         if (e.pointerType !== 'mouse') return;
         this.lean = 0;
-        cue.classList.remove('is-on');
+        slides.dataset.go = '';
       },
       { signal },
     );
@@ -274,11 +267,10 @@ export class Sheet {
       /* it will still show when it arrives */
     }
     if (token !== this.token || this.show !== show) return;
-    const f = new Filament(0.32);
-    f.theta = 0.3;
     this.root.querySelector('.sh-slides')!.append(el);
-    this.slides.push({ el, f, im, img, melt: el.querySelector('canvas')!, box: { l: 0, t: 0, w: 0, h: 0 } });
-    if (this.reduced) f.settle(1);
+    // The photos either side, fetched now so a click changes photo at once.
+    for (const d of [1, -1]) new Image().src = imageUrl(show.slug, show.images[(i + d + n) % n].id, 'full');
+    this.slides.push({ el, t: this.reduced ? 1 : 0, im, img, melt: el.querySelector('canvas')!, box: { l: 0, t: 0, w: 0, h: 0 } });
   }
 
   /** The warmth the pointer leaves, which melts the frost. */
@@ -342,14 +334,9 @@ export class Sheet {
 
     const last = this.slides[this.slides.length - 1];
     for (const s of this.slides) {
-      if (!this.reduced) s.f.step(1, dt);
+      s.t = Math.min(1, s.t + dt / 0.9);
       this.place(s, portrait, edgePx, rest * span);
-      const lit = s.f.bright;
-      const warm = Math.min(1, s.f.glow * 1.6) * (1 - 0.8 * lit * lit);
-      const bb = kelvinRgb(Math.max(1000, s.f.kelvin));
-      setVar(s.el, '--in', smooth(0.02, 0.3, lit).toFixed(3));
-      setVar(s.el, '--lit', smooth(0.12, 0.92, lit).toFixed(3));
-      setVar(s.el, '--tint', rgbTriplet([0, 1, 2].map((k) => 1 + (bb[k] - 1) * warm) as [number, number, number]));
+      setVar(s.el, '--in', smooth(0, 1, s.t).toFixed(3));
     }
     if (last && this.warmth && (this.warmth.version !== this.meltVersion || last.melt.dataset.at !== String(last.box.w))) {
       this.meltVersion = this.warmth.version;
@@ -357,7 +344,7 @@ export class Sheet {
       this.melt(last);
     }
     // Once the newest photo is up, the ones under it can go.
-    if (last && last.f.bright > 0.97 && this.slides.length > 1) {
+    if (last && last.t >= 1 && this.slides.length > 1) {
       for (const s of this.slides.slice(0, -1)) s.el.remove();
       this.slides = [last];
     }

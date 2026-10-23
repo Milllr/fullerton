@@ -9,8 +9,8 @@ import { clamp, Spring } from '../lib/dom';
   it, so the crossings along the front read over, under, over like a braid. At the top
   of the page the cable is out at full length; scroll down and the
   connector comes down with you while the cable is laid into the coil
-  loop by loop, the newest loop sweeping round as it goes. Drag the
-  connector to scroll.
+  loop by loop: each loop forms at the foot of the hang, grows to a full
+  circle and settles onto the pile. Drag the connector to scroll.
 */
 
 interface Geo {
@@ -155,20 +155,26 @@ export class Cable {
    * outside, the turned under loops a little inside, so the coil lies as a
    * neat bundle two strands wide, each loop a touch higher on the pile.
    */
-  private loopPoint(k: number, a: number): [number, number] {
+  private ring(k: number) {
     const g = this.g;
     const under = k % 2 === 1;
     const spread = g.thick * 1.45;
     const rx = g.rx + (under ? -spread : spread) * 0.5 + jitter(k, 1) * 0.35;
-    const ry = (rx / g.rx) * g.ry;
-    const cx = g.cx + jitter(k, 3) * 0.35;
-    const cy = g.cy - k * g.thick * 0.3;
-    return [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry];
+    return { cx: g.cx + jitter(k, 3) * 0.35, cy: g.cy - k * g.thick * 0.3, rx, ry: (rx / g.rx) * g.ry };
   }
 
-  /** Where loop `k` starts: each a little further round, so the crossings run along the front like a braid. */
+  private loopPoint(k: number, a: number): [number, number] {
+    const r = this.ring(k);
+    return [r.cx + Math.cos(a) * r.rx, r.cy + Math.sin(a) * r.ry];
+  }
+
+  /**
+   * Where loop `k` starts. The starts wander a little along the front right
+   * (where the cable comes down), so the crossings sit there side by side
+   * like a braid and the cable never has to reach across the pile.
+   */
   private start(k: number) {
-    return 0.3 + k * 0.34;
+    return 0.12 + ((k * 0.37) % 0.85);
   }
 
   private draw(p: number, sw: number) {
@@ -221,10 +227,38 @@ export class Cable {
       }
       crossings.push({ pts, over: (k + 1) % 2 === 0 });
     }
-    // The loop being laid now.
+    /*
+      The loop being laid now. It doesn't sweep round the pile: it forms in
+      the air at the foot of the hang, a small curl that grows into a full
+      circle, then settles down onto the pile as one, landing exactly where
+      it lies. Over, under, over: the under ones come down turned.
+    */
+    const ease = (t: number) => t * t * (3 - 2 * t);
+    const grow = ease(clamp(frac / 0.55, 0, 1));
+    const settle = ease(clamp((frac - 0.55) / 0.45, 0, 1));
+    // It rises off the pile as it forms, so nothing jumps when the last one lands.
+    const lift = g.rx * 0.62 * ease(clamp(frac / 0.3, 0, 1)) * (1 - settle);
+    const ring = this.ring(full);
+    const fx = ring.cx + (1 - grow) * ring.rx * 0.95;
+    const fy = ring.cy - lift;
+    const floatPoint = (a: number): [number, number] => [fx + Math.cos(a) * ring.rx * grow, fy + Math.sin(a) * ring.ry * grow];
     const cur0 = this.start(full);
-    const curEnd = cur0 + (TAU + 0.34 - gap) * frac;
-    const cur = frac > 0.001 ? arc(full, cur0, curEnd) : [this.loopPoint(full, cur0)];
+    const curEnd = this.start(full + 1) + TAU - gap;
+    const cur: [number, number][] = [];
+    if (grow > 0.02) {
+      const n = Math.ceil((curEnd - cur0) / 0.12);
+      for (let i = 0; i <= n; i++) cur.push(floatPoint(cur0 + ((curEnd - cur0) * i) / n));
+    } else cur.push(floatPoint(curEnd));
+    // From the top of the pile up into it: when it lands this is exactly the crossing into it.
+    const drop: [number, number][] = [];
+    for (let i = 0; i <= 10; i++) {
+      const t = i / 10;
+      const a = full ? cur0 - gap + gap * t : cur0;
+      const [ax0, ay0] = full ? this.loopPoint(full - 1, a) : this.loopPoint(0, cur0);
+      const [bx, by] = floatPoint(a);
+      const e = ease(t);
+      drop.push([ax0 + (bx - ax0) * e, ay0 + (by - ay0) * e]);
+    }
     const [qx, qy] = cur[cur.length - 1];
 
     // The tail and its female connector, lying out on the floor from under the first loop.
@@ -234,8 +268,8 @@ export class Cable {
 
     // The rise from the coil up to the hang: it leaves the coil along the loop,
     // lifts over the pile and turns up into the hang without a kink.
-    const top: [number, number] = [g.track, Math.min(yFloor - 10, Math.max(yBoot + 2, yFloor - 24))];
-    const [ax, ay] = this.loopPoint(full, curEnd + 0.05);
+    const top: [number, number] = [g.track, Math.min(qy - 9, Math.max(yBoot + 2, Math.min(yFloor, qy) - 22))];
+    const [ax, ay] = grow > 0.02 ? floatPoint(curEnd + 0.05) : [qx - 1, qy + 0.4];
     const tx = ax - qx;
     const ty = ay - qy;
     const tl = Math.hypot(tx, ty) || 1;
@@ -279,6 +313,7 @@ export class Cable {
     };
 
     tube(tail);
+    if (full % 2 === 1 && settle > 0.85) tube(drop, true);
     // Crossings into an under loop go first, so every loop lies over them and they show only between the rows.
     for (const c of crossings) if (!c.over) tube(c.pts, true);
     arcs.forEach(({ pts, k }) => {
@@ -287,7 +322,10 @@ export class Cable {
       const c = crossings[k];
       if (c?.over) tube(c.pts);
     });
-    if (cur.length > 1) tube(cur, full % 2 === 1);
+    // The new loop is above the pile until it lands; an under loop's way in goes under the pile as it touches down.
+    const under = full % 2 === 1;
+    if (!(under && settle > 0.85)) tube(drop);
+    if (cur.length > 1) tube(cur, under);
     tube([...rise, ...hang]);
 
     // Onto the page with its shadow, offset away from the light.
