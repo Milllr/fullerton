@@ -120,7 +120,18 @@ export class Showcase {
         setVar(front.el, '--sy', `${(((this.aim.y + 1) / 2) * 100).toFixed(1)}%`);
       }
     });
-    this.ticks.forEach((b, i) => b.addEventListener('click', () => this.goTo(i)));
+    this.ticks.forEach((b, i) => {
+      b.addEventListener('click', () => this.goTo(i));
+      // One tab stop for the whole row of rules; the arrow keys move along it.
+      b.addEventListener('keydown', (e) => {
+        const d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+        const j = e.key === 'Home' ? 0 : e.key === 'End' ? this.shows.length - 1 : clamp(i + d, 0, this.shows.length - 1);
+        if (!d && e.key !== 'Home' && e.key !== 'End') return;
+        e.preventDefault();
+        this.goTo(j);
+        this.ticks[j].focus({ preventScroll: true });
+      });
+    });
     this.measure();
     this.show(0, true);
   }
@@ -154,7 +165,10 @@ export class Showcase {
     this.active = i;
     const s = this.shows[i];
     setText(this.cur, pad(i + 1));
-    this.ticks.forEach((b, j) => b.setAttribute('aria-current', String(j === i)));
+    this.ticks.forEach((b, j) => {
+      b.setAttribute('aria-current', String(j === i));
+      b.tabIndex = j === i ? 0 : -1;
+    });
     const fill = () => {
       const meta = [s.short || s.network, s.year, s.kind].filter(Boolean).map((m) => `<span>${esc(m)}</span>`).join('');
       this.text.innerHTML = `

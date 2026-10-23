@@ -161,6 +161,26 @@ resize();
 addEventListener('resize', resize);
 new ResizeObserver(() => showcase.measure()).observe($('#showcase'));
 
+// The name catches the warmth near it.
+const nameEl = $('#name');
+let nameBox = { x: 0, y: 0 };
+const measureName = () => {
+  const r = nameEl.getBoundingClientRect();
+  nameBox = { x: r.left, y: r.top + scrollY };
+};
+measureName();
+addEventListener('resize', measureName);
+document.fonts.ready.then(measureName);
+function warmName() {
+  const h = warmth.hot;
+  const top = nameBox.y - scrollY;
+  if (top > innerHeight || top < -200) return;
+  setVar(nameEl, '--hx', `${(h.x - nameBox.x).toFixed(0)}px`);
+  setVar(nameEl, '--hy', `${(h.y - top).toFixed(0)}px`);
+  setVar(nameEl, '--hh', Math.min(0.85, h.h * 1.3).toFixed(2));
+  setVar(nameEl, '--hr', String(Math.round(Math.max(innerWidth, innerHeight) * 0.22)));
+}
+
 let last = performance.now();
 const start = last;
 function frame(now: number) {
@@ -175,6 +195,7 @@ function frame(now: number) {
     setVar(root, '--wy', `${fy.step(h.y, dt).toFixed(0)}px`);
     setVar(root, '--wh', h.h.toFixed(2));
   }
+  warmName();
   showcase.update(dt, workVisible && !sheet.isOpen);
   list.update(dt);
   sheet.update(dt);

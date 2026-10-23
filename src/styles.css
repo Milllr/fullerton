@@ -305,6 +305,16 @@ main {
   margin-bottom: 22px;
 }
 
+/* The name catches the warmth: where it's warm, the ink runs to a burnt amber. */
+.js .name {
+  color: transparent;
+  background:
+    radial-gradient(calc(var(--hr, 300) * 1px) circle at var(--hx, -999px) var(--hy, -999px), rgb(166 78 18 / var(--hh, 0)), transparent 72%),
+    linear-gradient(var(--ink), var(--ink));
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
 .role,
 .place {
   color: var(--ink-2);
@@ -1109,7 +1119,7 @@ a.aw-title {
 
   .plate {
     left: 5%;
-    top: 30%;
+    top: 40%;
     width: 82%;
   }
 
