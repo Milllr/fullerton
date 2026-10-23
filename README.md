@@ -63,6 +63,7 @@ The scrollbar is a DMX cable down the right edge. Its male five pin XLR is where
 
 - The address only ever holds an open show (`#/work/<show>`). The nav, skip link and brand scroll without changing it, so Back from a show never jumps the page to an old section.
 - The shader canvas is sized to the large viewport, so a phone's address bar showing or hiding doesn't resize it. A lost WebGL context is handled.
+- Scrolling stays light on big screens and integrated graphics. What scrolling changes every frame is never written as a custom property on a plate: Chrome repaints the whole element when one of its custom properties changes, even if nothing it draws does, and a plate's repaint is its blurred photo, blend layers and shadow. So each plate's fade is its own `opacity`, and its haze is a layer of its own (`will-change: opacity`) whose opacity is set directly. Plates are stacked by their place in the order rather than by a depth number, so a plate's z-index only changes when two plates really swap. Measured on an Iris Xe at 3456 by 2160, fast scrolling through the showcase: GPU raster from about 20ms a frame to about 8, style recalculation from about 9ms to 4, with the same pixels (grain aside).
 - The show sheet makes the page behind it inert, keeps the keys working after a click, and returns focus to the link it was opened from.
 - `prefers-reduced-motion` drops the grain's movement, the opening breath and every spring: everything lands where it's going at once.
 - The plates reach past the edge of the window; `main` clips them (`overflow-x: clip`, which keeps the pinning working) so phones don't scroll sideways.
@@ -97,6 +98,8 @@ Breakfast Television and Sportsnet Studios photos are by Arash Moallemi (credite
 ## The logo
 
 `src/brand/logo-mark.svg` and `logo-word.svg` are traced from his logo (potrace, from the image on his old site), filled with `currentColor` so the page can colour them. The mark is in the header and the site icon (`public/favicon.svg`); mark and wordmark together sign off the Contact section.
+
+At Contact the shades catch the light (`src/brand/glint.ts`): the window from the cover shows as a small reflection in the sunglasses, one in each lens (narrower in the far one, seen side on), clipped to the lenses' own ink. It slides across them against the pointer, the way a reflection moves in a curved lens; on a phone, or with the pointer gone, it slides as the page comes down to Contact. It comes up on the tungsten curve when Contact comes into view (dim and amber, then clear) and brightens a touch as the pointer comes near. With reduced motion it sits still, lit.
 
 ## Deploying
 

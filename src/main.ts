@@ -9,6 +9,7 @@ import { esc, setVar, Spring } from './lib/dom';
 import { Field, type Gobo } from './light/field';
 import { Warmth } from './light/warmth';
 import { Cable } from './cable/cable';
+import { Glint } from './brand/glint';
 import { renderList } from './work/list';
 import { Preview } from './work/preview';
 import { Sheet } from './work/sheet';
@@ -59,6 +60,7 @@ const warmth = new Warmth();
 const field = new Field($<HTMLCanvasElement>('#field'), reduced ? 0.026 : 0.032);
 if (!field.ok) root.classList.add('no-gl');
 const cable = new Cable($<HTMLCanvasElement>('#cable'), reduced);
+const glint = new Glint($('.cl-mark'), mark, reduced);
 
 /* ------------------------------------------------------------ the work */
 
@@ -223,9 +225,12 @@ function warmName(y: number) {
   const h = warmth.hot;
   const top = nameBox.y - y;
   if (top > innerHeight || top < -200) return;
+  // With no warmth on it there's nothing to move, and moving it would repaint the name every frame of a scroll.
+  const hh = Math.min(0.85, h.h * 1.3).toFixed(2);
+  if (hh === '0.00' && nameEl.style.getPropertyValue('--hh') === hh) return;
   setVar(nameEl, '--hx', `${(h.x - nameBox.x).toFixed(0)}px`);
   setVar(nameEl, '--hy', `${(h.y - top).toFixed(0)}px`);
-  setVar(nameEl, '--hh', Math.min(0.85, h.h * 1.3).toFixed(2));
+  setVar(nameEl, '--hh', hh);
   setVar(nameEl, '--hr', String(Math.round(Math.max(innerWidth, innerHeight) * 0.22)));
 }
 
@@ -286,6 +291,7 @@ function frame(now: number) {
   preview.update(dt);
   sheet.update(dt);
   cable.update(dt, y, docH);
+  glint.update(dt, warmth.pointer, y);
 }
 requestAnimationFrame(frame);
 route();

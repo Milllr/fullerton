@@ -20,6 +20,7 @@ interface Plate {
   el: HTMLElement;
   clear: HTMLImageElement;
   next: HTMLImageElement;
+  haze: HTMLElement;
   f: Filament;
   /** The cycling photo coming up over the current one. */
   nf: Filament;
@@ -92,6 +93,7 @@ export class Showcase {
       el,
       clear: el.querySelector('.pl-clear')!,
       next: el.querySelector('.pl-next')!,
+      haze: el.querySelector('.pl-haze')!,
       f: new Filament(0.3),
       nf: new Filament(0.3),
       loaded: false,
@@ -268,7 +270,6 @@ export class Showcase {
     }
     this.show(clamp(Math.round(pos), 0, n - 1));
     this.held += dt;
-    setVar(this.root, '--pos', (pos / Math.max(1, n - 1)).toFixed(4));
     this.bar.style.transform = `scaleX(${(pos / Math.max(1, n - 1)).toFixed(4)})`;
 
     const { w, h } = this.size;
@@ -277,6 +278,18 @@ export class Showcase {
     const aiming = this.hover === this.active && this.hover >= 0;
     const tx = this.reduced ? 0 : this.tiltX.step(aiming ? -this.aim.y * 3.2 : 0, dt);
     const ty = this.reduced ? 0 : this.tiltY.step(aiming ? this.aim.x * 4.5 : 0, dt);
+    // Stacking: nearest the front on top, the plates gone past under the ones to come. It's written as each
+    // plate's place in that order, so a plate's z-index only changes when it really swaps with another,
+    // not every few frames as it moves.
+    const depth = (i: number) => {
+      const d = i - pos;
+      return 100 - Math.round(Math.abs(d) * 4) - (d < 0 ? 2 : 0);
+    };
+    const rank: number[] = [];
+    this.plates
+      .map((_, i) => i)
+      .sort((a, b) => depth(a) - depth(b) || a - b)
+      .forEach((i, r) => (rank[i] = r + 1));
     this.plates.forEach((p, i) => {
       const d = i - pos;
       const near = d > -1.5 && d < 7.5;
@@ -286,7 +299,11 @@ export class Showcase {
       if (this.reduced) p.f.settle(front ? 1 : hov ? 0.85 : 0.08);
       else p.f.step(front ? 1 : hov ? 0.85 : 0.08, dt);
       const vis = d < 0 ? smooth(-0.9, -0.05, d) : 1 - smooth(5.5, 7.5, d);
-      setVar(p.el, '--vis', vis.toFixed(3));
+      // How far it's faded and how hazy it is change every frame of a scroll, so they're set straight on
+      // the layers they fade rather than as custom properties: a changed custom property repaints the
+      // whole plate (blur, shadow and all), where a layer's own opacity is only a fade.
+      const op = vis.toFixed(3);
+      if (p.el.style.opacity !== op) p.el.style.opacity = op;
       const hidden = vis <= 0.001;
       if (p.el.hidden !== hidden) p.el.hidden = hidden;
       if (hidden) return;
@@ -308,7 +325,7 @@ export class Showcase {
       const t = `translate3d(${x.toFixed(1)}px,${yy.toFixed(1)}px,${(z + lift).toFixed(1)}px) rotateY(${ry.toFixed(2)}deg)${tilt}`;
       p.el.classList.toggle('is-aimed', front && aiming);
       if (p.el.style.transform !== t) p.el.style.transform = t;
-      const zi = String(100 - Math.round(Math.abs(d) * 4) - (d < 0 ? 2 : 0));
+      const zi = String(rank[i]);
       if (p.el.style.zIndex !== zi) p.el.style.zIndex = zi;
 
       // The front plate steps through its photos while it's held there.
@@ -349,7 +366,8 @@ export class Showcase {
       const tint: [number, number, number] = [0, 1, 2].map((k) => 1 + (bb[k] - 1) * Math.min(1, warm)) as [number, number, number];
       setVar(p.el, '--lit', smooth(0.08, 0.9, lit).toFixed(3));
       setVar(p.el, '--tint', rgbTriplet(tint));
-      setVar(p.el, '--haze', clamp((1 - lit) * 0.46 + Math.max(0, d) * 0.045, 0, 0.82).toFixed(3));
+      const haze = clamp((1 - lit) * 0.46 + Math.max(0, d) * 0.045, 0, 0.82).toFixed(3);
+      if (p.haze.style.opacity !== haze) p.haze.style.opacity = haze;
     });
   }
 }

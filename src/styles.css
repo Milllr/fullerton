@@ -568,7 +568,6 @@ main {
   top: calc(52% - var(--pw) / 3);
   width: var(--pw);
   aspect-ratio: 3 / 2;
-  opacity: var(--vis, 1);
   background: #cdc7bd;
   overflow: hidden;
   backface-visibility: hidden;
@@ -613,9 +612,11 @@ main {
   mix-blend-mode: multiply;
 }
 
+/* The haze changes every frame of a scroll: on its own layer that's only a fade, not a fresh paint of the blur and shadow under it. */
 .pl-haze {
   background: rgb(var(--frost));
-  opacity: var(--haze, 0.4);
+  opacity: 0.4;
+  will-change: opacity;
 }
 
 /* The glass catches a warm glint where the pointer is. */
@@ -847,10 +848,24 @@ a.aw-title {
   color: var(--ink);
 }
 
+.cl-mark {
+  position: relative;
+  display: block;
+}
+
 .cl-mark svg {
   display: block;
   height: clamp(110px, 16vw, 290px);
   width: auto;
+}
+
+/* The reflection in the shades, laid exactly over the mark (src/brand/glint.ts). */
+.cl-mark .cl-glint {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
 .cl-word svg {
