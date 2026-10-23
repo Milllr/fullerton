@@ -355,8 +355,8 @@ export class Sheet {
       left = (vw - bw) / 2;
       top = (vh - bh) / 2;
     } else if (portrait) {
-      // Whole, in the clear part under the type.
-      bw = vw * 0.92;
+      // Whole, edge to edge, in the clear part under the type.
+      bw = vw;
       bh = Math.min(bw / ar, vh * 0.9, (s.im.w * 1.3) / ar);
       bw = bh * ar;
       left = (vw - bw) / 2;

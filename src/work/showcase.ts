@@ -168,7 +168,13 @@ export class Showcase {
     this.top = r.top + scrollY;
     this.height = r.height;
     this.size = { w: this.stage.clientWidth, h: this.stage.clientHeight };
+    // Depth that scales with the stage, so the stack fans the same on a big screen as on a laptop.
+    this.root.style.setProperty('--persp', `${Math.round(Math.max(1700, this.size.w * 1.9))}px`);
+    // A big front plate on a dense screen gets the full size photo.
+    this.sharp = this.size.w * 0.66 * (devicePixelRatio || 1) > 1100 ? 'full' : 'm';
   }
+
+  private sharp: 'full' | 'm' = 'm';
 
   private setHover(i: number) {
     this.hover = i;
@@ -209,9 +215,8 @@ export class Showcase {
     if (p.loaded) return;
     p.loaded = true;
     const s = this.shows[i];
-    const src = imageUrl(s.slug, keyImage(s).id, 'm');
-    p.el.querySelector<HTMLImageElement>('.pl-frost')!.src = src;
-    p.clear.src = src;
+    p.el.querySelector<HTMLImageElement>('.pl-frost')!.src = imageUrl(s.slug, keyImage(s).id, 'm');
+    p.clear.src = imageUrl(s.slug, keyImage(s).id, this.sharp);
   }
 
   /** While a show is held in front, step through its photos, each coming up over the last. */
@@ -222,7 +227,7 @@ export class Showcase {
     const k = (p.photo + 1) % s.images.length;
     const im = s.images[(keyIdx + k) % s.images.length];
     p.next.dataset.loading = '1';
-    p.next.src = imageUrl(s.slug, im.id, 'm');
+    p.next.src = imageUrl(s.slug, im.id, this.sharp);
     p.next
       .decode()
       .catch(() => {})
@@ -281,8 +286,9 @@ export class Showcase {
       if (hidden) return;
       let x: number, yy: number, z: number, ry: number;
       if (d >= 0) {
-        x = d * w * (narrow ? 0.06 : 0.072);
-        yy = -d * h * (narrow ? 0.035 : 0.05);
+        // On a phone the stack climbs more than it spreads, keeping clear of the cable.
+        x = d * w * (narrow ? 0.034 : 0.072);
+        yy = -d * h * (narrow ? 0.048 : 0.05);
         z = -d * w * 0.2;
         ry = -Math.min(d, 1) * 24 - Math.max(0, d - 1) * 1.5;
       } else {
@@ -307,7 +313,7 @@ export class Showcase {
       // Back to its own photo once it has cooled into the frost, not while it's still showing.
       if (!front && p.photo && (p.f.bright < 0.02 || hidden)) {
         p.photo = 0;
-        p.clear.src = imageUrl(this.shows[i].slug, keyImage(this.shows[i]).id, 'm');
+        p.clear.src = imageUrl(this.shows[i].slug, keyImage(this.shows[i]).id, this.sharp);
         delete p.next.dataset.up;
       }
       if (p.next.dataset.up) {
