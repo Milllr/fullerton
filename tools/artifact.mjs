@@ -1,5 +1,5 @@
 // Builds a single-page preview for hosting as a claude.ai artifact:
-// JS and CSS inlined, photos and sketches published next to it.
+// JS and CSS inlined, photos published next to it.
 import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
@@ -16,7 +16,7 @@ const css = html.match(/<link rel="stylesheet"[^>]*href="\.\/(assets\/[^"]+\.css
 if (!js || !css) throw new Error('could not find built assets');
 const code = readFileSync(join(out, js[1]), 'utf8').replace(/<\/script/gi, '<\\/script');
 const style = readFileSync(join(out, css[1]), 'utf8');
-// The inline head script (js class, Safari fader check) comes across as is.
+// The inline head script (the js class) comes across as is.
 const headScript = html.split('</head>')[0].match(/<script>[\s\S]*?<\/script>/)?.[0] ?? "<script>document.documentElement.classList.add('js');</script>";
 const body = html
   .split(/<body[^>]*>/)[1]
@@ -27,7 +27,7 @@ const body = html
 const page = `<title>Fullerton Productions</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fragment+Mono&family=Michroma&display=swap" />
 ${headScript.replace("classList.replace('no-js', 'js')", "classList.add('js')")}
 <style>${style}</style>
 ${body}
