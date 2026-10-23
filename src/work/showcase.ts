@@ -160,10 +160,14 @@ export class Showcase {
     scrollTo({ top: this.scrollFor(i), behavior: this.reduced ? 'auto' : 'smooth' });
   }
 
+  /** The stage's size, measured with the rest, so the frame never has to ask for layout. */
+  private size = { w: 0, h: 0 };
+
   measure() {
     const r = this.root.getBoundingClientRect();
     this.top = r.top + scrollY;
     this.height = r.height;
+    this.size = { w: this.stage.clientWidth, h: this.stage.clientHeight };
   }
 
   private setHover(i: number) {
@@ -230,11 +234,11 @@ export class Showcase {
       });
   }
 
-  update(dt: number, visible: boolean) {
+  /** `y` is the page's scroll position, read once at the top of the frame. */
+  update(dt: number, visible: boolean, y: number) {
     if (!visible) return;
     const n = this.shows.length;
     const vh = innerHeight;
-    const y = scrollY;
     if (y !== this.lastScroll) {
       this.lastScroll = y;
       this.still = 0;
@@ -256,8 +260,7 @@ export class Showcase {
     setVar(this.root, '--pos', (pos / Math.max(1, n - 1)).toFixed(4));
     this.bar.style.transform = `scaleX(${(pos / Math.max(1, n - 1)).toFixed(4)})`;
 
-    const w = this.stage.clientWidth;
-    const h = this.stage.clientHeight;
+    const { w, h } = this.size;
     const narrow = w < 560;
     // The front plate leans a touch towards the pointer, like a print held up to the light.
     const aiming = this.hover === this.active && this.hover >= 0;
@@ -301,7 +304,8 @@ export class Showcase {
         this.held = 0;
         this.cycle(p, i);
       }
-      if (!front && p.photo) {
+      // Back to its own photo once it has cooled into the frost, not while it's still showing.
+      if (!front && p.photo && (p.f.bright < 0.02 || hidden)) {
         p.photo = 0;
         p.clear.src = imageUrl(this.shows[i].slug, keyImage(this.shows[i]).id, 'm');
         delete p.next.dataset.up;

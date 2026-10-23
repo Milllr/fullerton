@@ -143,13 +143,13 @@ export class Warmth {
     this.live = true;
   }
 
-  update(dt: number) {
+  /** `sy` is the page's scroll position, read once at the top of the frame. */
+  update(dt: number, sy: number) {
     if (!this.cols) return;
     const { cols, rows } = this;
     dt = Math.min(dt, 0.05);
 
     // The heat is on the paper: when the page scrolls, it goes with it.
-    const sy = scrollY;
     const dy = sy - this.lastScroll;
     this.lastScroll = sy;
     if (dy) {

@@ -70,7 +70,8 @@ const cable = new Cable($<HTMLCanvasElement>('#cable'), reduced);
 const showcase = new Showcase($('#showcase'), shows, reduced);
 const list = new WorkList($('#all-list'), credits, shows, reduced);
 let workVisible = false;
-new IntersectionObserver(([e]) => (workVisible = e.isIntersecting), { rootMargin: '30% 0px' }).observe($('#showcase'));
+// The last entry is the current state when one batch holds both coming and going.
+new IntersectionObserver((es) => (workVisible = es[es.length - 1].isIntersecting), { rootMargin: '30% 0px' }).observe($('#showcase'));
 
 /* Nav links light for the section you're in. */
 {
@@ -107,19 +108,22 @@ let openedFromPage = false;
 /** The link a show was opened from, so closing it puts focus back there. */
 let opener: HTMLElement | null = null;
 
+// Close at once, so a second Escape or tap can't go back twice and leave the site.
 sheet.onClose = () => {
-  if (openedFromPage) history.back();
-  else {
-    history.replaceState(null, '', location.pathname + location.search);
-    route();
-  }
+  if (!sheet.isOpen) return;
+  sheet.close();
+  if (openedFromPage) {
+    openedFromPage = false;
+    history.back();
+  } else history.replaceState(null, '', location.pathname + location.search);
 };
 
 function route() {
   const m = location.hash.match(/^#\/work\/([\w-]+)$/);
   const i = m ? shows.findIndex((x) => x.slug === m[1]) : -1;
   if (i >= 0) {
-    if (!sheet.isOpen) sheet.open(shows[i], i + 1, opener ?? document.querySelector<HTMLElement>('.sc-open'));
+    // A different show's address while one is open (typed, or Back and Forward) opens that one.
+    if (sheet.slug !== shows[i].slug) sheet.open(shows[i], i + 1, opener ?? document.querySelector<HTMLElement>('.sc-open'));
     opener = null;
   } else if (sheet.isOpen) {
     sheet.close();
@@ -171,9 +175,9 @@ const measureName = () => {
 measureName();
 addEventListener('resize', measureName);
 document.fonts.ready.then(measureName);
-function warmName() {
+function warmName(y: number) {
   const h = warmth.hot;
-  const top = nameBox.y - scrollY;
+  const top = nameBox.y - y;
   if (top > innerHeight || top < -200) return;
   setVar(nameEl, '--hx', `${(h.x - nameBox.x).toFixed(0)}px`);
   setVar(nameEl, '--hy', `${(h.y - top).toFixed(0)}px`);
@@ -181,26 +185,32 @@ function warmName() {
   setVar(nameEl, '--hr', String(Math.round(Math.max(innerWidth, innerHeight) * 0.22)));
 }
 
+let docH = root.scrollHeight;
+new ResizeObserver(() => (docH = root.scrollHeight)).observe(document.body);
+
 let last = performance.now();
 const start = last;
 function frame(now: number) {
+  // Ask for the next frame first: whatever goes wrong in this one, the page keeps moving.
+  requestAnimationFrame(frame);
   const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
   last = now;
-  warmth.update(dt);
+  // Layout reads first, once, before anything writes.
+  const y = scrollY;
+  warmth.update(dt, y);
   const seed = reduced ? 1 : Math.floor(now / (1000 / 24));
-  if (field.ok) field.draw(reduced ? 0 : (now - start) / 1000, scrollY, seed, warmth);
+  if (field.ok) field.draw(reduced ? 0 : (now - start) / 1000, y, seed, warmth);
   else {
     const h = warmth.hot;
     setVar(root, '--wx', `${fx.step(h.x, dt).toFixed(0)}px`);
     setVar(root, '--wy', `${fy.step(h.y, dt).toFixed(0)}px`);
     setVar(root, '--wh', h.h.toFixed(2));
   }
-  warmName();
-  showcase.update(dt, workVisible && !sheet.isOpen);
+  warmName(y);
+  showcase.update(dt, workVisible && !sheet.isOpen, y);
   list.update(dt);
   sheet.update(dt);
-  cable.update(dt);
-  requestAnimationFrame(frame);
+  cable.update(dt, y, docH);
 }
 requestAnimationFrame(frame);
 route();

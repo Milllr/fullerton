@@ -45,6 +45,7 @@ export class Sheet {
     private reduced: boolean,
   ) {
     root.tabIndex = -1;
+    document.fonts?.ready.then(() => (this.typeKey = ''));
     document.addEventListener('keydown', (e) => {
       if (!this.isOpen || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === 'Escape') this.onClose();
@@ -105,6 +106,9 @@ export class Sheet {
           <p class="sh-credit"></p>
         </div>
       </div>`;
+    this.unbind?.abort();
+    this.unbind = new AbortController();
+    this.dragging = false;
     this.root.querySelector('.sh-close')!.addEventListener('click', () => this.onClose());
     this.root.querySelectorAll<HTMLButtonElement>('.sh-strip button').forEach((b) =>
       b.addEventListener('click', () => this.go(Number(b.dataset.i))),
@@ -127,8 +131,16 @@ export class Sheet {
     return Math.max(0, show.images.findIndex((im) => im.id === show.key));
   }
 
+  /** The show that's open, if any. */
+  get slug() {
+    return this.isOpen ? this.show?.slug ?? null : null;
+  }
+
   close() {
     if (this.root.hidden || this.closing != null) return;
+    this.unbind?.abort();
+    this.unbind = null;
+    this.dragging = false;
     this.root.classList.remove('is-open');
     document.documentElement.classList.remove('sheet-open');
     for (const el of this.background()) el.inert = false;
@@ -146,8 +158,12 @@ export class Sheet {
     this.returnFocus = null;
   }
 
+  /** Listeners on the sheet itself, which outlives each show: they go when the show closes. */
+  private unbind: AbortController | null = null;
+
   private bindEdge() {
     const r = this.root;
+    const signal = this.unbind!.signal;
     const along = (e: PointerEvent) => (this.portrait ? e.clientY / innerHeight : e.clientX / innerWidth);
     const slides = r.querySelector<HTMLElement>('.sh-slides')!;
     let down: { x: number; y: number; t: number; at: number } | null = null;
@@ -163,10 +179,10 @@ export class Sheet {
         }
         if (this.dragging) this.rest = along(e) + down.at;
       } else if (e.pointerType === 'mouse') this.lean = along(e) - 0.5;
-    });
+    }, { signal });
     r.addEventListener('pointerleave', (e) => {
       if (e.pointerType === 'mouse') this.lean = 0;
-    });
+    }, { signal });
     slides.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       down = { x: e.clientX, y: e.clientY, t: performance.now(), at: this.edge.x - along(e) };
@@ -190,6 +206,7 @@ export class Sheet {
     };
     slides.addEventListener('pointerup', up);
     slides.addEventListener('pointercancel', up);
+    slides.addEventListener('lostpointercapture', (e) => down && up(e));
   }
 
   private step(d: number) {
@@ -207,6 +224,8 @@ export class Sheet {
     const n = show.images.length;
     setText(this.root.querySelector('.sh-count')!, n > 1 ? `${pad(i + 1)} / ${pad(n)}` : '');
     setText(this.root.querySelector('.sh-credit')!, im.credit ? `Photo ${im.credit}` : '');
+    // The credit line can change the type's size; measure it again.
+    this.typeKey = '';
     this.root.querySelectorAll('.sh-strip button').forEach((b, j) => b.setAttribute('aria-current', String(j === i)));
     const el = document.createElement('figure');
     el.className = 'sh-slide';
@@ -261,9 +280,10 @@ export class Sheet {
       data.data[k * 4 + 3] = Math.round(a * a * (3 - 2 * a) * 190);
       if (h > 0.01) any = true;
     }
-    const dpr = Math.min(devicePixelRatio || 1, 1.5);
-    const cw = Math.min(2400, Math.round(s.box.w * dpr));
-    const ch = Math.min(2400, Math.round(s.box.h * dpr));
+    // One scale for both axes, so the melt lands under the pointer however big the box is.
+    const k = Math.min(devicePixelRatio || 1, 1.5, 2400 / s.box.w, 2400 / s.box.h);
+    const cw = Math.round(s.box.w * k);
+    const ch = Math.round(s.box.h * k);
     if (c.width !== cw || c.height !== ch) {
       c.width = cw;
       c.height = ch;
@@ -271,12 +291,12 @@ export class Sheet {
     const ctx = c.getContext('2d')!;
     ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, cw, ch);
-    if (!any || !s.img.complete) return;
+    // A photo that failed to load can't be drawn (and would throw).
+    if (!any || !s.img.complete || !s.img.naturalWidth) return;
     hx.putImageData(data, 0, 0);
     ctx.drawImage(s.img, 0, 0, cw, ch);
     ctx.globalCompositeOperation = 'destination-in';
     ctx.imageSmoothingEnabled = true;
-    const k = cw / s.box.w;
     ctx.drawImage(hc, (-CELL - s.box.l) * k, (-CELL + w.shift - s.box.t) * k, w.cols * CELL * k, w.rows * CELL * k);
   }
 

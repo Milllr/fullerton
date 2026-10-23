@@ -121,9 +121,10 @@ export class Cable {
     return this.g.top + p * this.travel();
   }
 
-  update(dt: number) {
-    const max = document.documentElement.scrollHeight - innerHeight;
-    const target = max > 0 ? clamp(scrollY / max, 0, 1) : 0;
+  /** `y` and `docH`: the scroll position and page height, read once at the top of the frame. */
+  update(dt: number, y: number, docH: number) {
+    const max = docH - innerHeight;
+    const target = max > 0 ? clamp(y / max, 0, 1) : 0;
     let p: number;
     if (this.reduced) {
       this.p.set(target);
@@ -138,8 +139,8 @@ export class Cable {
     this.lastKey = key;
     this.draw(p, sw);
     const g = this.g;
-    const y = this.connectorY(p);
-    const t = `translate3d(0,${(y - 4).toFixed(1)}px,0)`;
+    const cy = this.connectorY(p);
+    const t = `translate3d(0,${(cy - 4).toFixed(1)}px,0)`;
     if (this.grip.style.transform !== t) this.grip.style.transform = t;
     this.grip.style.height = `${(g.conn + 8).toFixed(0)}px`;
   }
