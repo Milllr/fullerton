@@ -7,7 +7,7 @@ import { CELL, type Warmth } from '../light/warmth';
   A show, opened. Its photo fills the window behind a sheet of frost that
   covers part of it (the type sits on the frost). The frost's edge leans a
   little towards the pointer, and you can drag it across the photo to clear
-  more of it or frost it over. Each photo
+  more of it or frost it over. On a phone, swipe sideways between photos. Each photo
   comes up like a lamp: dim and amber, then clear, while the one before it
   stays until the new one is up, so there's no dip between them. The
   numbers along the bottom step through the photos. And the warmth that
@@ -151,9 +151,16 @@ export class Sheet {
     const along = (e: PointerEvent) => (this.portrait ? e.clientY / innerHeight : e.clientX / innerWidth);
     const slides = r.querySelector<HTMLElement>('.sh-slides')!;
     let down: { x: number; y: number; t: number; at: number } | null = null;
+    // On a phone a sideways swipe moves between photos; up and down moves the frost edge.
+    let swipe = false;
     r.addEventListener('pointermove', (e) => {
       if (down) {
-        if (!this.dragging && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6) this.dragging = true;
+        const dx = e.clientX - down.x;
+        const dy = e.clientY - down.y;
+        if (!this.dragging && !swipe && Math.hypot(dx, dy) > 8) {
+          if (this.portrait && Math.abs(dx) > Math.abs(dy) * 1.2) swipe = true;
+          else this.dragging = true;
+        }
         if (this.dragging) this.rest = along(e) + down.at;
       } else if (e.pointerType === 'mouse') this.lean = along(e) - 0.5;
     });
@@ -163,11 +170,17 @@ export class Sheet {
     slides.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       down = { x: e.clientX, y: e.clientY, t: performance.now(), at: this.edge.x - along(e) };
+      swipe = false;
       slides.setPointerCapture(e.pointerId);
     });
     const up = (e: PointerEvent) => {
       const was = down;
       down = null;
+      if (swipe) {
+        swipe = false;
+        if (was && e.type === 'pointerup' && Math.abs(e.clientX - was.x) > 40) this.step(e.clientX < was.x ? 1 : -1);
+        return;
+      }
       if (this.dragging) {
         this.dragging = false;
         return;
