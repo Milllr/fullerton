@@ -8,9 +8,11 @@ import { clamp, Spring } from '../lib/dom';
   its crossing goes under the bundle, while the loops between cross over
   it, so the crossings along the front read over, under, over like a braid. At the top
   of the page the cable is out at full length; scroll down and the
-  connector comes down with you while the cable is laid into the coil
-  loop by loop: each loop forms at the foot of the hang, grows to a full
-  circle and settles onto the pile. Drag the connector to scroll.
+  connector comes down with you and the cable is laid into the coil the
+  way a fed rope coils on a floor: where it touches down travels round and
+  round, laying loop after loop, and the hanging cable (simulated, under
+  gravity, with a little stiffness) swings round with it. Drag the
+  connector to scroll.
 */
 
 interface Geo {
@@ -36,18 +38,28 @@ const jitter = (k: number, salt: number) => {
   return (x - Math.floor(x)) * 2 - 1;
 };
 
+const TAU = Math.PI * 2;
+/** Where loops begin and end on the coil (front right, under the hang), and how much of each loop the crossing to the next row takes. */
+const PHI0 = 0.35;
+const CROSS = 0.85 / TAU;
+/** Points in the simulated hang. */
+const N = 40;
+const ease = (a: number, b: number, v: number) => {
+  const t = clamp((v - a) / (b - a), 0, 1);
+  return t * t * (3 - 2 * t);
+};
+
 export class Cable {
   private ctx: CanvasRenderingContext2D;
   private g!: Geo;
   private dpr = 1;
   private p = new Spring(0, 2.4, 0.82);
-  private sway = new Spring(0, 1.4, 0.35);
-  private lastKey = '';
   private grip: HTMLElement;
   private dragging = false;
-  private lastP = 0;
-  /** The cable is drawn here first, then onto the page with one shadow. */
-  private buf: HTMLCanvasElement | null = null;
+  /** The hanging cable, simulated: where each point is and where it was. */
+  private rope = new Float32Array(0);
+  private last = new Float32Array(0);
+  private lastKey = '';
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -112,6 +124,7 @@ export class Cable {
       s,
       conn: 31 * s,
     };
+    this.rope = new Float32Array(0);
     this.lastKey = '';
   }
 
@@ -125,6 +138,122 @@ export class Cable {
     return this.g.top + p * this.travel();
   }
 
+  /** Over/under: the over loops lie in the outer row, the turned under loops in the inner row, each loop a touch higher on the pile. */
+  private ring(k: number) {
+    const g = this.g;
+    const under = k % 2 === 1;
+    const spread = g.thick * 1.45;
+    const rx = g.rx + (under ? -spread : spread) * 0.5 + jitter(k, 1) * 0.35;
+    return { cx: g.cx + jitter(k, 3) * 0.35, cy: g.cy - k * g.thick * 0.3, rx, ry: (rx / g.rx) * g.ry };
+  }
+
+  /**
+   * The coil as one continuous path: `phi` goes round and round from where
+   * the cable first touches the floor. Over the last stretch of each loop
+   * it crosses from that loop's row to the next one's.
+   */
+  private coilPoint(phi: number): [number, number] {
+    const u = Math.max(0, (phi - PHI0) / TAU);
+    const k = Math.floor(u);
+    const w = ease(1 - CROSS, 1, u - k);
+    const a = this.ring(k);
+    const b = this.ring(k + 1);
+    const cx = a.cx + (b.cx - a.cx) * w;
+    const cy = a.cy + (b.cy - a.cy) * w;
+    const rx = a.rx + (b.rx - a.rx) * w;
+    const ry = a.ry + (b.ry - a.ry) * w;
+    return [cx + Math.cos(phi) * rx, cy + Math.sin(phi) * ry];
+  }
+
+  private coilPath(from: number, to: number): [number, number][] {
+    const n = Math.max(2, Math.ceil((to - from) / 0.1));
+    const pts: [number, number][] = [];
+    for (let i = 0; i <= n; i++) pts.push(this.coilPoint(from + ((to - from) * i) / n));
+    return pts;
+  }
+
+  /**
+   * The hang, as a real rope: a chain of points under gravity with a little
+   * stiffness, pinned at the connector and where it meets the floor, where
+   * it leaves the coil along the way it's being laid. Moving the connector
+   * or the laying point sets it swinging, and it settles by itself.
+   * Returns whether anything is still moving.
+   */
+  private simulate(dt: number, ax: number, ay: number, bx: number, by: number, tx: number, ty: number) {
+    const dist = Math.hypot(bx - ax, by - ay);
+    const seg = (dist * 1.015 + 6) / N;
+    const R = this.rope;
+    // From the floor the cable goes on the way it's being laid for a moment, then rises.
+    const gx = bx + tx * seg * 0.9;
+    const gy = by + ty * seg * 0.9 - seg * 0.55;
+    if (R.length !== (N + 1) * 2 || this.reduced) {
+      if (R.length !== (N + 1) * 2) {
+        this.rope = new Float32Array((N + 1) * 2);
+        this.last = new Float32Array((N + 1) * 2);
+      }
+      for (let i = 0; i <= N; i++) {
+        const t = i / N;
+        this.rope[i * 2] = this.last[i * 2] = ax + (gx - ax) * t;
+        this.rope[i * 2 + 1] = this.last[i * 2 + 1] = ay + (gy - ay) * t;
+      }
+      this.rope[N * 2] = bx;
+      this.rope[N * 2 + 1] = by;
+      return !this.reduced;
+    }
+    const L = this.last;
+    const G = 1500;
+    let moving = 0;
+    let left = Math.min(dt, 0.05);
+    while (left > 1e-4) {
+      const h = Math.min(left, 1 / 120);
+      left -= h;
+      for (let i = 1; i < N; i++) {
+        const xi = i * 2;
+        const vx = (R[xi] - L[xi]) * 0.975;
+        const vy = (R[xi + 1] - L[xi + 1]) * 0.975;
+        L[xi] = R[xi];
+        L[xi + 1] = R[xi + 1];
+        R[xi] += vx;
+        R[xi + 1] += vy + G * h * h;
+      }
+      for (let it = 0; it < 12; it++) {
+        R[0] = ax;
+        R[1] = ay;
+        R[(N - 1) * 2] = gx;
+        R[(N - 1) * 2 + 1] = gy;
+        R[N * 2] = bx;
+        R[N * 2 + 1] = by;
+        for (let i = 0; i < N; i++) {
+          const a = i * 2;
+          const b = a + 2;
+          const dx = R[b] - R[a];
+          const dy = R[b + 1] - R[a + 1];
+          const l = Math.hypot(dx, dy) || 1e-6;
+          const k = ((l - seg) / l) * 0.5;
+          const fa = i === 0 || i >= N - 1 ? 0 : 1;
+          const fb = i + 1 >= N - 1 ? 0 : 1;
+          const s = fa + fb || 1;
+          R[a] += (dx * k * 2 * fa) / s;
+          R[a + 1] += (dy * k * 2 * fa) / s;
+          R[b] -= (dx * k * 2 * fb) / s;
+          R[b + 1] -= (dy * k * 2 * fb) / s;
+        }
+        // A little stiffness, so it bends like rubber cable rather than folding like string.
+        for (let i = 1; i < N - 1; i++) {
+          const a = (i - 1) * 2;
+          const m = i * 2;
+          const c = (i + 1) * 2;
+          const mx = (R[a] + R[c]) / 2;
+          const my = (R[a + 1] + R[c + 1]) / 2;
+          R[m] += (mx - R[m]) * 0.08;
+          R[m + 1] += (my - R[m + 1]) * 0.08;
+        }
+      }
+    }
+    for (let i = 1; i < N; i++) moving = Math.max(moving, Math.abs(R[i * 2] - L[i * 2]) + Math.abs(R[i * 2 + 1] - L[i * 2 + 1]));
+    return moving > 0.004;
+  }
+
   /** `y` and `docH`: the scroll position and page height, read once at the top of the frame. */
   update(dt: number, y: number, docH: number) {
     const max = docH - innerHeight;
@@ -134,211 +263,105 @@ export class Cable {
       this.p.set(target);
       p = target;
     } else p = this.p.step(target, dt);
-    // A quick move sets the hanging cable swinging a little.
-    const v = (p - this.lastP) / Math.max(dt, 1e-3);
-    this.lastP = p;
-    const sw = this.reduced ? 0 : this.sway.step(clamp(-v * 3.2, -4, 4), dt);
-    const key = `${p.toFixed(4)}|${sw.toFixed(2)}|${this.g.h}|${this.g.w}`;
-    if (key === this.lastKey) return;
-    this.lastKey = key;
-    this.draw(p, sw);
     const g = this.g;
-    const cy = this.connectorY(p);
-    const t = `translate3d(0,${(cy - 4).toFixed(1)}px,0)`;
+    const yc = this.connectorY(p);
+    // The slack is however far the connector has come down; it's laid round the coil from where the cable touches the floor.
+    const perim = 2 * Math.PI * Math.sqrt((g.rx * g.rx + g.ry * g.ry) / 2);
+    const phiL = PHI0 + ((p * this.travel()) / perim) * TAU;
+    const [bx, by] = this.coilPoint(phiL);
+    const [nx, ny] = this.coilPoint(phiL + 0.05);
+    const tl = Math.hypot(nx - bx, ny - by) || 1;
+    const moving = this.simulate(dt, g.track, yc + g.conn, bx, by, (nx - bx) / tl, (ny - by) / tl);
+    const key = `${p.toFixed(4)}|${g.w}x${g.h}`;
+    if (!moving && key === this.lastKey) return;
+    this.lastKey = key;
+    this.draw(yc, phiL);
+    const t = `translate3d(0,${(yc - 4).toFixed(1)}px,0)`;
     if (this.grip.style.transform !== t) this.grip.style.transform = t;
     this.grip.style.height = `${(g.conn + 8).toFixed(0)}px`;
   }
 
-  /**
-   * Point on loop `k` of the coil at angle `a` (0 at the right, going round
-   * the front first). Over/under coiling: the over loops lie a little
-   * outside, the turned under loops a little inside, so the coil lies as a
-   * neat bundle two strands wide, each loop a touch higher on the pile.
-   */
-  private ring(k: number) {
-    const g = this.g;
-    const under = k % 2 === 1;
-    const spread = g.thick * 1.45;
-    const rx = g.rx + (under ? -spread : spread) * 0.5 + jitter(k, 1) * 0.35;
-    return { cx: g.cx + jitter(k, 3) * 0.35, cy: g.cy - k * g.thick * 0.3, rx, ry: (rx / g.rx) * g.ry };
-  }
-
-  private loopPoint(k: number, a: number): [number, number] {
-    const r = this.ring(k);
-    return [r.cx + Math.cos(a) * r.rx, r.cy + Math.sin(a) * r.ry];
-  }
-
-  /**
-   * Where loop `k` starts. The starts wander a little along the front right
-   * (where the cable comes down), so the crossings sit there side by side
-   * like a braid and the cable never has to reach across the pile.
-   */
-  private start(k: number) {
-    return 0.12 + ((k * 0.37) % 0.85);
-  }
-
-  private draw(p: number, sw: number) {
+  private draw(yc: number, phiL: number) {
     const { ctx, dpr } = this;
     const g = this.g;
-    const buf = (this.buf ??= document.createElement('canvas'));
-    if (buf.width !== this.canvas.width || buf.height !== this.canvas.height) {
-      buf.width = this.canvas.width;
-      buf.height = this.canvas.height;
-    }
-    const b = buf.getContext('2d')!;
-    b.setTransform(dpr, 0, 0, dpr, 0, 0);
-    b.clearRect(0, 0, g.w, g.h);
-    b.lineCap = 'round';
-    b.lineJoin = 'round';
 
-    const yc = this.connectorY(p);
-    const yBoot = yc + g.conn;
-    const yFloor = g.cy - g.ry - 3;
-    // The slack is however far the connector has come down.
-    const perim = 2 * Math.PI * Math.sqrt((g.rx * g.rx + g.ry * g.ry) / 2);
-    const laid = p * this.travel();
-    const loopsF = laid / perim;
-    const full = Math.floor(loopsF);
-    const frac = loopsF - full;
-    const gap = 0.85;
-    const TAU = Math.PI * 2;
-    const arc = (k: number, from: number, to: number) => {
-      const n = Math.max(2, Math.ceil(Math.abs(to - from) / 0.12));
-      const pts: [number, number][] = [];
-      for (let i = 0; i <= n; i++) pts.push(this.loopPoint(k, from + ((to - from) * i) / n));
-      return pts;
-    };
+    // Everything to draw, in the order it's laid, each with whether it's a turned loop.
+    const runs: { pts: [number, number][]; turned: boolean }[] = [];
 
-    // The loops laid so far, and the crossing from each into the next: into an over loop it crosses over the bundle, into an under loop under it.
-    const arcs: { pts: [number, number][]; k: number }[] = [];
-    const crossings: { pts: [number, number][]; over: boolean }[] = [];
-    for (let k = 0; k < full; k++) {
-      const s0 = this.start(k);
-      const s1 = this.start(k + 1) + TAU;
-      arcs.push({ pts: arc(k, s0, s1 - gap), k });
-      // Across from this loop's row to the next one's, over the angle of the gap.
-      const pts: [number, number][] = [];
-      for (let i = 0; i <= 10; i++) {
-        const t = i / 10;
-        const e = t * t * (3 - 2 * t);
-        const [ax, ay] = this.loopPoint(k, s1 - gap + gap * t);
-        const [bx, by] = this.loopPoint(k + 1, s1 - gap + gap * t);
-        pts.push([ax + (bx - ax) * e, ay + (by - ay) * e]);
-      }
-      crossings.push({ pts, over: (k + 1) % 2 === 0 });
-    }
-    /*
-      The loop being laid now. It doesn't sweep round the pile: it forms in
-      the air at the foot of the hang, a small curl that grows into a full
-      circle, then settles down onto the pile as one, landing exactly where
-      it lies. Over, under, over: the under ones come down turned.
-    */
-    const ease = (t: number) => t * t * (3 - 2 * t);
-    const grow = ease(clamp(frac / 0.55, 0, 1));
-    const settle = ease(clamp((frac - 0.55) / 0.45, 0, 1));
-    // It rises off the pile as it forms, so nothing jumps when the last one lands.
-    const lift = g.rx * 0.62 * ease(clamp(frac / 0.3, 0, 1)) * (1 - settle);
-    const ring = this.ring(full);
-    const fx = ring.cx + (1 - grow) * ring.rx * 0.95;
-    const fy = ring.cy - lift;
-    const floatPoint = (a: number): [number, number] => [fx + Math.cos(a) * ring.rx * grow, fy + Math.sin(a) * ring.ry * grow];
-    const cur0 = this.start(full);
-    const curEnd = this.start(full + 1) + TAU - gap;
-    const cur: [number, number][] = [];
-    if (grow > 0.02) {
-      const n = Math.ceil((curEnd - cur0) / 0.12);
-      for (let i = 0; i <= n; i++) cur.push(floatPoint(cur0 + ((curEnd - cur0) * i) / n));
-    } else cur.push(floatPoint(curEnd));
-    // From the top of the pile up into it: when it lands this is exactly the crossing into it.
-    const drop: [number, number][] = [];
-    for (let i = 0; i <= 10; i++) {
-      const t = i / 10;
-      const a = full ? cur0 - gap + gap * t : cur0;
-      const [ax0, ay0] = full ? this.loopPoint(full - 1, a) : this.loopPoint(0, cur0);
-      const [bx, by] = floatPoint(a);
-      const e = ease(t);
-      drop.push([ax0 + (bx - ax0) * e, ay0 + (by - ay0) * e]);
-    }
-    const [qx, qy] = cur[cur.length - 1];
-
-    // The tail and its female connector, lying out on the floor from under the first loop.
-    const t0 = this.loopPoint(0, this.start(0));
+    // The far end and its female connector, lying out on the floor from under the first loop.
+    const start = this.coilPoint(PHI0);
     const tailEnd: [number, number] = [g.cx - g.rx * 1.55, g.cy + g.ry * 1.35];
-    const tail: [number, number][] = [tailEnd, [g.cx - g.rx * 0.6, g.cy + g.ry * 1.25], [t0[0] - 3, t0[1] + 1], t0];
+    runs.push({ pts: [tailEnd, [g.cx - g.rx * 0.6, g.cy + g.ry * 1.25], [start[0] - 3, start[1] + 1], start], turned: false });
 
-    // The rise from the coil up to the hang: it leaves the coil along the loop,
-    // lifts over the pile and turns up into the hang without a kink.
-    const top: [number, number] = [g.track, Math.min(qy - 9, Math.max(yBoot + 2, Math.min(yFloor, qy) - 22))];
-    const [ax, ay] = grow > 0.02 ? floatPoint(curEnd + 0.05) : [qx - 1, qy + 0.4];
-    const tx = ax - qx;
-    const ty = ay - qy;
-    const tl = Math.hypot(tx, ty) || 1;
-    const reach = 7 + Math.abs(qx - g.track) * 0.35;
-    const c1: [number, number] = [qx + (tx / tl) * reach, qy + (ty / tl) * reach - 4];
-    const c2: [number, number] = [top[0], top[1] + Math.max(6, (qy - top[1]) * 0.7)];
-    const rise: [number, number][] = [];
-    for (let i = 0; i <= 22; i++) {
-      const t = i / 22;
-      const u = 1 - t;
-      rise.push([
-        u * u * u * qx + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * top[0],
-        u * u * u * qy + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * top[1],
-      ]);
+    // The coil, loop by loop. The crossing into an under loop goes under everything; into an over loop, over what's there.
+    const laid = (phiL - PHI0) / TAU;
+    const loops = Math.ceil(laid);
+    const segs: { pts: [number, number][]; z: number; turned: boolean }[] = [];
+    for (let k = 0; k < loops; k++) {
+      const a0 = PHI0 + k * TAU;
+      const mainEnd = Math.min(phiL, a0 + (1 - CROSS) * TAU);
+      segs.push({ pts: this.coilPath(a0, mainEnd), z: k, turned: k % 2 === 1 });
+      if (phiL > mainEnd) {
+        const over = (k + 1) % 2 === 0;
+        segs.push({ pts: this.coilPath(mainEnd, Math.min(phiL, a0 + TAU)), z: over ? k + 0.5 : -1, turned: !over });
+      }
     }
+    segs.sort((a, c) => a.z - c.z);
+    for (const s of segs) runs.push(s);
+
+    // The hang, as simulated.
+    const R = this.rope;
     const hang: [number, number][] = [];
-    for (let i = 0; i <= 24; i++) {
-      const t = i / 24;
-      // A gentle bow when it swings, pinned at both ends.
-      hang.push([g.track + Math.sin(Math.PI * t) * sw + Math.sin(t * 9.4 + 1.3) * 0.18, top[1] + (yBoot - top[1]) * t]);
+    for (let i = 0; i <= N; i++) hang.push([R[i * 2], R[i * 2 + 1]]);
+    runs.push({ pts: hang, turned: false });
+    // Laid at the back of the coil, the cable goes down behind the front of the pile.
+    if (Math.sin(phiL) < -0.15) {
+      for (let k = 0; k < Math.floor(laid); k++) {
+        const a0 = PHI0 + k * TAU;
+        const base = TAU * Math.floor(a0 / TAU);
+        const to = Math.min(a0 + (1 - CROSS) * TAU, base + Math.PI - 0.15);
+        if (to > a0) runs.push({ pts: this.coilPath(a0, to), turned: k % 2 === 1 });
+      }
     }
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Its shadow on the paper first, offset away from the light: drawn far off the canvas so only the shadow lands.
+    ctx.save();
+    ctx.translate(10000, 0);
+    ctx.shadowColor = 'rgba(60, 38, 18, 0.2)';
+    ctx.shadowBlur = 3.5 * dpr;
+    ctx.shadowOffsetX = (-10000 + 1.6) * dpr;
+    ctx.shadowOffsetY = 2.4 * dpr;
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = g.thick;
+    for (const r of runs) this.path(ctx, r.pts);
+    ctx.restore();
 
     // Rubber: a dark edge, the body, and a sheen from the light up and to the left. A turned loop's sheen rolls across the cable once.
-    const tube = (pts: [number, number][], turned = false) => {
-      b.strokeStyle = 'rgba(12, 11, 10, 0.92)';
-      b.lineWidth = g.thick + 0.9;
-      this.path(b, pts);
-      b.strokeStyle = '#22201d';
-      b.lineWidth = g.thick;
-      this.path(b, pts);
-      b.strokeStyle = 'rgba(255, 246, 232, 0.26)';
-      b.lineWidth = Math.max(0.55, g.thick * 0.28);
+    for (const { pts, turned } of runs) {
+      if (pts.length < 2) continue;
+      ctx.strokeStyle = 'rgba(12, 11, 10, 0.92)';
+      ctx.lineWidth = g.thick + 0.9;
+      this.path(ctx, pts);
+      ctx.strokeStyle = '#22201d';
+      ctx.lineWidth = g.thick;
+      this.path(ctx, pts);
+      ctx.strokeStyle = 'rgba(255, 246, 232, 0.26)';
+      ctx.lineWidth = Math.max(0.55, g.thick * 0.28);
       const n = pts.length - 1;
       this.path(
-        b,
+        ctx,
         pts.map(([x, y], i) => {
           const o = turned ? 0.5 * Math.cos((Math.PI * i) / n) : -0.45;
           return [x + o * 0.6, y + o] as [number, number];
         }),
       );
-    };
-
-    tube(tail);
-    if (full % 2 === 1 && settle > 0.85) tube(drop, true);
-    // Crossings into an under loop go first, so every loop lies over them and they show only between the rows.
-    for (const c of crossings) if (!c.over) tube(c.pts, true);
-    arcs.forEach(({ pts, k }) => {
-      tube(pts, k % 2 === 1);
-      // A crossing into an over loop goes over everything laid so far: its edge cuts across the bundle.
-      const c = crossings[k];
-      if (c?.over) tube(c.pts);
-    });
-    // The new loop is above the pile until it lands; an under loop's way in goes under the pile as it touches down.
-    const under = full % 2 === 1;
-    if (!(under && settle > 0.85)) tube(drop);
-    if (cur.length > 1) tube(cur, under);
-    tube([...rise, ...hang]);
-
-    // Onto the page with its shadow, offset away from the light.
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    ctx.save();
-    ctx.shadowColor = 'rgba(60, 38, 18, 0.22)';
-    ctx.shadowBlur = 3.5 * dpr;
-    ctx.shadowOffsetX = 1.6 * dpr;
-    ctx.shadowOffsetY = 2.4 * dpr;
-    ctx.drawImage(buf, 0, 0);
-    ctx.restore();
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
     this.female(tailEnd[0], tailEnd[1]);
     this.male(g.track, yc);
   }

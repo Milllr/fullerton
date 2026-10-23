@@ -943,6 +943,8 @@ a.aw-title {
   inset: 0;
   margin: 0;
   opacity: var(--in, 0);
+  transform: scale(var(--z, 1));
+  will-change: opacity, transform;
 }
 
 .sh-slide::before {
@@ -960,8 +962,7 @@ a.aw-title {
   width: calc(100% + 120px);
   height: calc(100% + 120px);
   object-fit: cover;
-  filter: blur(42px) saturate(0.6) brightness(1.1);
-  opacity: 0.9;
+  filter: blur(42px) saturate(0.6) brightness(1.06);
 }
 
 .sh-box {

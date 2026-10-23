@@ -1,5 +1,5 @@
 import { imageUrl, type Show, type ShowImage } from '../data/shows';
-import { clamp, esc, setText, setVar, smooth, Spring } from '../lib/dom';
+import { clamp, esc, setText, setVar, Spring } from '../lib/dom';
 import { CELL, type Warmth } from '../light/warmth';
 
 /*
@@ -261,15 +261,13 @@ export class Sheet {
       </div>`;
     const img = el.querySelector<HTMLImageElement>('.sh-img')!;
     img.src = full;
-    try {
-      await img.decode();
-    } catch {
-      /* it will still show when it arrives */
-    }
+    // Every layer ready before it starts to show, so nothing pops in partway through the dissolve.
+    await Promise.all([...el.querySelectorAll('img')].map((im) => im.decode().catch(() => {})));
     if (token !== this.token || this.show !== show) return;
     this.root.querySelector('.sh-slides')!.append(el);
     // The photos either side, fetched now so a click changes photo at once.
-    for (const d of [1, -1]) new Image().src = imageUrl(show.slug, show.images[(i + d + n) % n].id, 'full');
+    for (const d of [1, -1])
+      for (const size of ['full', 'm'] as const) new Image().src = imageUrl(show.slug, show.images[(i + d + n) % n].id, size);
     this.slides.push({ el, t: this.reduced ? 1 : 0, im, img, melt: el.querySelector('canvas')!, box: { l: 0, t: 0, w: 0, h: 0 } });
   }
 
@@ -333,10 +331,13 @@ export class Sheet {
     const edgePx = e * span;
 
     const last = this.slides[this.slides.length - 1];
+    // A slow, even dissolve, the new photo settling from a touch closer as it comes.
     for (const s of this.slides) {
-      s.t = Math.min(1, s.t + dt / 0.9);
+      s.t = Math.min(1, s.t + dt / 1.3);
       this.place(s, portrait, edgePx, rest * span);
-      setVar(s.el, '--in', smooth(0, 1, s.t).toFixed(3));
+      const e = s.t * s.t * (3 - 2 * s.t);
+      setVar(s.el, '--in', e.toFixed(3));
+      setVar(s.el, '--z', (1 + 0.025 * Math.pow(1 - s.t, 2)).toFixed(4));
     }
     if (last && this.warmth && (this.warmth.version !== this.meltVersion || last.melt.dataset.at !== String(last.box.w))) {
       this.meltVersion = this.warmth.version;
