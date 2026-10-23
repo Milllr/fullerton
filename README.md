@@ -2,7 +2,7 @@
 
 Portfolio site for James Downey, Lighting Designer, and his company Fullerton Productions (Toronto).
 
-This is the `tungsten` rebuild: one sheet of warm paper, warmed wherever you go. The look comes from late 1990s and early 2000s tech print (grainy warm gradients, out of focus light, small precise type, crop marks and numbered timelines): highly minimal, with the interaction in the warmth itself. The earlier dark stage site (Vectorworks drawings, grandMA3 desk) is on `main`.
+One sheet of warm paper, warmed wherever you go (the `tungsten` rebuild, October 2026). The look comes from late 1990s and early 2000s tech print (grainy warm gradients, out of focus light, small precise type, crop marks and numbered timelines): highly minimal, with the interaction in the warmth itself. The earlier dark stage site (Vectorworks drawings, grandMA3 desk) is in the history up to commit 08df3b7.
 
 ## Run it
 
@@ -13,7 +13,7 @@ npm run build     # static site in dist/
 npm run preview   # serve dist/ locally
 ```
 
-Node 20 or newer. Every push to a branch gets a Cloudflare Pages preview (this branch: https://tungsten.fullerton-b9y.pages.dev).
+Node 20 or newer. main deploys to Cloudflare Pages production (https://fullerton-b9y.pages.dev); every other branch push gets a preview at `<branch>.fullerton-b9y.pages.dev`.
 
 ## What's where
 
