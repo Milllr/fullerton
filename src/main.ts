@@ -23,6 +23,10 @@ const pad = (n: number) => String(n).padStart(2, '0');
 $('#brand-mark').innerHTML = mark;
 $('#contact-logo').innerHTML = `<span class="cl-mark">${mark}</span><span class="cl-word">${word}</span>`;
 $('#cover-count').textContent = `${pad(shows.length)} shows`;
+{
+  const nets = [...new Set(shows.map((s) => s.short || s.network).filter((n) => n && n !== 'Private clients'))];
+  $('#cover-nets').innerHTML = nets.map((n) => `<li>${esc(n)}</li>`).join('');
+}
 $('#work-count').textContent = `${pad(shows.length)} shows with photos`;
 $('#all-count').textContent = `${credits.length} productions`;
 

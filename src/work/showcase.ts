@@ -32,6 +32,10 @@ export class Showcase {
   private pos = new Spring(0, 1.15, 1);
   active = -1;
   private hover = -1;
+  /** Where the pointer is over the front plate, -1..1 each way, and the tilt that follows it. */
+  private aim = { x: 0, y: 0 };
+  private tiltX = new Spring(0, 1.4, 0.8);
+  private tiltY = new Spring(0, 1.4, 0.8);
   private top = 0;
   private height = 0;
   private lastScroll = -1;
@@ -67,7 +71,7 @@ export class Showcase {
                 <img class="pl-frost" alt="" decoding="async" width="${im.w}" height="${im.h}" />
                 <img class="pl-clear" alt="" decoding="async" />
                 <img class="pl-next" alt="" decoding="async" />
-                <i class="pl-tint"></i><i class="pl-haze"></i>
+                <i class="pl-tint"></i><i class="pl-haze"></i><i class="pl-sheen"></i>
               </div>`;
             })
             .join('')}</div>
@@ -108,6 +112,13 @@ export class Showcase {
     root.addEventListener('pointermove', (e) => {
       if (e.pointerType !== 'mouse') return;
       this.label.style.transform = `translate3d(${e.clientX}px,${e.clientY}px,0)`;
+      const front = this.plates[this.active];
+      if (front && this.hover === this.active) {
+        const r = front.el.getBoundingClientRect();
+        this.aim = { x: ((e.clientX - r.left) / r.width) * 2 - 1, y: ((e.clientY - r.top) / r.height) * 2 - 1 };
+        setVar(front.el, '--sx', `${(((this.aim.x + 1) / 2) * 100).toFixed(1)}%`);
+        setVar(front.el, '--sy', `${(((this.aim.y + 1) / 2) * 100).toFixed(1)}%`);
+      }
     });
     this.ticks.forEach((b, i) => b.addEventListener('click', () => this.goTo(i)));
     this.measure();
@@ -220,6 +231,10 @@ export class Showcase {
     const w = this.stage.clientWidth;
     const h = this.stage.clientHeight;
     const narrow = w < 560;
+    // The front plate leans a touch towards the pointer, like a print held up to the light.
+    const aiming = this.hover === this.active && this.hover >= 0;
+    const tx = this.reduced ? 0 : this.tiltX.step(aiming ? -this.aim.y * 3.2 : 0, dt);
+    const ty = this.reduced ? 0 : this.tiltY.step(aiming ? this.aim.x * 4.5 : 0, dt);
     this.plates.forEach((p, i) => {
       const d = i - pos;
       const near = d > -1.5 && d < 7.5;
@@ -246,7 +261,9 @@ export class Showcase {
         ry = -d * 14;
       }
       const lift = hov ? 34 : 0;
-      const t = `translate3d(${x.toFixed(1)}px,${yy.toFixed(1)}px,${(z + lift).toFixed(1)}px) rotateY(${ry.toFixed(2)}deg)`;
+      const tilt = front ? ` rotateX(${tx.toFixed(2)}deg) rotateY(${ty.toFixed(2)}deg)` : '';
+      const t = `translate3d(${x.toFixed(1)}px,${yy.toFixed(1)}px,${(z + lift).toFixed(1)}px) rotateY(${ry.toFixed(2)}deg)${tilt}`;
+      p.el.classList.toggle('is-aimed', front && aiming);
       if (p.el.style.transform !== t) p.el.style.transform = t;
       const zi = String(100 - Math.round(Math.abs(d) * 4) - (d < 0 ? 2 : 0));
       if (p.el.style.zIndex !== zi) p.el.style.zIndex = zi;
