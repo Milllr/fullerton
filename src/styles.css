@@ -363,7 +363,7 @@ main {
 /* Tall enough to scroll through every show; the stage stays pinned while it does. */
 .showcase {
   position: relative;
-  height: calc(var(--n, 20) * 44svh + 100svh);
+  height: calc(var(--n, 20) * 38svh + 100svh);
 }
 
 .sc-pin {
@@ -879,6 +879,17 @@ a.aw-title {
   opacity: var(--lit, 0);
 }
 
+/* Where it's warm, the frost melts and the photo shows through. */
+.sh-melt {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: var(--lit, 0);
+  pointer-events: none;
+}
+
 .sh-tint {
   position: absolute;
   inset: 0;
@@ -1048,7 +1059,7 @@ a.aw-title {
   }
 
   .showcase {
-    height: calc(var(--n, 20) * 40svh + 100svh);
+    height: calc(var(--n, 20) * 34svh + 100svh);
   }
 
   .sc-pin {
@@ -1065,9 +1076,9 @@ a.aw-title {
   }
 
   .plate {
-    left: 6%;
-    top: 26%;
-    width: 72%;
+    left: 5%;
+    top: 30%;
+    width: 82%;
   }
 
   .sc-info {

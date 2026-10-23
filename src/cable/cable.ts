@@ -104,7 +104,7 @@ export class Cable {
       cy: h - (small ? 12 : 18),
       rx,
       ry: rx * 0.34,
-      thick: small ? 1.6 : 2,
+      thick: small ? 1.35 : 2,
       s,
       conn: 31 * s,
     };

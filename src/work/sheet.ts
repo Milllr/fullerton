@@ -1,6 +1,7 @@
 import { imageUrl, type Show, type ShowImage } from '../data/shows';
 import { clamp, esc, setText, setVar, smooth, Spring } from '../lib/dom';
 import { Filament, kelvinRgb, rgbTriplet } from '../light/tungsten';
+import { CELL, type Warmth } from '../light/warmth';
 
 /*
   A show, opened. Its photo fills the window behind a sheet of frost that
@@ -9,7 +10,9 @@ import { Filament, kelvinRgb, rgbTriplet } from '../light/tungsten';
   more of it or frost it over. Each photo
   comes up like a lamp: dim and amber, then clear, while the one before it
   stays until the new one is up, so there's no dip between them. The
-  numbers along the bottom step through the photos.
+  numbers along the bottom step through the photos. And the warmth that
+  follows the pointer (or a finger) melts the frost: the photo shows
+  through wherever it's been, and frosts over again as it cools.
 */
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -18,6 +21,9 @@ interface Slide {
   el: HTMLElement;
   f: Filament;
   im: ShowImage;
+  img: HTMLImageElement;
+  melt: HTMLCanvasElement;
+  box: { l: number; t: number; w: number; h: number };
 }
 
 export class Sheet {
@@ -112,8 +118,13 @@ export class Sheet {
     this.rest = null;
     this.lean = 0;
     requestAnimationFrame(() => this.root.classList.add('is-open'));
-    this.go(0);
+    this.go(this.first(show));
     this.root.querySelector<HTMLButtonElement>('.sh-close')!.focus({ preventScroll: true });
+  }
+
+  /** Open on the photo the showcase had in front. */
+  private first(show: Show) {
+    return Math.max(0, show.images.findIndex((im) => im.id === show.key));
   }
 
   close() {
@@ -192,6 +203,7 @@ export class Sheet {
       <img class="sh-back" src="${m}" alt="" />
       <div class="sh-box">
         <img class="sh-frost" src="${m}" alt="" />
+        <canvas class="sh-melt" aria-hidden="true"></canvas>
         <div class="sh-clear"><img class="sh-img" alt="${esc(show.title)}, photo ${i + 1} of ${n}" /><i class="sh-tint"></i></div>
       </div>`;
     const img = el.querySelector<HTMLImageElement>('.sh-img')!;
@@ -205,8 +217,54 @@ export class Sheet {
     const f = new Filament(0.32);
     f.theta = 0.3;
     this.root.querySelector('.sh-slides')!.append(el);
-    this.slides.push({ el, f, im });
+    this.slides.push({ el, f, im, img, melt: el.querySelector('canvas')!, box: { l: 0, t: 0, w: 0, h: 0 } });
     if (this.reduced) f.settle(1);
+  }
+
+  /** The warmth the pointer leaves, which melts the frost. */
+  warmth: Warmth | null = null;
+  private heatCanvas = document.createElement('canvas');
+  private heatData: ImageData | null = null;
+  private meltVersion = -1;
+
+  /** Draw the photo through the frost wherever it's warm. */
+  private melt(s: Slide) {
+    const w = this.warmth;
+    const c = s.melt;
+    if (!w || !w.cols || !s.box.w) return;
+    const hc = this.heatCanvas;
+    if (hc.width !== w.cols || hc.height !== w.rows) {
+      hc.width = w.cols;
+      hc.height = w.rows;
+      this.heatData = null;
+    }
+    const hx = hc.getContext('2d')!;
+    const data = (this.heatData ??= hx.createImageData(w.cols, w.rows));
+    let any = false;
+    for (let k = 0; k < w.bytes.length; k++) {
+      const h = w.bytes[k] / 255;
+      // Only real warmth melts it, and never all the way: some frost always stays.
+      const a = Math.min(1, Math.max(0, (h - 0.14) / 0.6));
+      data.data[k * 4 + 3] = Math.round(a * a * (3 - 2 * a) * 190);
+      if (h > 0.01) any = true;
+    }
+    const dpr = Math.min(devicePixelRatio || 1, 1.5);
+    const cw = Math.min(2400, Math.round(s.box.w * dpr));
+    const ch = Math.min(2400, Math.round(s.box.h * dpr));
+    if (c.width !== cw || c.height !== ch) {
+      c.width = cw;
+      c.height = ch;
+    }
+    const ctx = c.getContext('2d')!;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.clearRect(0, 0, cw, ch);
+    if (!any || !s.img.complete) return;
+    hx.putImageData(data, 0, 0);
+    ctx.drawImage(s.img, 0, 0, cw, ch);
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.imageSmoothingEnabled = true;
+    const k = cw / s.box.w;
+    ctx.drawImage(hc, (-CELL - s.box.l) * k, (-CELL + w.shift - s.box.t) * k, w.cols * CELL * k, w.rows * CELL * k);
   }
 
   update(dt: number) {
@@ -231,6 +289,11 @@ export class Sheet {
       setVar(s.el, '--in', smooth(0.02, 0.3, lit).toFixed(3));
       setVar(s.el, '--lit', smooth(0.12, 0.92, lit).toFixed(3));
       setVar(s.el, '--tint', rgbTriplet([0, 1, 2].map((k) => 1 + (bb[k] - 1) * warm) as [number, number, number]));
+    }
+    if (last && this.warmth && (this.warmth.version !== this.meltVersion || last.melt.dataset.at !== String(last.box.w))) {
+      this.meltVersion = this.warmth.version;
+      last.melt.dataset.at = String(last.box.w);
+      this.melt(last);
     }
     // Once the newest photo is up, the ones under it can go.
     if (last && last.f.bright > 0.97 && this.slides.length > 1) {
@@ -272,6 +335,7 @@ export class Sheet {
       left = clamp(restPx + (vw - restPx - bw) / 2, 0, vw - bw);
       top = (vh - bh) / 2;
     }
+    s.box = { l: left, t: top, w: bw, h: bh };
     setVar(s.el, '--bw', `${bw.toFixed(1)}px`);
     setVar(s.el, '--bh', `${bh.toFixed(1)}px`);
     setVar(s.el, '--bl', `${left.toFixed(1)}px`);

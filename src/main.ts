@@ -98,6 +98,7 @@ document.addEventListener('click', (e) => {
 /* ---------------------------------------------------------------- sheet */
 
 const sheet = new Sheet($('#sheet'), reduced);
+sheet.warmth = warmth;
 let openedFromPage = false;
 /** The link a show was opened from, so closing it puts focus back there. */
 let opener: HTMLElement | null = null;
@@ -178,6 +179,9 @@ function frame(now: number) {
 }
 requestAnimationFrame(frame);
 route();
+
+// A first breath of warmth where the light sits, so the page shows what it does before anyone moves.
+if (!reduced && !location.hash) setTimeout(() => warmth.bloom(innerWidth * 0.68, innerHeight * 0.4, 1.6, 0.55), 450);
 
 declare global {
   interface Window {

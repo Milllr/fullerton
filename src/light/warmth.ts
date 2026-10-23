@@ -31,6 +31,8 @@ export class Warmth {
   shift = 0;
   /** True when the texture needs uploading. */
   dirty = true;
+  /** Goes up every time the heat changes, for anything else that draws it. */
+  version = 0;
   /** How far across the window the warmest point is, for things that lean towards it. */
   hot = { x: 0.5, y: 0.5, h: 0 };
   private next = new Float32Array(0);
@@ -116,6 +118,7 @@ export class Warmth {
     for (let j = 0; j < Math.min(or, rows); j++)
       for (let i = 0; i < Math.min(oc, cols); i++) this.heat[j * cols + i] = old[j * oc + i];
     this.dirty = true;
+    this.version++;
   }
 
   /** Cell centres sit at ((i - 0.5) CELL, (j - 0.5) CELL + shift). */
@@ -165,6 +168,7 @@ export class Warmth {
         }
       }
       this.dirty = true;
+      this.version++;
     }
 
     const p = this.p;
@@ -216,6 +220,7 @@ export class Warmth {
     for (let k = 0; k < b.length; k++) b[k] = Math.min(255, Math.round(n[k] * 255));
     this.hot = { x: ((bi % cols) - 0.5) * CELL, y: (Math.floor(bi / cols) - 0.5) * CELL + this.shift, h: best };
     this.dirty = true;
+    this.version++;
     if (!any) this.live = false;
   }
 }
