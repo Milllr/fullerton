@@ -7,6 +7,7 @@ import { credits, shows } from './data/shows';
 import { site } from './data/site';
 import { esc, setVar, Spring } from './lib/dom';
 import { Field, type Gobo } from './light/field';
+import { Wheel } from './light/gobo';
 import { Warmth } from './light/warmth';
 import { Cable } from './cable/cable';
 import { Glint } from './brand/glint';
@@ -235,32 +236,35 @@ function warmName(y: number) {
 }
 
 /*
-  The window gobo on the cover: where its light falls (a skewed window,
-  drifting very slowly like the sun moving), fading out as the cover
-  scrolls away, and the soft shadow of the pointer in it.
+  The gobo on the cover: a profile spot off to the upper right throws it
+  across the paper, so its round beam lands keystoned. It fades out as the
+  cover scrolls away, the pointer casts a soft shadow in it, and its wheel
+  turns to the next gobo every so often (src/light/gobo.ts).
 */
 const handOn = new Spring(0, 1.6, 1);
-const gobo: Gobo = { q: [0, 0, 0, 0, 0, 0, 0, 0], strength: 0, hand: [0, 0, 0] };
-function placeGobo(t: number, y: number, dt: number) {
+const wheel = new Wheel(reduced);
+const gobo: Gobo = { q: [0, 0, 0, 0, 0, 0, 0, 0], strength: 0, hand: [0, 0, 0], wheel: 0, focus: 0 };
+function placeGobo(y: number, dt: number) {
   const w = innerWidth;
   const h = innerHeight;
   const tall = h > w * 1.05;
   const top = -y;
-  const sway = reduced ? 0 : Math.sin(t * 0.031) * 0.012;
-  const lift = reduced ? 0 : Math.sin(t * 0.023 + 1.3) * 0.01;
-  // Top left, top right, bottom right, bottom left, as fractions of the window, cast down and across from the upper right.
+  // The corners of the gate where it lands, top left round to bottom left, as fractions of the window: the far side is the wider.
   const c = tall
     ? [0.1, 0.07, 0.86, -0.01, 1.06, 0.5, 0.2, 0.6]
     : [0.46, 0.05, 0.84, -0.03, 1.0, 0.66, 0.56, 0.86];
   for (let i = 0; i < 8; i += 2) {
-    gobo.q[i] = (c[i] + sway * (i === 2 || i === 4 ? 1.6 : 1)) * w;
-    gobo.q[i + 1] = top + (c[i + 1] + lift * (i >= 4 ? 1.8 : 1)) * h;
+    gobo.q[i] = c[i] * w;
+    gobo.q[i + 1] = top + c[i + 1] * h;
   }
   gobo.strength = Math.max(0, 1 - y / (h * 0.9));
   const p = warmth.pointer;
   gobo.hand[0] = p.x;
   gobo.hand[1] = p.y;
   gobo.hand[2] = reduced ? (p.here ? 1 : 0) : handOn.step(p.here ? 1 : 0, dt);
+  wheel.update(dt, gobo.strength > 0);
+  gobo.wheel = wheel.pos;
+  gobo.focus = wheel.focus;
 }
 
 let docH = root.scrollHeight;
@@ -278,7 +282,7 @@ function frame(now: number) {
   warmth.update(dt, y);
   const seed = reduced ? 1 : Math.floor(now / (1000 / 24));
   const t = reduced ? 0 : (now - start) / 1000;
-  placeGobo(t, y, dt);
+  placeGobo(y, dt);
   if (field.ok) field.draw(t, y, seed, warmth, gobo);
   else {
     const h = warmth.hot;
@@ -302,8 +306,8 @@ if (!reduced && !location.hash) setTimeout(() => warmth.bloom(innerWidth * 0.68,
 declare global {
   interface Window {
     __fullerton?: boolean;
-    __tungsten?: { warmth: Warmth; showcase: Showcase; sheet: Sheet; cable: Cable };
+    __tungsten?: { warmth: Warmth; showcase: Showcase; sheet: Sheet; cable: Cable; wheel: Wheel };
   }
 }
 window.__fullerton = true;
-if (import.meta.env.DEV) window.__tungsten = { warmth, showcase, sheet, cable };
+if (import.meta.env.DEV) window.__tungsten = { warmth, showcase, sheet, cable, wheel };

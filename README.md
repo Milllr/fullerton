@@ -24,6 +24,7 @@ Node 20 or newer. main deploys to Cloudflare Pages production (https://fullerton
 | `src/brand/` | His logo, traced to SVG: the bulb in sunglasses and the script wordmark |
 | `src/light/warmth.ts` | The warmth the pointer (or a finger) leaves on the paper, and how it cools |
 | `src/light/field.ts` | The page itself: paper, the 2000s gradient, the warmth and film grain, in one WebGL shader |
+| `src/light/gobo.ts` | The cover's gobo wheel: when it turns to the next gobo, and its focus |
 | `src/light/tungsten.ts` | A tungsten filament: thermal lag and the black body colour, for everything that comes up like a lamp |
 | `src/work/showcase.ts` | The pinned showcase: every show as a plate in a stack you scroll through |
 | `src/work/list.ts` | All of his work in one list |
@@ -39,7 +40,7 @@ The paper is a slow 2000s gradient: warm cream with soft fields of amber, a grey
 
 The heat cools the way a tungsten filament does, quickly at first and then a long amber tail: hot reads as a pale warm white, cooling deepens to amber. It belongs to the paper, so it scrolls away with the page. It lives in a coarse grid (`src/light/warmth.ts`) that the shader reads as a texture.
 
-**The window gobo.** On the cover, late light falls through a window across the paper, the way an LD throws a window gobo onto a set: a skewed patch of warm light in six panes, the glazing bars going softer further from the window, the edges running a little warmer, and leaves drifting slowly through it. The pointer (or a finger on a phone) casts a soft shadow where it passes through the light. It drifts very slowly, like the sun moving, and scrolls away with the cover.
+**The gobo.** On the cover a profile spot off to the upper right throws a gobo across the paper. Its round beam lands keystoned, the far side wider, a little dimmer and softer than the near, with the faint colour fringes a real lens gives its edges. The fixture's wheel holds four steel gobos: a window of six panes, a leaf breakup that turns slowly, venetian blinds and leaded diamond panes. Every nine seconds (while the cover is in view) the wheel turns to the next in the open, the way a moving light does: the gobo slides out of the gate on the wheel's arc, a sliver of the wheel's own steel crosses, and the next slides in, the focus going soft as it moves and coming back sharp just after it lands (`src/light/gobo.ts`; the gobos are drawn in the shader, `src/light/field.ts`). The pointer (or a finger on a phone) casts a soft shadow where it passes through the beam, and the light scrolls away with the cover. With reduced motion the wheel stays on the window.
 
 The networks along the foot of the cover are links: hover one and a print of its first show comes up above the pointer; click it and the page glides to that show in the showcase.
 

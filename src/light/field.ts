@@ -8,11 +8,13 @@ import { CELL, type Warmth } from './warmth';
     shifting as the page scrolls.
   - Warmth: wherever the pointer has been, the paper takes on the colour of
     a tungsten lamp, pale where it's hot and deepening to amber as it cools.
-  - On the cover, a window gobo: late light through a window, thrown across
-    the paper the way an LD throws a window gobo onto a set. The glazing
-    bars go soft further from the window, leaves drift through it, and the
-    pointer (or a finger) casts a soft shadow where it passes through the
-    light.
+  - On the cover, a gobo: a profile spot off to the upper right throws it
+    across the paper, so the round beam lands keystoned, sharpest across
+    its near third and softer further away, with the faint colour fringes
+    of a real lens at its edges. Its wheel holds four steel gobos and
+    turns to the next every so often (src/light/gobo.ts); the breakup
+    turns slowly on its own. The pointer (or a finger) casts a soft
+    shadow where it passes through the light.
   - Film grain over all of it.
 */
 
@@ -37,6 +39,8 @@ uniform vec2 uQ2;
 uniform vec2 uQ3;
 uniform float uGobo;
 uniform vec3 uHand;
+uniform float uWheel;
+uniform float uFocus;
 out vec4 outColor;
 
 float hash(vec2 p) {
@@ -81,6 +85,75 @@ vec2 invBilinear(vec2 p, vec2 a, vec2 b, vec2 c, vec2 d) {
   return vec2(u, v);
 }
 
+mat2 rot(float a) {
+  float c = cos(a), s = sin(a);
+  return mat2(c, s, -s, c);
+}
+
+// A leaf, pointed at both ends: half length l, half width w, < 0 inside (a vesica, after Inigo Quilez).
+float leaf(vec2 p, float l, float w) {
+  float r = (l * l / w + w) * .5, d = r - w;
+  p = abs(p.yx);
+  return (p.y - l) * d > p.x * l ? length(p - vec2(0., l)) : length(p + vec2(d, 0.)) - r;
+}
+
+// A breakup of leaves, two layers of them scattered at every angle: > 0 between them, where the light gets through.
+// Leaves further than the blur b can reach are passed over.
+float leaves(vec2 p, float b) {
+  float d = 1e3;
+  for (float layer = 0.; layer < 2.; layer++) {
+    float s = layer < .5 ? .3 : .22;
+    vec2 q = p / s + layer * 7.3;
+    vec2 i = floor(q);
+    float reach = .85 + b / s;
+    for (float y = -1.; y <= 1.; y++)
+      for (float x = -1.; x <= 1.; x++) {
+        vec2 c = i + vec2(x, y) + layer * 31.;
+        float h = hash(c), h2 = hash(c * 1.7 + 3.1);
+        vec2 v = q - (i + vec2(x, y) + .5 + (vec2(h, h2) - .5) * .8);
+        if (dot(v, v) > reach * reach) continue;
+        d = min(d, leaf(rot(h * 18.85) * v, .55 + .3 * h2, .17 + .07 * h) * s);
+      }
+  }
+  return d;
+}
+
+// The steel of each gobo, in its own coordinates (the gate's radius is 1): how far a point is inside a cut, so > 0 lets the light through.
+float cut(float k, vec2 p, float b) {
+  if (k < .5) {
+    // A window of six panes.
+    return min(abs(p.x), min(abs(p.y - .34), abs(p.y + .34))) - .022;
+  }
+  if (k < 1.5) return leaves(rot(uTime * .02) * p, b);
+  if (k < 2.5) {
+    // Venetian blinds, the slats a little tilted, with their two ladder cords.
+    vec2 q = rot(-.05) * p;
+    float gaps = .03 - abs(fract(q.y / .14) - .5) * .14;
+    return min(gaps, abs(abs(q.x) - .46) - .006);
+  }
+  // Leaded lights: diamond panes.
+  vec2 e = .5 - abs(fract(vec2(p.x / .36 + p.y / .52, p.y / .52 - p.x / .36)) - .5);
+  return min(e.x, e.y) * .296 - .012;
+}
+
+// How much light gets through the gate at p, focus blur b: the round gate, and the slots of the wheel either side of it.
+#define SLOTS 8.
+#define WHEEL 3.1
+#define HOLE 1.12
+float gate(vec2 p, float b) {
+  float edge = 1. - length(p);
+  if (edge < -b) return 0.;
+  float open = 0.;
+  float k = floor(uWheel);
+  for (float i = 0.; i < 2.; i++) {
+    float a = (k + i - uWheel) * 6.2832 / SLOTS;
+    vec2 q = rot(-a) * (p - vec2(0., WHEEL)) + vec2(0., WHEEL);
+    if (length(q) > HOLE + b) continue;
+    open += smoothstep(-b, b, min(HOLE - length(q), cut(mod(k + i, 4.), q, b)));
+  }
+  return smoothstep(-b, b, edge) * min(open, 1.);
+}
+
 float field(vec2 px, vec2 c, float r) {
   float d = length(px - c) / r;
   return exp(-d * d * 1.6);
@@ -101,28 +174,27 @@ void main() {
   c = mix(c, vec3(.77, .81, .815), field(px, coolC, .6 * m) * .42);
   c = mix(c, vec3(.62, .52, .44), field(px, duskC, .42 * m) * .16);
 
-  // The window gobo: light through the panes, soft glazing bars, leaves, the pointer's shadow.
+  // The gobo: the beam through the gate, a little hotter in the middle and on the near side, and the pointer's shadow.
   if (uGobo > .001) {
     vec2 st = invBilinear(px, uQ0, uQ1, uQ2, uQ3);
-    float soft = .014 + .07 * clamp(st.y, 0., 1.);
-    float inside = smoothstep(0., soft, st.x) * smoothstep(1., 1. - soft, st.x) * smoothstep(0., soft, st.y) * smoothstep(1., 1. - soft, st.y);
-    float bw = .011;
-    float bs = soft * .9 + .004;
-    float bar = 1. - smoothstep(bw, bw + bs, abs(st.x - .5));
-    bar = max(bar, 1. - smoothstep(bw, bw + bs, abs(st.y - .34)));
-    bar = max(bar, 1. - smoothstep(bw, bw + bs, abs(st.y - .67)));
-    float light = inside * (1. - bar * .88);
-    float leaf = fbm(st * vec2(2.6, 3.4) + vec2(uTime * .021, -uTime * .013));
-    light *= mix(.5, 1., smoothstep(.38, .62, leaf));
+    vec2 p = (st * 2. - 1.) * 1.04;
+    float b = (.009 + .03 * abs(st.y - .3)) * (1. + uFocus * 3.5);
+    float l = gate(p, b);
+    // The lens throws red a touch wider than blue, more so towards the edge of the beam: each is the light a little
+    // further in or out along the radius, from its slope (p as screen steps, so the slope comes from the derivatives).
+    vec2 dx = dFdx(p), dy = dFdy(p);
+    float det = dx.x * dy.y - dx.y * dy.x;
+    vec2 sp = abs(det) > 1e-9 ? vec2(p.x * dy.y - p.y * dy.x, dx.x * p.y - dx.y * p.x) / det : vec2(0.);
+    float along = .008 * dot(p, p) * (dFdx(l) * sp.x + dFdy(l) * sp.y);
+    vec3 lit = clamp(vec3(l - along, l, l + along), 0., 1.);
+    float hot = mix(.84, 1., 1. - dot(p, p)) * (1.05 - .1 * st.y);
     vec2 hp = px - uHand.xy - vec2(16., 22.);
     float hand = 1. - smoothstep(.25, 1., length(hp * vec2(1., .82)) / 74.);
-    light *= 1. - hand * uHand.z * .72;
-    float g = light * uGobo;
+    vec3 g = lit * hot * (1. - hand * uHand.z * .72) * uGobo;
     c *= 1. - .035 * uGobo;
-    c = mix(c, min(vec3(1.), c * 1.05 + vec3(1., .91, .76) * .1), g * .85);
-    // The edges of the light run a little warmer, as real light through glass does.
-    float fringe = inside * (1. - inside) * 4.;
-    c += vec3(.045, .018, -.02) * fringe * uGobo;
+    c = mix(c, min(vec3(1.), c * 1.05 + vec3(1., .91, .76) * .1), g * .74);
+    // The edges of the light run a little warmer, as real light does.
+    c += vec3(.03, .012, -.014) * lit.g * (1. - lit.g) * 4. * uGobo;
   }
 
   vec2 huv = vec2(px.x / ${CELL}. + 1., (px.y - uShift) / ${CELL}. + 1.) / uGrid;
@@ -141,11 +213,13 @@ void main() {
   outColor = vec4(c, 1.);
 }`;
 
-/** The window gobo: its four corners on screen (x, y pairs, top left round to bottom left), how strong, and the pointer's shadow (x, y, how present). */
+/** The gobo: the four corners of its gate on screen (x, y pairs, top left round to bottom left), how strong, the pointer's shadow (x, y, how present), where its wheel is (in slots) and how soft its focus (0 to 1). */
 export interface Gobo {
   q: number[];
   strength: number;
   hand: [number, number, number];
+  wheel: number;
+  focus: number;
 }
 
 export class Field {
@@ -197,7 +271,7 @@ export class Field {
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
       gl.enableVertexAttribArray(0);
       gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-      for (const n of ['uRes', 'uScale', 'uTime', 'uScroll', 'uHeat', 'uGrid', 'uShift', 'uSeed', 'uGrain', 'uQ0', 'uQ1', 'uQ2', 'uQ3', 'uGobo', 'uHand'])
+      for (const n of ['uRes', 'uScale', 'uTime', 'uScroll', 'uHeat', 'uGrid', 'uShift', 'uSeed', 'uGrain', 'uQ0', 'uQ1', 'uQ2', 'uQ3', 'uGobo', 'uHand', 'uWheel', 'uFocus'])
         this.u[n] = gl.getUniformLocation(prog, n);
       this.tex = gl.createTexture();
       gl.activeTexture(gl.TEXTURE0);
@@ -240,7 +314,7 @@ export class Field {
     const gl = this.gl;
     if (!gl || !this.prog || !this.ok) return;
     if (!this.w) this.resize();
-    const key = `${this.w}x${this.h}|${time.toFixed(1)}|${scroll.toFixed(0)}|${seed}|${warmth.shift.toFixed(1)}|${gobo.strength.toFixed(3)}|${gobo.hand.map((v) => v.toFixed(1)).join()}|${gobo.q.map((v) => v.toFixed(1)).join()}`;
+    const key = `${this.w}x${this.h}|${time.toFixed(1)}|${scroll.toFixed(0)}|${seed}|${warmth.shift.toFixed(1)}|${gobo.strength.toFixed(3)}|${gobo.hand.map((v) => v.toFixed(1)).join()}|${gobo.q.map((v) => v.toFixed(1)).join()}|${gobo.wheel.toFixed(4)}|${gobo.focus.toFixed(3)}`;
     if (key === this.lastKey && !warmth.dirty) return;
     this.lastKey = key;
     if (warmth.dirty && warmth.cols) {
@@ -267,6 +341,8 @@ export class Field {
     gl.uniform2f(this.u.uQ3, q[6], q[7]);
     gl.uniform1f(this.u.uGobo, gobo.strength);
     gl.uniform3f(this.u.uHand, gobo.hand[0], gobo.hand[1], gobo.hand[2]);
+    gl.uniform1f(this.u.uWheel, gobo.wheel);
+    gl.uniform1f(this.u.uFocus, gobo.focus);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 }
