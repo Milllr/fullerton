@@ -47,7 +47,13 @@ export class Showcase {
   private cur: HTMLElement;
   private ticks: HTMLButtonElement[];
   private bar: HTMLElement;
-  private label: HTMLElement;
+  /** The words at the pointer: two of them, so the last can fade where it is as the next comes up. */
+  private labels: HTMLElement[];
+  private lab = 0;
+  private labelX = new Spring(0, 3, 1);
+  private labelY = new Spring(0, 3, 1);
+  private pointer = { x: 0, y: 0 };
+  private labelOff = 0;
   private swap = 0;
   onOpen: (show: Show, from: HTMLElement) => void = () => {};
 
@@ -82,13 +88,13 @@ export class Showcase {
           .join('')}<i class="sc-bar"></i></nav>
         <button class="sc-skip" type="button" aria-label="Skip to all work"><svg viewBox="0 0 14 40" aria-hidden="true"><path d="M7 0v37M1.5 31.5L7 37l5.5-5.5" /></svg></button>
       </div>
-      <p class="sc-label" aria-hidden="true"></p>`;
+      <p class="sc-label" aria-hidden="true"><span></span></p><p class="sc-label" aria-hidden="true"><span></span></p>`;
     this.stage = root.querySelector('.deck-stage')!;
     this.text = root.querySelector('.sc-text')!;
     this.cur = root.querySelector('.sc-cur')!;
     this.ticks = [...root.querySelectorAll<HTMLButtonElement>('.sc-ticks button')];
     this.bar = root.querySelector('.sc-bar')!;
-    this.label = root.querySelector('.sc-label')!;
+    this.labels = [...root.querySelectorAll<HTMLElement>('.sc-label')];
     this.plates = [...root.querySelectorAll<HTMLElement>('.plate')].map((el) => ({
       el,
       clear: el.querySelector('.pl-clear')!,
@@ -102,7 +108,9 @@ export class Showcase {
 
     this.plates.forEach((p, i) => {
       p.el.addEventListener('pointerenter', (e) => {
-        if (e.pointerType === 'mouse') this.setHover(i);
+        if (e.pointerType !== 'mouse') return;
+        this.pointer = { x: e.clientX, y: e.clientY };
+        this.setHover(i);
       });
       p.el.addEventListener('pointerleave', (e) => {
         if (e.pointerType === 'mouse' && this.hover === i) this.setHover(-1);
@@ -125,7 +133,7 @@ export class Showcase {
     });
     root.addEventListener('pointermove', (e) => {
       if (e.pointerType !== 'mouse') return;
-      this.label.style.transform = `translate3d(${e.clientX}px,${e.clientY}px,0)`;
+      this.pointer = { x: e.clientX, y: e.clientY };
       const front = this.plates[this.active];
       if (front && this.hover === this.active) this.aimAt(front.el, e.clientX, e.clientY);
     });
@@ -187,8 +195,27 @@ export class Showcase {
   private setHover(i: number) {
     this.hover = i;
     const s = i >= 0 ? this.shows[i] : null;
-    this.root.classList.toggle('is-pointing', !!s);
-    if (s) setText(this.label, i === this.active ? 'View the show' : s.title);
+    const text = s ? (i === this.active ? 'View the show' : s.title) : '';
+    const cur = this.labels[this.lab];
+    const was = cur.classList.contains('is-on');
+    if (s && cur.textContent === text) {
+      cur.classList.add('is-on');
+      return;
+    }
+    cur.classList.remove('is-on');
+    if (!s) {
+      if (was) this.labelOff = performance.now();
+      return;
+    }
+    // Coming up out of nothing, the words start at the pointer rather than drifting over from where they last were.
+    if (!was && performance.now() - this.labelOff > 600) {
+      this.labelX.set(this.pointer.x);
+      this.labelY.set(this.pointer.y);
+    }
+    this.lab ^= 1;
+    const next = this.labels[this.lab];
+    setText(next.firstElementChild!, text);
+    next.classList.add('is-on');
   }
 
   /** Put show `i`'s details beside the stack, fading across from the last. */
@@ -250,6 +277,11 @@ export class Showcase {
   /** `y` is the page's scroll position, read once at the top of the frame. */
   update(dt: number, visible: boolean, y: number) {
     if (!visible) return;
+    // The words trail the pointer a touch, never stuck to it.
+    const lx = this.reduced ? this.pointer.x : this.labelX.step(this.pointer.x, dt);
+    const ly = this.reduced ? this.pointer.y : this.labelY.step(this.pointer.y, dt);
+    const lt = `translate3d(${lx.toFixed(1)}px,${ly.toFixed(1)}px,0)`;
+    for (const l of this.labels) if (l.style.transform !== lt) l.style.transform = lt;
     const n = this.shows.length;
     const vh = innerHeight;
     if (y !== this.lastScroll) {

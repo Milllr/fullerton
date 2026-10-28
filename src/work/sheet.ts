@@ -134,7 +134,8 @@ export class Sheet {
     this.lean = 0;
     requestAnimationFrame(() => this.root.classList.add('is-open'));
     this.go(this.first(show));
-    this.root.querySelector<HTMLButtonElement>('.sh-close')!.focus({ preventScroll: true });
+    // The sheet itself takes focus, so the keys work and Tab comes to Close next, with no ring drawn round Close as it opens.
+    this.root.focus({ preventScroll: true });
   }
 
   /** Open on the photo the showcase had in front. */

@@ -87,6 +87,13 @@ ol {
   outline-offset: 3px;
 }
 
+/* What draws its own hairline when it's focused needs no ring round it as well. */
+.sh-close:focus-visible,
+.sc-open:focus-visible,
+.cover-nets a:focus-visible {
+  outline: none;
+}
+
 .skip {
   position: fixed;
   left: var(--gut);
@@ -642,26 +649,56 @@ main {
   opacity: calc(0.2 - var(--lit, 0) * 0.12);
 }
 
-/* What the pointer is over: the name of a plate behind, or how to open the one in front. */
+/* What the pointer is over: the name of a plate behind, or how to open the one in front. No box: the words sit
+   in a soft pool of frost on the glass, eased away to nothing at its edges, that mists up as they come and clears
+   as they go. */
 .sc-label {
   position: fixed;
   left: 0;
   top: 0;
   z-index: 40;
-  translate: 18px 14px;
-  padding: 7px 10px 6px;
+  margin: 0;
+  padding: 26px 70px;
+  translate: -44px -6px;
   font-size: var(--small);
   white-space: nowrap;
-  background: rgb(var(--frost) / 0.86);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  background: rgb(var(--frost) / 0.8);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  /* Round and eased all the way out, so there's no edge or corner to it anywhere. */
+  --feather: radial-gradient(
+    closest-side,
+    #000 40%,
+    rgb(0 0 0 / 0.9) 54%,
+    rgb(0 0 0 / 0.58) 70%,
+    rgb(0 0 0 / 0.22) 85%,
+    rgb(0 0 0 / 0.05) 95%,
+    transparent
+  );
+  -webkit-mask: var(--feather);
+  mask: var(--feather);
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.25s;
+  transition: opacity 0.45s ease-out;
 }
 
-.showcase.is-pointing .sc-label {
+.sc-label span {
+  display: block;
+  translate: 0 3px;
+  filter: blur(1.5px);
+  transition:
+    translate 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+    filter 0.5s ease-out;
+}
+
+.sc-label.is-on {
   opacity: 1;
+  transition-duration: 0.6s;
+}
+
+.sc-label.is-on span {
+  translate: 0 0;
+  filter: none;
 }
 
 .sc-ticks {
@@ -1101,12 +1138,27 @@ a.aw-title {
   color: var(--ink-2);
 }
 
+/* Close is just the word; a hairline draws in under it on hover or from the keyboard, like the links. */
 .sh-close {
-  background: none;
+  position: relative;
   border: 0;
-  padding: 2px 0;
+  padding: 2px 0 4px;
   cursor: pointer;
   color: var(--ink);
+  background: linear-gradient(var(--ink), var(--ink)) 0 100% / 0 1px no-repeat;
+  transition: background-size 0.5s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+
+.sh-close:hover,
+.sh-close:focus-visible {
+  background-size: 100% 1px;
+}
+
+/* Room for a thumb round the word, with nothing drawn. */
+.sh-close::after {
+  content: '';
+  position: absolute;
+  inset: -14px -16px;
 }
 
 .sh-title {
